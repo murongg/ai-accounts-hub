@@ -18,5 +18,11 @@ test("allows opener.openPath for the desktop capability", () => {
   );
 
   assert.ok(openerScope && typeof openerScope === "object");
-  assert.deepEqual(openerScope.allow, [{ path: "$APPDATA/codex" }, { path: "$APPDATA/codex/**" }]);
+
+  const scopedPermission = openerScope as {
+    identifier: string;
+    allow?: Array<{ path?: string }>;
+  };
+
+  assert.deepEqual(scopedPermission.allow, [{ path: "$APPDATA/codex" }, { path: "$APPDATA/codex/**" }]);
 });
