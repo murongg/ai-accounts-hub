@@ -1,0 +1,15 @@
+<svg width="320" height="220" viewBox="0 0 320 220" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="320" height="220" rx="32" fill="#F8FAFC"/>
+  <ellipse cx="160" cy="188" rx="84" ry="16" fill="#E2E8F0"/>
+  <rect x="62" y="54" width="114" height="104" rx="24" fill="white" stroke="#CBD5E1" stroke-width="2"/>
+  <rect x="144" y="36" width="114" height="120" rx="28" fill="white" stroke="#C7D2FE" stroke-width="2"/>
+  <rect x="166" y="58" width="70" height="12" rx="6" fill="#E0E7FF"/>
+  <rect x="166" y="80" width="42" height="10" rx="5" fill="#E2E8F0"/>
+  <rect x="166" y="128" width="70" height="10" rx="5" fill="#E2E8F0"/>
+  <circle cx="201" cy="108" r="24" fill="#EEF2FF"/>
+  <circle cx="201" cy="108" r="16" stroke="#5E5CE6" stroke-width="8" stroke-dasharray="72 28"/>
+  <circle cx="107" cy="92" r="17" fill="#F1F5F9"/>
+  <path d="M107 84C110.866 84 114 87.134 114 91C114 94.866 110.866 98 107 98C103.134 98 100 94.866 100 91C100 87.134 103.134 84 107 84Z" fill="#94A3B8"/>
+  <path d="M92 119C92 111.82 97.82 106 105 106H109C116.18 106 122 111.82 122 119V121H92V119Z" fill="#CBD5E1"/>
+  <path d="M247 82L258 93L247 104" stroke="#5E5CE6" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

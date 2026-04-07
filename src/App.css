@@ -1,0 +1,21 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: bumblebee --default, luxury --prefersdark;
+}
+
+html,
+body,
+#root {
+  min-height: 100vh;
+  background-color: var(--color-base-200);
+  color: var(--color-base-content);
+}
+
+body {
+  margin: 0;
+  font-family:
+    "SF Pro Display",
+    "PingFang SC",
+    "Helvetica Neue",
+    sans-serif;
+}

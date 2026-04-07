@@ -1,0 +1,340 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: Release tag to build and publish, for example v0.1.0
+        required: true
+        type: string
+      draft:
+        description: Publish as draft release
+        required: false
+        default: false
+        type: boolean
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+env:
+  APP_NAME: ai-accounts-hub
+  NODE_VERSION: 22
+  PNPM_VERSION: 10.30.3
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS (Apple Silicon)
+            artifact_name: macOS-apple-silicon
+            os: macos-15
+            target: aarch64-apple-darwin
+            asset_arch: aarch64
+            updater_platform: darwin-aarch64
+            args: --target aarch64-apple-darwin
+          - name: macOS (Intel)
+            artifact_name: macOS-intel
+            os: macos-15-intel
+            target: x86_64-apple-darwin
+            asset_arch: x64
+            updater_platform: darwin-x86_64
+            args: --target x86_64-apple-darwin
+          - name: Linux (x64)
+            artifact_name: Linux-x64
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            updater_platform: linux-x86_64
+            args: --target x86_64-unknown-linux-gnu
+          - name: Windows (x64)
+            artifact_name: Windows-x64
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            updater_platform: windows-x86_64
+            args: --target x86_64-pc-windows-msvc
+
+    name: Build ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Validate release version
+        run: node scripts/release/validate-release-version.mjs
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Restore Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: ./src-tauri -> target
+
+      - name: Install Linux system dependencies
+        if: matrix.os == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            file \
+            libayatana-appindicator3-dev \
+            libwebkit2gtk-4.1-dev \
+            librsvg2-dev \
+            libssl-dev \
+            libxdo-dev \
+            patchelf
+
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and bundle app
+        id: tauri_build
+        uses: tauri-apps/tauri-action@v0.6.0
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        with:
+          args: ${{ matrix.args }}
+
+      - name: Repack macOS DMG with repair helper
+        if: startsWith(matrix.os, 'macos-') && hashFiles('scripts/macos/repack-dmg-with-fix.sh') != ''
+        id: repack_macos_dmg
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="$(node -p "require('./package.json').version")"
+          APP_PATH="$(find "src-tauri/target/${{ matrix.target }}/release/bundle" -type d -name '${{ env.APP_NAME }}.app' | head -n 1)"
+
+          if [[ -z "${APP_PATH}" ]]; then
+            echo "${{ env.APP_NAME }}.app not found in bundle output" >&2
+            exit 1
+          fi
+
+          OUTPUT_DMG="src-tauri/target/${{ matrix.target }}/release/bundle/dmg/${{ env.APP_NAME }}_${VERSION}_${{ matrix.asset_arch }}.dmg"
+
+          bash scripts/macos/repack-dmg-with-fix.sh \
+            "${APP_PATH}" \
+            "${OUTPUT_DMG}" \
+            "${{ env.APP_NAME }}"
+
+          echo "dmg_path=${OUTPUT_DMG}" >> "${GITHUB_OUTPUT}"
+
+      - name: Rename macOS updater bundle
+        if: startsWith(matrix.os, 'macos-')
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="$(node -p "require('./package.json').version")"
+          BUNDLE_DIR="src-tauri/target/${{ matrix.target }}/release/bundle/macos"
+          SOURCE_BUNDLE="$(find "${BUNDLE_DIR}" -maxdepth 1 -type f -name '*.app.tar.gz' | head -n 1)"
+
+          if [[ -z "${SOURCE_BUNDLE}" ]]; then
+            echo "macOS updater bundle not found" >&2
+            exit 1
+          fi
+
+          TARGET_BUNDLE="${BUNDLE_DIR}/${{ env.APP_NAME }}_${VERSION}_${{ matrix.asset_arch }}.app.tar.gz"
+
+          if [[ "${SOURCE_BUNDLE}" != "${TARGET_BUNDLE}" ]]; then
+            mv "${SOURCE_BUNDLE}" "${TARGET_BUNDLE}"
+          fi
+
+          if [[ -f "${SOURCE_BUNDLE}.sig" && "${SOURCE_BUNDLE}.sig" != "${TARGET_BUNDLE}.sig" ]]; then
+            mv "${SOURCE_BUNDLE}.sig" "${TARGET_BUNDLE}.sig"
+          fi
+
+      - name: Normalize artifact paths
+        id: artifact_paths
+        shell: bash
+        env:
+          ARTIFACT_PATHS_JSON: ${{ steps.tauri_build.outputs.artifactPaths }}
+          CUSTOM_DMG_PATH: ${{ steps.repack_macos_dmg.outputs.dmg_path }}
+          BUNDLE_ROOT: src-tauri/target/${{ matrix.target }}/release/bundle
+        run: node scripts/release/normalize-artifact-paths.mjs
+
+      - name: Create updater metadata
+        shell: bash
+        env:
+          ARTIFACT_PATHS_RAW: ${{ steps.artifact_paths.outputs.paths }}
+          UPDATER_PLATFORM: ${{ matrix.updater_platform }}
+        run: |
+          set -euo pipefail
+
+          artifact_paths=()
+          while IFS= read -r artifact_path; do
+            artifact_paths+=("${artifact_path}")
+          done <<< "${ARTIFACT_PATHS_RAW}"
+          sig_path=""
+          preferred_patterns=()
+
+          case "${UPDATER_PLATFORM}" in
+            darwin-*)
+              preferred_patterns=('*.app.tar.gz.sig')
+              ;;
+            linux-*)
+              preferred_patterns=('*.AppImage.tar.gz.sig' '*.tar.gz.sig')
+              ;;
+            windows-*)
+              preferred_patterns=('*setup.exe.sig' '*.msi.sig' '*nsis*.zip.sig' '*msi*.zip.sig' '*.exe.sig' '*.zip.sig')
+              ;;
+          esac
+
+          for pattern in "${preferred_patterns[@]}"; do
+            for artifact_path in "${artifact_paths[@]}"; do
+              [[ -z "${artifact_path}" ]] && continue
+
+              if [[ "${artifact_path}" == ${pattern} ]]; then
+                sig_path="${artifact_path}"
+                break 2
+              fi
+            done
+          done
+
+          for artifact_path in "${artifact_paths[@]}"; do
+            [[ -z "${artifact_path}" ]] && continue
+
+            if [[ "${artifact_path}" == *.sig ]]; then
+              sig_path="${artifact_path}"
+              break
+            fi
+          done
+
+          if [[ -z "${sig_path}" || ! -f "${sig_path%.sig}" ]]; then
+            echo "No updater signature artifact found for ${{ matrix.name }}" >&2
+            exit 1
+          fi
+
+          bundle_path="${sig_path%.sig}"
+
+          cat > release-metadata.json <<EOF
+          {
+            "updaterPlatform": "${UPDATER_PLATFORM}",
+            "bundleName": "$(basename "${bundle_path}")",
+            "signatureName": "$(basename "${sig_path}")"
+          }
+          EOF
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v6
+        if: steps.artifact_paths.outputs.paths != ''
+        with:
+          name: ${{ env.APP_NAME }}-${{ matrix.artifact_name }}-bundles
+          path: |
+            ${{ steps.artifact_paths.outputs.paths }}
+            release-metadata.json
+          if-no-files-found: error
+
+  publish_release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Determine changelog range
+        id: changelog_range
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          CURRENT_TAG="${RELEASE_TAG}"
+          PREVIOUS_TAG="$(git describe --tags --abbrev=0 "${GITHUB_SHA}^" 2>/dev/null || true)"
+
+          if [[ -n "${PREVIOUS_TAG}" ]]; then
+            echo "from_ref=${PREVIOUS_TAG}" >> "${GITHUB_OUTPUT}"
+          else
+            FIRST_COMMIT="$(git rev-list --max-parents=0 HEAD | tail -n 1)"
+            echo "from_ref=${FIRST_COMMIT}" >> "${GITHUB_OUTPUT}"
+          fi
+
+          echo "to_ref=${CURRENT_TAG}" >> "${GITHUB_OUTPUT}"
+        env:
+          RELEASE_TAG: ${{ env.RELEASE_TAG }}
+
+      - name: Generate release changelog
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          npx changelogen@latest \
+            --from "${{ steps.changelog_range.outputs.from_ref }}" \
+            --to "${{ steps.changelog_range.outputs.to_ref }}" \
+            --no-output \
+            > release-notes.md
+
+      - name: Download bundled artifacts
+        uses: actions/download-artifact@v5
+        with:
+          pattern: ${{ env.APP_NAME }}-*-bundles
+          path: release-assets
+
+      - name: Generate updater manifest
+        env:
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RELEASE_ASSETS_ROOT: release-assets
+          RELEASE_NOTES_PATH: release-notes.md
+          RELEASE_VERSION: ${{ env.RELEASE_TAG }}
+        run: |
+          export RELEASE_VERSION="${RELEASE_VERSION#v}"
+          node scripts/release/generate-updater-manifest.mjs
+
+      - name: Collect release files
+        id: release_files
+        shell: bash
+        run: |
+          set -euo pipefail
+          find release-assets -type f ! -name 'release-metadata.json' | sort > release-files.txt
+
+          {
+            echo 'paths<<__FILES__'
+            cat release-files.txt
+            echo '__FILES__'
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.APP_NAME }} ${{ env.RELEASE_TAG }}
+          body_path: release-notes.md
+          draft: ${{ github.event_name == 'workflow_dispatch' && inputs.draft || false }}
+          prerelease: ${{ contains(env.RELEASE_TAG, '-') }}
+          overwrite_files: true
+          fail_on_unmatched_files: true
+          files: ${{ steps.release_files.outputs.paths }}
