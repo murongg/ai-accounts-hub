@@ -4,7 +4,7 @@
   "version": "0.1.2",
   "type": "module",
   "scripts": {
-    "bump": "bumpp package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml",
+    "bump": "bumpp package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml --execute \"node scripts/release/sync-cargo-lock.mjs\"",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
