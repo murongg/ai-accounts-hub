@@ -1,7 +1,7 @@
 export function BrandIcon({
   className,
   decorative = true,
-  label = "AI Hub",
+  label = "AI Accounts Hub",
 }: {
   className?: string;
   decorative?: boolean;

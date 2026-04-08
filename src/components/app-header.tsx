@@ -43,10 +43,10 @@ function AppHeaderComponent({
       <div className="pointer-events-none flex h-16 items-center justify-between px-6 lg:px-10">
         <div className="pointer-events-auto flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-base-100 shadow-md ring-1 ring-base-300">
-            <BrandIcon className="h-6 w-6" decorative={false} label="AI Hub" />
+            <BrandIcon className="h-6 w-6" decorative={false} label="AI Accounts Hub" />
           </div>
           <div>
-            <span className="block text-lg font-semibold tracking-tight text-base-content">AI Hub</span>
+            <span className="block text-lg font-semibold tracking-tight text-base-content">AI Accounts Hub</span>
             <span className="hidden text-xs text-base-content/50 sm:block">{copy.header.subtitle}</span>
           </div>
         </div>

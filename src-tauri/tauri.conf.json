@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "ai-accounts-hub",
+  "productName": "AI Accounts Hub",
   "version": "0.1.0",
   "identifier": "com.murong.ai-accounts-hub",
   "build": {
