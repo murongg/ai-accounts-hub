@@ -4,7 +4,7 @@
   "version": "0.1.1",
   "type": "module",
   "scripts": {
-    "bump": "bumpp",
+    "bump": "bumpp package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml",
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
