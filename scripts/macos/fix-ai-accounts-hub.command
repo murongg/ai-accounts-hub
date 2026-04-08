@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-APP_NAME="ai-accounts-hub.app"
+APP_NAME="AI Accounts Hub.app"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 SOURCE_APP="${SCRIPT_DIR}/${APP_NAME}"
 SYSTEM_TARGET="/Applications/${APP_NAME}"
