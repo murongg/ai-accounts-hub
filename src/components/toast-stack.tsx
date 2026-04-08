@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { CircleAlert, CircleCheckBig, Info, X } from "lucide-react";
 
 export interface ToastItem {
@@ -6,7 +7,7 @@ export interface ToastItem {
   message: string;
 }
 
-export function ToastStack({
+function ToastStackComponent({
   items,
   onDismiss,
 }: {
@@ -51,3 +52,5 @@ export function ToastStack({
     </div>
   );
 }
+
+export const ToastStack = memo(ToastStackComponent);

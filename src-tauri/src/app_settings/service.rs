@@ -26,6 +26,12 @@ pub fn clear_all_app_data(paths: &CodexAccountPaths) -> Result<ClearAllDataResul
             .map_err(|error| format!("failed to remove app codex data dir: {error}"))?;
     }
 
+    let gemini_data_dir = paths.app_data_dir.join("gemini");
+    if gemini_data_dir.exists() {
+        fs::remove_dir_all(&gemini_data_dir)
+            .map_err(|error| format!("failed to remove app gemini data dir: {error}"))?;
+    }
+
     let app_settings_path = paths.app_data_dir.join("settings.json");
     if app_settings_path.exists() {
         fs::remove_file(&app_settings_path)

@@ -1,12 +1,18 @@
+import { memo } from "react";
 import { Plus, RefreshCw } from "lucide-react";
 
 import { AccountCard } from "../components/account-card";
 import { EmptyStateCard } from "../components/empty-state-card";
-import { getAppCopy } from "../lib/appCopy";
-import { formatQuotaValue, formatTimestamp } from "../lib/codexAccountDisplay";
-import { resolveAccountsPageState } from "../lib/accountsPageState";
-import { formatRefreshCountdown } from "../lib/refreshCountdown";
+import { getI18n } from "../lib/i18n";
+import {
+  buildGeminiQuotaCards,
+  formatRefreshCountdown,
+  formatTimestamp,
+  getAccountCardPresentation,
+} from "../lib/accounts-display";
+import { resolveAccountsPageState } from "../lib/accounts-workspace";
 import type { CodexAccountSummary } from "../types/codex";
+import type { GeminiAccountSummary } from "../types/gemini";
 import type { AppLanguage } from "../types/settings";
 
 export interface AccountsPageProps {
@@ -17,12 +23,13 @@ export interface AccountsPageProps {
   totalCount: number;
   idleCount: number;
   normalizedQuery: string;
-  visibleAccounts: CodexAccountSummary[];
+  visibleAccounts: Array<CodexAccountSummary | GeminiAccountSummary>;
   isLoadingAccounts: boolean;
   isAddingAccount: boolean;
   switchingAccountId: string | null;
   deletingAccountId: string | null;
   isRefreshingUsage: boolean;
+  actionsDisabled: boolean;
   nowMs: number;
   onTabChange: (tab: string) => void;
   onRefreshUsage: () => void;
@@ -31,7 +38,7 @@ export interface AccountsPageProps {
   onDeleteAccount: (accountId: string) => void;
 }
 
-export function AccountsPage({
+function AccountsPageComponent({
   activeTab,
   activePlatform,
   language,
@@ -45,6 +52,7 @@ export function AccountsPage({
   switchingAccountId,
   deletingAccountId,
   isRefreshingUsage,
+  actionsDisabled,
   nowMs,
   onTabChange,
   onRefreshUsage,
@@ -52,7 +60,8 @@ export function AccountsPage({
   onSwitchAccount,
   onDeleteAccount,
 }: AccountsPageProps) {
-  const copy = getAppCopy(language);
+  const copy = getI18n(language);
+  const cardPresentation = getAccountCardPresentation(activePlatform);
   const stateCard = resolveAccountsPageState({
     activePlatform,
     isLoading: isLoadingAccounts,
@@ -73,6 +82,26 @@ export function AccountsPage({
     idle: idleCount,
   } as const;
 
+  function formatGeminiAuthType(authType: string | null) {
+    if (!authType) {
+      return copy.accounts.planUnknown;
+    }
+
+    if (authType === "oauth-personal") {
+      return language === "en-US" ? "Google OAuth" : "Google OAuth";
+    }
+
+    return authType;
+  }
+
+  function hasGeminiUsage(account: GeminiAccountSummary) {
+    return (
+      account.pro_remaining_percent !== null ||
+      account.flash_remaining_percent !== null ||
+      account.flash_lite_remaining_percent !== null
+    );
+  }
+
   return (
     <>
       <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -84,7 +113,7 @@ export function AccountsPage({
           <button
             type="button"
             onClick={onRefreshUsage}
-            disabled={isLoadingAccounts || isAddingAccount || isRefreshingUsage}
+            disabled={actionsDisabled || isLoadingAccounts || isAddingAccount || isRefreshingUsage}
             className="btn btn-sm h-11 rounded-2xl border border-base-300 bg-base-100 px-4 text-sm font-medium text-base-content/70 shadow-sm hover:bg-base-100 disabled:border-base-300 disabled:bg-base-200 disabled:text-base-content/35"
           >
             <RefreshCw size={16} className={isRefreshingUsage ? "animate-spin" : ""} />
@@ -93,7 +122,7 @@ export function AccountsPage({
           <button
             type="button"
             onClick={onAddAccount}
-            disabled={isAddingAccount || switchingAccountId !== null}
+            disabled={actionsDisabled || isAddingAccount || switchingAccountId !== null}
             className="btn btn-primary btn-sm h-11 rounded-2xl px-4 text-sm font-medium shadow-sm disabled:bg-primary/50 disabled:text-primary-content/80"
           >
             <Plus size={16} />
@@ -135,39 +164,111 @@ export function AccountsPage({
       {stateCard ? (
         <EmptyStateCard title={stateCard.title} description={stateCard.description} />
       ) : (
-        <div className="grid grid-cols-1 justify-start gap-5 sm:[grid-template-columns:repeat(auto-fit,minmax(280px,296px))]">
+        <div className={cardPresentation.gridClass}>
           {visibleAccounts.map((account) => (
-            <AccountCard
-              key={account.id}
-              language={language}
-              email={account.email}
-              plan={account.plan ?? copy.accounts.planUnknown}
-              isActive={account.is_active}
-              isAlive={!account.needs_relogin}
-              q1Percent={account.five_hour_remaining_percent ?? 0}
-              q1Label={copy.accounts.q1Label}
-              q1Value={formatQuotaValue(account.five_hour_remaining_percent, "5h", language)}
-              q1Time={formatRefreshCountdown(account.five_hour_refresh_at, nowMs, language)}
-              q2Percent={account.weekly_remaining_percent ?? 0}
-              q2Label={copy.accounts.q2Label}
-              q2Value={formatQuotaValue(account.weekly_remaining_percent, "week", language)}
-              q2Time={formatRefreshCountdown(account.weekly_refresh_at, nowMs, language)}
-              lastSync={formatTimestamp(account.last_synced_at, copy.accounts.waitingFirstSync, language)}
-              primaryLabel={
-                account.is_active
-                  ? copy.accounts.activePrimary
-                  : switchingAccountId === account.id
-                    ? copy.accounts.switchingPrimary
-                    : copy.accounts.switchPrimary
-              }
-              primaryDisabled={account.is_active || switchingAccountId === account.id || isAddingAccount}
-              secondaryDisabled={deletingAccountId === account.id || isAddingAccount}
-              onPrimaryClick={() => onSwitchAccount(account.id)}
-              onSecondaryClick={() => onDeleteAccount(account.id)}
-            />
+            activePlatform === "gemini" ? (
+              (() => {
+                const geminiAccount = account as GeminiAccountSummary;
+                const usageAvailable = hasGeminiUsage(geminiAccount);
+
+                return (
+                  <AccountCard
+                    key={account.id}
+                    accountId={account.id}
+                    language={language}
+                    email={account.email}
+                    plan={geminiAccount.plan ?? "Google"}
+                    size={cardPresentation.cardSize}
+                    isActive={account.is_active}
+                    isAlive={!(geminiAccount.needs_relogin ?? false)}
+                    quotas={
+                      usageAvailable ? buildGeminiQuotaCards(geminiAccount, nowMs, language) : undefined
+                    }
+                    detailRows={
+                      usageAvailable
+                        ? undefined
+                        : [
+                            {
+                              label: copy.accounts.geminiAuthTypeLabel,
+                              value: formatGeminiAuthType(geminiAccount.auth_type),
+                            },
+                          ]
+                    }
+                    activityLabel={usageAvailable ? copy.card.syncedPrefix : copy.accounts.authenticatedPrefix}
+                    activityValue={formatTimestamp(
+                      usageAvailable ? geminiAccount.last_synced_at : geminiAccount.last_authenticated_at,
+                      copy.accounts.waitingFirstSync,
+                      language,
+                    )}
+                    activityKind={usageAvailable ? "sync" : "auth"}
+                    primaryLabel={
+                      account.is_active
+                        ? copy.accounts.activePrimary
+                        : switchingAccountId === account.id
+                          ? copy.accounts.switchingPrimary
+                          : copy.accounts.switchPrimary
+                    }
+                    primaryDisabled={account.is_active || switchingAccountId === account.id || isAddingAccount}
+                    secondaryDisabled={deletingAccountId === account.id || isAddingAccount}
+                    onPrimaryClick={onSwitchAccount}
+                    onSecondaryClick={onDeleteAccount}
+                  />
+                );
+              })()
+            ) : (
+              <AccountCard
+                key={account.id}
+                accountId={account.id}
+                language={language}
+                email={account.email}
+                plan={(account as CodexAccountSummary).plan ?? copy.accounts.planUnknown}
+                size={cardPresentation.cardSize}
+                isActive={account.is_active}
+                isAlive={!((account as CodexAccountSummary).needs_relogin ?? false)}
+                quotas={[
+                  {
+                    percent: (account as CodexAccountSummary).five_hour_remaining_percent ?? 0,
+                    label: copy.accounts.q1Label,
+                    time: formatRefreshCountdown(
+                      (account as CodexAccountSummary).five_hour_refresh_at,
+                      nowMs,
+                      language,
+                    ),
+                  },
+                  {
+                    percent: (account as CodexAccountSummary).weekly_remaining_percent ?? 0,
+                    label: copy.accounts.q2Label,
+                    time: formatRefreshCountdown(
+                      (account as CodexAccountSummary).weekly_refresh_at,
+                      nowMs,
+                      language,
+                    ),
+                  },
+                ]}
+                activityLabel={copy.card.syncedPrefix}
+                activityValue={formatTimestamp(
+                  (account as CodexAccountSummary).last_synced_at,
+                  copy.accounts.waitingFirstSync,
+                  language,
+                )}
+                primaryLabel={
+                  account.is_active
+                    ? copy.accounts.activePrimary
+                    : switchingAccountId === account.id
+                      ? copy.accounts.switchingPrimary
+                      : copy.accounts.switchPrimary
+                }
+                primaryDisabled={account.is_active || switchingAccountId === account.id || isAddingAccount}
+                secondaryDisabled={deletingAccountId === account.id || isAddingAccount}
+                onPrimaryClick={onSwitchAccount}
+                onSecondaryClick={onDeleteAccount}
+              />
+            )
           ))}
         </div>
       )}
     </>
   );
 }
+
+export const AccountsPage = memo(AccountsPageComponent);

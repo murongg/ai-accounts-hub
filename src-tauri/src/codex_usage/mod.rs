@@ -53,5 +53,5 @@ pub async fn update_codex_refresh_settings(
 pub async fn refresh_codex_usage_now(
     scheduler: State<'_, CodexUsageSchedulerState>,
 ) -> Result<(), String> {
-    scheduler.refresh_now().await
+    scheduler.refresh_codex_now().await
 }

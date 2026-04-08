@@ -1,64 +1,71 @@
-import type { CSSProperties } from "react";
-import { RefreshCw, Trash2, User } from "lucide-react";
+import { memo, type CSSProperties } from "react";
+import { RefreshCw, ShieldCheck, Trash2, User } from "lucide-react";
 
-import { getAppCopy } from "../lib/appCopy";
-import { formatResetLabel } from "../lib/codexAccountDisplay";
-import { getAccountCardTheme, getQuotaProgressTone } from "../lib/accountCardTheme";
+import { getI18n } from "../lib/i18n";
+import {
+  formatResetLabel,
+  getAccountCardTheme,
+  getQuotaProgressTone,
+  type AccountCardSize,
+} from "../lib/accounts-display";
 import type { AppLanguage } from "../types/settings";
 
 export interface AccountCardProps {
+  accountId: string;
   language: AppLanguage;
   email: string;
   plan: string;
+  size?: AccountCardSize;
   isActive: boolean;
   isAlive: boolean;
-  q1Percent: number;
-  q1Label: string;
-  q1Value: string;
-  q1Time: string;
-  q2Percent: number;
-  q2Label: string;
-  q2Value: string;
-  q2Time: string;
-  lastSync: string;
+  activityLabel: string;
+  activityValue: string;
+  activityKind?: "sync" | "auth";
+  quotas?: Array<{ percent: number; label: string; time: string }>;
+  detailRows?: Array<{ label: string; value: string }>;
   primaryLabel: string;
   primaryDisabled: boolean;
   secondaryDisabled: boolean;
-  onPrimaryClick: () => void;
-  onSecondaryClick: () => void;
+  onPrimaryClick: (accountId: string) => void;
+  onSecondaryClick: (accountId: string) => void;
 }
 
-export function AccountCard({
+function AccountCardComponent({
+  accountId,
   language,
   email,
   plan,
+  size = "default",
   isActive,
   isAlive,
-  q1Percent,
-  q1Label,
-  q1Value,
-  q1Time,
-  q2Percent,
-  q2Label,
-  q2Value,
-  q2Time,
-  lastSync,
+  activityLabel,
+  activityValue,
+  activityKind = "sync",
+  quotas,
+  detailRows,
   primaryLabel,
   primaryDisabled,
   secondaryDisabled,
   onPrimaryClick,
   onSecondaryClick,
 }: AccountCardProps) {
-  const copy = getAppCopy(language);
+  const copy = getI18n(language);
   const theme = getAccountCardTheme({ isActive, isAlive });
+  const isLarge = size === "large";
 
   return (
     <article
-      className={`card h-full w-full rounded-[24px] border backdrop-blur-[8px] transition-all duration-300 ${theme.cardClass}`}
+      className={`card h-full w-full border backdrop-blur-[8px] transition-all duration-300 ${
+        isLarge ? "rounded-[28px]" : "rounded-[24px]"
+      } ${theme.cardClass}`}
     >
-      <div className="card-body gap-0 p-4 sm:p-5">
+      <div className={`card-body gap-0 ${isLarge ? "p-5 sm:p-6" : "p-4 sm:p-5"}`}>
         <div className="mb-3 flex items-center justify-between gap-3">
-          <h2 className="min-w-0 flex-1 truncate pr-2 text-[16px] font-semibold tracking-tight text-base-content sm:text-[18px]">
+          <h2
+            className={`min-w-0 flex-1 pr-2 font-semibold tracking-tight text-base-content ${
+              isLarge ? "text-[18px] sm:text-[22px]" : "text-[16px] sm:text-[18px]"
+            }`}
+          >
             {email}
           </h2>
           {isActive ? (
@@ -83,15 +90,50 @@ export function AccountCard({
           </div>
         </div>
 
-        <div className="mb-4 flex flex-row gap-2.5 sm:gap-3">
-          <QuotaCard language={language} percent={q1Percent} label={q1Label} value={q1Value} resetText={q1Time} />
-          <QuotaCard language={language} percent={q2Percent} label={q2Label} value={q2Value} resetText={q2Time} />
-        </div>
+        {quotas ? (
+          <div
+            className={`mb-4 grid gap-2.5 sm:gap-3 ${
+              quotas.length >= 3 ? "grid-cols-3" : "grid-cols-2"
+            }`}
+          >
+            {quotas.map((quota) => (
+              <QuotaCard
+                key={quota.label}
+                language={language}
+                percent={quota.percent}
+                label={quota.label}
+                resetText={quota.time}
+                compact={quotas.length >= 3 && !isLarge}
+                large={isLarge}
+              />
+            ))}
+          </div>
+        ) : detailRows && detailRows.length > 0 ? (
+          <div className="mb-4 grid gap-2.5">
+            {detailRows.map((detail) => (
+              <div
+                key={detail.label}
+                className="rounded-[20px] border border-base-200 bg-base-200/55 px-3 py-3"
+              >
+                <p className="mb-1 truncate text-[10px] uppercase tracking-[0.14em] text-base-content/45">
+                  {detail.label}
+                </p>
+                <p className="truncate text-[13px] font-semibold text-base-content sm:text-[14px]">
+                  {detail.value}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : null}
 
         <div className="mb-4 flex min-w-0 items-center gap-1.5 text-[10px] text-base-content/55 xl:text-[11px]">
-          <RefreshCw size={11} className="shrink-0" />
-          <span className="truncate">
-            {copy.card.syncedPrefix} {lastSync}
+          {activityKind === "auth" ? (
+            <ShieldCheck size={11} className="shrink-0" />
+          ) : (
+            <RefreshCw size={11} className="shrink-0" />
+          )}
+          <span className={isLarge ? "leading-tight" : "truncate"}>
+            {activityLabel} {activityValue}
           </span>
         </div>
 
@@ -100,7 +142,7 @@ export function AccountCard({
         <div className="mt-auto flex items-center gap-2">
           <button
             type="button"
-            onClick={onPrimaryClick}
+            onClick={() => onPrimaryClick(accountId)}
             disabled={primaryDisabled}
             className={`btn btn-sm h-9 flex-1 rounded-xl border shadow-none disabled:border-base-300 disabled:bg-base-200 disabled:text-base-content/35 ${theme.primaryButtonClass}`}
           >
@@ -108,7 +150,7 @@ export function AccountCard({
           </button>
           <button
             type="button"
-            onClick={onSecondaryClick}
+            onClick={() => onSecondaryClick(accountId)}
             disabled={secondaryDisabled}
             className="btn btn-square btn-sm h-9 w-9 rounded-xl border border-base-300 bg-base-100 text-base-content/40 shadow-none hover:border-error/20 hover:bg-error/10 hover:text-error disabled:border-base-300 disabled:bg-base-200 disabled:text-base-content/30"
             aria-label={copy.card.deleteAccountAria}
@@ -121,39 +163,66 @@ export function AccountCard({
   );
 }
 
+export const AccountCard = memo(AccountCardComponent);
+
 function QuotaCard({
   language,
   percent,
   label,
-  value,
   resetText,
+  compact = false,
+  large = false,
 }: {
   language: AppLanguage;
   percent: number;
   label: string;
-  value: string;
   resetText: string;
+  compact?: boolean;
+  large?: boolean;
 }) {
   return (
-    <div className="flex-1 rounded-[20px] border border-base-200 bg-base-200/55 p-2.5 xl:p-3">
+    <div
+      className={`rounded-[20px] border border-base-200 bg-base-200/55 ${
+        compact ? "p-2" : large ? "p-3 xl:p-3.5" : "p-2.5 xl:p-3"
+      }`}
+    >
       <div className="flex flex-col items-center">
-        <CircularProgress percent={percent} />
+        <CircularProgress percent={percent} compact={compact} large={large} />
         <div className="mt-2.5 w-full text-center">
-          <p className="mb-0.5 truncate text-[10px] text-base-content/55">{label}</p>
-          <p className="mb-0.5 truncate text-[12px] font-bold text-base-content sm:text-[13px]">{value}</p>
-          <p className="truncate text-[9px] text-primary">{formatResetLabel(resetText, language)}</p>
+          <p
+            className={`mb-0.5 text-base-content/55 ${
+              large ? "min-h-[2rem] text-[10px] leading-tight whitespace-normal" : "truncate text-[10px]"
+            }`}
+          >
+            {label}
+          </p>
+          <p
+            className={`text-primary ${
+              large ? "min-h-[2rem] text-[9px] leading-tight whitespace-normal" : "truncate text-[9px]"
+            }`}
+          >
+            {formatResetLabel(resetText, language)}
+          </p>
         </div>
       </div>
     </div>
   );
 }
 
-function CircularProgress({ percent }: { percent: number }) {
+function CircularProgress({
+  percent,
+  compact = false,
+  large = false,
+}: {
+  percent: number;
+  compact?: boolean;
+  large?: boolean;
+}) {
   const progressTone = getQuotaProgressTone(percent);
   const progressStyle = {
     "--value": percent,
-    "--size": "4.75rem",
-    "--thickness": "0.34rem",
+    "--size": compact ? "4rem" : large ? "5.1rem" : "4.75rem",
+    "--thickness": compact ? "0.3rem" : large ? "0.38rem" : "0.34rem",
   } as CSSProperties;
 
   return (
@@ -165,7 +234,11 @@ function CircularProgress({ percent }: { percent: number }) {
       aria-valuenow={percent}
     >
       <div className="flex flex-col items-center leading-none">
-        <span className="text-[16px] font-bold text-base-content">{percent}%</span>
+        <span
+          className={`${compact ? "text-[14px]" : large ? "text-[17px]" : "text-[16px]"} font-bold text-base-content`}
+        >
+          {percent}%
+        </span>
       </div>
     </div>
   );

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { formatUpdateProgress } from "./updaterProgress.ts";
+import { formatUpdateProgress } from "./updater-progress.ts";
 
 test("formats update download progress with total size", () => {
   assert.equal(

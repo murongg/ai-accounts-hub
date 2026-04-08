@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import {
   Database,
   Download,
@@ -13,8 +13,8 @@ import {
 } from "lucide-react";
 
 import { SelectField } from "../components/select-field";
-import { getAppCopy } from "../lib/appCopy";
-import { formatUpdateProgress } from "../lib/updaterProgress";
+import { getI18n } from "../lib/i18n";
+import { formatUpdateProgress } from "../lib/updater-progress";
 import type { CodexRefreshSettings } from "../types/codex";
 import type { AppDataDirectoryInfo, AppLanguage, AppTheme, AppUpdaterState } from "../types/settings";
 
@@ -44,7 +44,7 @@ export interface SettingsPageProps {
   onCancelClearAllData: () => void;
 }
 
-export function SettingsPage({
+function SettingsPageComponent({
   language,
   theme,
   refreshSettings,
@@ -69,7 +69,7 @@ export function SettingsPage({
   onClearAllDataRequest,
   onCancelClearAllData,
 }: SettingsPageProps) {
-  const copy = getAppCopy(language);
+  const copy = getI18n(language);
   const isDataDirectoryBusy = isOpeningDataDirectory || isResettingDataDirectory || isClearingAllData;
   const isUpdateBusy = isCheckingForUpdates || isInstallingUpdate;
   const hasAvailableUpdate =
@@ -397,6 +397,8 @@ export function SettingsPage({
     </div>
   );
 }
+
+export const SettingsPage = memo(SettingsPageComponent);
 
 function SectionTitle({
   icon,

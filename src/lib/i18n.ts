@@ -1,6 +1,6 @@
-import type { AppLanguage, AppTheme } from "../types/settings";
+import type { AppLanguage } from "../types/settings";
 
-export interface AppCopy {
+export interface I18nMessages {
   header: {
     subtitle: string;
     searchPlaceholder: string;
@@ -25,18 +25,23 @@ export interface AppCopy {
     q2Label: string;
     waitingFirstSync: string;
     planUnknown: string;
+    geminiAuthTypeLabel: string;
+    geminiProLabel: string;
+    geminiFlashLabel: string;
+    geminiFlashLiteLabel: string;
+    authenticatedPrefix: string;
     activePrimary: string;
     switchingPrimary: string;
     switchPrimary: string;
     emptyState: {
       unsupportedPlatform: (label: string) => string;
       unsupportedDescription: string;
-      loadingTitle: string;
-      loadingDescription: string;
+      loadingTitle: (label: string) => string;
+      loadingDescription: (label: string) => string;
       searchTitle: string;
       searchDescription: string;
-      defaultTitle: string;
-      defaultDescription: string;
+      defaultTitle: (label: string) => string;
+      defaultDescription: (label: string) => string;
     };
   };
   card: {
@@ -120,8 +125,37 @@ export interface AppCopy {
   };
 }
 
-const COPY: Record<AppLanguage, AppCopy> = {
-  "zh-CN": {
+const LANGUAGE_OPTIONS = [
+  { label: "简体中文", value: "zh-CN" },
+  { label: "English", value: "en-US" },
+] satisfies Array<{ label: string; value: AppLanguage }>;
+
+const REFRESH_INTERVAL_OPTIONS = {
+  "zh-CN": [
+    { label: "5 分钟", value: "300" },
+    { label: "15 分钟", value: "900" },
+    { label: "30 分钟", value: "1800" },
+    { label: "1 小时", value: "3600" },
+  ],
+  "en-US": [
+    { label: "5 minutes", value: "300" },
+    { label: "15 minutes", value: "900" },
+    { label: "30 minutes", value: "1800" },
+    { label: "1 hour", value: "3600" },
+  ],
+} satisfies Record<AppLanguage, Array<{ label: string; value: string }>>;
+
+const COPY = {
+  "zh-CN": createChineseCopy(),
+  "en-US": createEnglishCopy(),
+} satisfies Record<AppLanguage, I18nMessages>;
+
+export function getI18n(language: AppLanguage): I18nMessages {
+  return COPY[language];
+}
+
+function createChineseCopy(): I18nMessages {
+  return {
     header: {
       subtitle: "账号控制中心",
       searchPlaceholder: "搜索账号或邮箱...",
@@ -146,18 +180,23 @@ const COPY: Record<AppLanguage, AppCopy> = {
       q2Label: "每周剩余配额",
       waitingFirstSync: "等待首次同步",
       planUnknown: "未知",
+      geminiAuthTypeLabel: "登录方式",
+      geminiProLabel: "Pro 剩余配额",
+      geminiFlashLabel: "Flash 剩余配额",
+      geminiFlashLiteLabel: "Flash Lite 剩余配额",
+      authenticatedPrefix: "最近认证于",
       activePrimary: "正在使用中",
       switchingPrimary: "切换中...",
       switchPrimary: "切换至此账号",
       emptyState: {
         unsupportedPlatform: (label) => `${label} 即将接入`,
         unsupportedDescription: "当前版本先聚焦 Codex 账号管理与切换，后续会继续补齐其它平台。",
-        loadingTitle: "正在准备 Codex 账号...",
-        loadingDescription: "正在读取账号库、当前凭证状态和最近一次同步结果。",
+        loadingTitle: (label) => `正在准备 ${label} 账号...`,
+        loadingDescription: (label) => `正在读取 ${label} 账号库和当前凭证状态。`,
         searchTitle: "没有找到匹配的账号",
         searchDescription: "换个邮箱、账号名或关键词再试一次。",
-        defaultTitle: "先添加一个 Codex 账号",
-        defaultDescription: "点击右上角“添加账号”，完成登录后会自动保存到账号库。",
+        defaultTitle: (label) => `先添加一个 ${label} 账号`,
+        defaultDescription: (label) => `点击右上角“添加账号”，完成 ${label} 登录后会自动保存到账号库。`,
       },
     },
     card: {
@@ -180,10 +219,7 @@ const COPY: Record<AppLanguage, AppCopy> = {
       language: {
         title: "语言",
         description: "设置系统的显示语言。",
-        options: [
-          { label: "简体中文", value: "zh-CN" },
-          { label: "English", value: "en-US" },
-        ],
+        options: LANGUAGE_OPTIONS,
       },
       theme: {
         title: "主题外观",
@@ -197,12 +233,7 @@ const COPY: Record<AppLanguage, AppCopy> = {
         description: "后台定时获取最新额度。",
         enabledLabel: "启用定时刷新",
         intervalLabel: "刷新间隔：",
-        options: [
-          { label: "5 分钟", value: "300" },
-          { label: "15 分钟", value: "900" },
-          { label: "30 分钟", value: "1800" },
-          { label: "1 小时", value: "3600" },
-        ],
+        options: REFRESH_INTERVAL_OPTIONS["zh-CN"],
       },
       update: {
         title: "应用更新",
@@ -234,7 +265,7 @@ const COPY: Record<AppLanguage, AppCopy> = {
       },
       danger: {
         title: "危险操作",
-        description: "仅清空本应用托管的数据，不会修改 ~/.codex/auth.json。",
+        description: "仅清空本应用托管的数据，不会修改 ~/.codex 或 ~/.gemini 下的系统凭证。",
         help: "此操作不可逆。",
         clear: "清空所有数据",
         confirm: "确认清空",
@@ -247,8 +278,11 @@ const COPY: Record<AppLanguage, AppCopy> = {
         dataCleared: "应用托管数据已清空",
       },
     },
-  },
-  "en-US": {
+  };
+}
+
+function createEnglishCopy(): I18nMessages {
+  return {
     header: {
       subtitle: "Accounts control center",
       searchPlaceholder: "Search accounts or email...",
@@ -273,18 +307,23 @@ const COPY: Record<AppLanguage, AppCopy> = {
       q2Label: "Weekly remaining quota",
       waitingFirstSync: "Waiting for first sync",
       planUnknown: "Unknown",
+      geminiAuthTypeLabel: "Sign-in method",
+      geminiProLabel: "Pro remaining quota",
+      geminiFlashLabel: "Flash remaining quota",
+      geminiFlashLiteLabel: "Flash Lite remaining quota",
+      authenticatedPrefix: "Authenticated",
       activePrimary: "Currently in use",
       switchingPrimary: "Switching...",
       switchPrimary: "Switch to this account",
       emptyState: {
         unsupportedPlatform: (label) => `${label} is coming soon`,
         unsupportedDescription: "This version focuses on Codex account management first. Support for the other providers will follow.",
-        loadingTitle: "Preparing your Codex accounts...",
-        loadingDescription: "Reading the account library, credential state, and latest sync snapshot.",
+        loadingTitle: (label) => `Preparing your ${label} accounts...`,
+        loadingDescription: (label) => `Reading the ${label} account library and current credential state.`,
         searchTitle: "No matching accounts found",
         searchDescription: "Try a different email, account name, or keyword.",
-        defaultTitle: "Add your first Codex account",
-        defaultDescription: "Click “Add account” and the app will save it to the account library after login.",
+        defaultTitle: (label) => `Add your first ${label} account`,
+        defaultDescription: (label) => `Click “Add account” and the app will save it to the account library after ${label} login.`,
       },
     },
     card: {
@@ -307,10 +346,7 @@ const COPY: Record<AppLanguage, AppCopy> = {
       language: {
         title: "Language",
         description: "Choose the language used across the app.",
-        options: [
-          { label: "简体中文", value: "zh-CN" },
-          { label: "English", value: "en-US" },
-        ],
+        options: LANGUAGE_OPTIONS,
       },
       theme: {
         title: "Theme",
@@ -324,12 +360,7 @@ const COPY: Record<AppLanguage, AppCopy> = {
         description: "Refresh managed account usage in the background.",
         enabledLabel: "Enable scheduled refresh",
         intervalLabel: "Refresh interval:",
-        options: [
-          { label: "5 minutes", value: "300" },
-          { label: "15 minutes", value: "900" },
-          { label: "30 minutes", value: "1800" },
-          { label: "1 hour", value: "3600" },
-        ],
+        options: REFRESH_INTERVAL_OPTIONS["en-US"],
       },
       update: {
         title: "App updates",
@@ -361,7 +392,7 @@ const COPY: Record<AppLanguage, AppCopy> = {
       },
       danger: {
         title: "Danger zone",
-        description: "Only clears app-managed data and never touches ~/.codex/auth.json.",
+        description: "Only clears app-managed data and never touches system credentials under ~/.codex or ~/.gemini.",
         help: "This action cannot be undone.",
         clear: "Clear all data",
         confirm: "Confirm clear",
@@ -374,17 +405,5 @@ const COPY: Record<AppLanguage, AppCopy> = {
         dataCleared: "App-managed data has been cleared",
       },
     },
-  },
-};
-
-export function getAppCopy(language: AppLanguage): AppCopy {
-  return COPY[language];
-}
-
-export function resolveDaisyTheme(theme: AppTheme, prefersDark: boolean) {
-  if (theme === "system") {
-    return prefersDark ? "luxury" : "bumblebee";
-  }
-
-  return theme === "dark" ? "luxury" : "bumblebee";
+  };
 }

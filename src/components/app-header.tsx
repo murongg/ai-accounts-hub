@@ -1,10 +1,11 @@
+import { memo } from "react";
 import { Search, Settings } from "lucide-react";
 
 import claudeLogo from "../assets/claude-color.svg";
 import geminiLogo from "../assets/gemini-color.svg";
 import openaiLogo from "../assets/openai.svg";
 import { BrandIcon } from "./brand-icon";
-import { getAppCopy } from "../lib/appCopy";
+import { getI18n } from "../lib/i18n";
 import type { AppLanguage } from "../types/settings";
 
 export interface AppHeaderProps {
@@ -23,7 +24,7 @@ const platformOptions = [
   { id: "gemini", label: "Gemini", logo: geminiLogo, logoClassName: "" },
 ] as const;
 
-export function AppHeader({
+function AppHeaderComponent({
   activePage,
   activePlatform,
   language,
@@ -32,7 +33,7 @@ export function AppHeader({
   onPlatformChange,
   onTogglePage,
 }: AppHeaderProps) {
-  const copy = getAppCopy(language);
+  const copy = getI18n(language);
 
   return (
     <header
@@ -111,3 +112,5 @@ export function AppHeader({
     </header>
   );
 }
+
+export const AppHeader = memo(AppHeaderComponent);

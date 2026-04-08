@@ -3,6 +3,8 @@ use tauri::Manager;
 pub mod app_settings;
 pub mod codex_accounts;
 pub mod codex_usage;
+pub mod gemini_accounts;
+pub mod gemini_usage;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -27,6 +29,11 @@ pub fn run() {
             codex_accounts::start_codex_account_login,
             codex_accounts::switch_codex_account,
             codex_accounts::delete_codex_account,
+            gemini_accounts::list_gemini_accounts,
+            gemini_accounts::start_gemini_account_login,
+            gemini_accounts::switch_gemini_account,
+            gemini_accounts::delete_gemini_account,
+            gemini_usage::refresh_gemini_usage_now,
             app_settings::get_app_settings,
             app_settings::update_app_settings,
             app_settings::get_app_data_directory_info,
