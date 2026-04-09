@@ -19,6 +19,8 @@ int aah_status_bar_bridge_debug_app_icon_is_template(void);
 int aah_status_bar_bridge_debug_provider_icon_ready_for_tab(int tab_value);
 int aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab(int tab_value);
 int aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab_and_paths(int tab_value, const char *bundle_resource_path, const char *current_directory_path);
+int aah_status_bar_bridge_debug_text_palette_adapts_to_appearance(void);
+int aah_status_bar_bridge_debug_hosting_view_matches_requested_system_appearance(int prefers_dark);
 int aah_status_bar_bridge_debug_section_count_from_json(const char *payload_json);
 int aah_status_bar_bridge_debug_selected_tab_value_from_json(const char *payload_json);
 int aah_status_bar_bridge_debug_visible_tab_count(void);

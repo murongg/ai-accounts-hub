@@ -29,11 +29,40 @@ final class StatusBarMenuHostingView<Content: View>: NSHostingView<Content> {
         super.init(rootView: rootView)
         self.wantsLayer = true
         self.layer?.backgroundColor = NSColor.clear.cgColor
+        syncWithSystemAppearance()
     }
 
     @available(*, unavailable)
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    func syncWithSystemAppearance(appleInterfaceStyleOverride: String? = nil) {
+        appearance = StatusBarSystemAppearance.menuAppearance(
+            appleInterfaceStyleOverride: appleInterfaceStyleOverride
+        )
+    }
+}
+
+private enum StatusBarSystemAppearance {
+    static func menuAppearance(appleInterfaceStyleOverride: String? = nil) -> NSAppearance {
+        let appearanceName = appearanceName(appleInterfaceStyleOverride: appleInterfaceStyleOverride)
+
+        if let appearance = NSAppearance(named: appearanceName) {
+            return appearance
+        }
+
+        guard let fallbackAppearance = NSAppearance(named: .aqua) else {
+            preconditionFailure("Expected Aqua appearance to be available")
+        }
+
+        return fallbackAppearance
+    }
+
+    static func appearanceName(appleInterfaceStyleOverride: String? = nil) -> NSAppearance.Name {
+        let interfaceStyle = appleInterfaceStyleOverride ?? UserDefaults.standard.string(forKey: "AppleInterfaceStyle")
+        let isDarkMode = interfaceStyle?.caseInsensitiveCompare("Dark") == .orderedSame
+        return isDarkMode ? .darkAqua : .aqua
     }
 }
 
@@ -252,6 +281,7 @@ final class StatusBarBridgeController: NSObject, NSMenuDelegate {
 
         let rootView = makeRootView()
         let hostingView = StatusBarMenuHostingView(rootView: rootView)
+        hostingView.syncWithSystemAppearance()
         hostingView.frame = NSRect(x: 0, y: 0, width: StatusBarPanelTokens.panelWidth, height: 10)
 
         let panelItem = NSMenuItem()
@@ -277,6 +307,7 @@ final class StatusBarBridgeController: NSObject, NSMenuDelegate {
             return
         }
 
+        hostingView.syncWithSystemAppearance()
         let naturalContentHeight = measureContentHeight(using: hostingView, secondaryDetailMaxHeight: nil)
         let availablePanelHeight = availablePanelHeight()
         let naturalPanelHeight =
@@ -305,6 +336,7 @@ final class StatusBarBridgeController: NSObject, NSMenuDelegate {
         using hostingView: StatusBarMenuHostingView<StatusBarMenuRootView>,
         secondaryDetailMaxHeight: CGFloat?
     ) -> CGFloat {
+        hostingView.syncWithSystemAppearance()
         hostingView.rootView = makeRootView(secondaryDetailMaxHeight: secondaryDetailMaxHeight)
         hostingView.layoutSubtreeIfNeeded()
         return hostingView.fittingSize.height
@@ -375,6 +407,18 @@ final class StatusBarBridgeController: NSObject, NSMenuDelegate {
     static func debugHostingViewAcceptsFirstMouse() -> Bool {
         StatusBarMenuHostingView(rootView: StatusBarMenuRootView(session: StatusBarMenuSession()) { _ in })
             .acceptsFirstMouse(for: nil)
+    }
+
+    static func debugHostingViewMatchesRequestedSystemAppearance(_ prefersDark: Bool) -> Bool {
+        let hostingView = StatusBarMenuHostingView(
+            rootView: StatusBarMenuRootView(session: StatusBarMenuSession()) { _ in }
+        )
+        hostingView.syncWithSystemAppearance(
+            appleInterfaceStyleOverride: prefersDark ? "Dark" : "Light"
+        )
+
+        let expectedAppearance: NSAppearance.Name = prefersDark ? .darkAqua : .aqua
+        return hostingView.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == expectedAppearance
     }
 
     static func debugActionKeepsMenuOpen(_ action: StatusBarBridgeAction) -> Bool {

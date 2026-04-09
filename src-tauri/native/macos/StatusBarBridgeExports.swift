@@ -250,6 +250,18 @@ func aah_status_bar_bridge_debug_visible_tab_count() -> Int32 {
     Int32(StatusBarMenuPresentation.visibleTabs.count)
 }
 
+@_cdecl("aah_status_bar_bridge_debug_text_palette_adapts_to_appearance")
+func aah_status_bar_bridge_debug_text_palette_adapts_to_appearance() -> Int32 {
+    StatusBarPanelPalette.debugTextPaletteAdaptsToAppearance() ? 1 : 0
+}
+
+@_cdecl("aah_status_bar_bridge_debug_hosting_view_matches_requested_system_appearance")
+func aah_status_bar_bridge_debug_hosting_view_matches_requested_system_appearance(
+    _ prefersDark: Int32
+) -> Int32 {
+    StatusBarBridgeController.debugHostingViewMatchesRequestedSystemAppearance(prefersDark != 0) ? 1 : 0
+}
+
 @_cdecl("aah_status_bar_bridge_debug_active_section_index_from_json")
 func aah_status_bar_bridge_debug_active_section_index_from_json(_ payloadJSON: UnsafePointer<CChar>?) -> Int32 {
     let payload = decodedPayload(from: payloadJSON)
