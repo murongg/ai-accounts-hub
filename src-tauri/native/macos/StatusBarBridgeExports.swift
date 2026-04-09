@@ -59,6 +59,19 @@ private func decodedJSONObject(from payloadJSON: UnsafePointer<CChar>?) -> [Stri
     return dictionary
 }
 
+private func decodedURL(from rawPath: UnsafePointer<CChar>?) -> URL? {
+    guard let rawPath else {
+        return nil
+    }
+
+    let path = String(cString: rawPath)
+    guard !path.isEmpty else {
+        return nil
+    }
+
+    return URL(fileURLWithPath: path, isDirectory: true)
+}
+
 @_cdecl("aah_status_bar_bridge_swift_initialize")
 func aah_status_bar_bridge_swift_initialize(_ callback: AAHStatusBarBridgeCallback?) -> Bool {
     guard let callback else {
@@ -130,6 +143,19 @@ func aah_status_bar_bridge_debug_app_icon_source_variant() -> Int32 {
     StatusBarAppIconProvider.sourceVariant()?.rawValue ?? 0
 }
 
+@_cdecl("aah_status_bar_bridge_debug_app_icon_source_variant_for_paths")
+func aah_status_bar_bridge_debug_app_icon_source_variant_for_paths(
+    _ bundleResourcePath: UnsafePointer<CChar>?,
+    _ currentDirectoryPath: UnsafePointer<CChar>?
+) -> Int32 {
+    let currentDirectoryURL = decodedURL(from: currentDirectoryPath)
+        ?? URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
+    return StatusBarAppIconProvider.sourceVariant(
+        bundleResourceURL: decodedURL(from: bundleResourcePath),
+        currentDirectoryURL: currentDirectoryURL
+    )?.rawValue ?? 0
+}
+
 @_cdecl("aah_status_bar_bridge_debug_app_icon_is_template")
 func aah_status_bar_bridge_debug_app_icon_is_template() -> Int32 {
     (StatusBarAppIconProvider.load()?.isTemplate ?? false) ? 1 : 0
@@ -168,6 +194,37 @@ func aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab(_ tabVal
 
     guard let tab,
           let variant = StatusBarProviderIconProvider.resourceVariant(for: tab) else {
+        return 0
+    }
+
+    return variant.rawValue
+}
+
+@_cdecl("aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab_and_paths")
+func aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab_and_paths(
+    _ tabValue: Int32,
+    _ bundleResourcePath: UnsafePointer<CChar>?,
+    _ currentDirectoryPath: UnsafePointer<CChar>?
+) -> Int32 {
+    let tab: StatusBarBridgeTab?
+    switch tabValue {
+    case 1:
+        tab = .codex
+    case 2:
+        tab = .gemini
+    default:
+        tab = nil
+    }
+
+    let currentDirectoryURL = decodedURL(from: currentDirectoryPath)
+        ?? URL(fileURLWithPath: FileManager.default.currentDirectoryPath, isDirectory: true)
+
+    guard let tab,
+          let variant = StatusBarProviderIconProvider.resourceVariant(
+              for: tab,
+              bundleResourceURL: decodedURL(from: bundleResourcePath),
+              currentDirectoryURL: currentDirectoryURL
+          ) else {
         return 0
     }
 

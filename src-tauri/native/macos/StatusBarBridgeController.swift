@@ -86,8 +86,28 @@ enum StatusBarAppIconProvider {
         loadWithSource()?.variant
     }
 
-    private static func loadWithSource() -> (image: NSImage, variant: SourceVariant)? {
-        if let publicIcon = publicIconImage() {
+    static func load(
+        bundleResourceURL: URL?,
+        currentDirectoryURL: URL
+    ) -> NSImage? {
+        loadWithSource(bundleResourceURL: bundleResourceURL, currentDirectoryURL: currentDirectoryURL)?.image
+    }
+
+    static func sourceVariant(
+        bundleResourceURL: URL?,
+        currentDirectoryURL: URL
+    ) -> SourceVariant? {
+        loadWithSource(bundleResourceURL: bundleResourceURL, currentDirectoryURL: currentDirectoryURL)?.variant
+    }
+
+    private static func loadWithSource(
+        bundleResourceURL: URL? = Bundle.main.resourceURL,
+        currentDirectoryURL: URL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    ) -> (image: NSImage, variant: SourceVariant)? {
+        if let publicIcon = publicIconImage(
+            bundleResourceURL: bundleResourceURL,
+            currentDirectoryURL: currentDirectoryURL
+        ) {
             return (publicIcon, .publicAsset)
         }
 
@@ -99,12 +119,11 @@ enum StatusBarAppIconProvider {
             return (bundledPNG, .bundled)
         }
 
-        let currentDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         let repositoryCandidates = [
-            currentDirectory.appendingPathComponent("src-tauri/icons/icon.icns").path,
-            currentDirectory.appendingPathComponent("src-tauri/icons/icon.png").path,
-            currentDirectory.appendingPathComponent("icons/icon.icns").path,
-            currentDirectory.appendingPathComponent("icons/icon.png").path,
+            currentDirectoryURL.appendingPathComponent("src-tauri/icons/icon.icns").path,
+            currentDirectoryURL.appendingPathComponent("src-tauri/icons/icon.png").path,
+            currentDirectoryURL.appendingPathComponent("icons/icon.icns").path,
+            currentDirectoryURL.appendingPathComponent("icons/icon.png").path,
         ]
 
         for candidate in repositoryCandidates {
@@ -130,15 +149,19 @@ enum StatusBarAppIconProvider {
         return nil
     }
 
-    private static func publicIconImage() -> NSImage? {
-        let currentDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+    private static func publicIconImage(
+        bundleResourceURL: URL?,
+        currentDirectoryURL: URL
+    ) -> NSImage? {
         let candidates: [String] = [
             Bundle.main.path(forResource: "icon", ofType: "svg"),
-            Bundle.main.resourceURL?.appendingPathComponent("icon.svg").path,
-            currentDirectory.appendingPathComponent("public/icon.svg").path,
-            currentDirectory.appendingPathComponent("../public/icon.svg").path,
-            currentDirectory.appendingPathComponent("dist/icon.svg").path,
-            currentDirectory.appendingPathComponent("../dist/icon.svg").path,
+            bundleResourceURL?.appendingPathComponent("icon.svg").path,
+            bundleResourceURL?.appendingPathComponent("_up_/public/icon.svg").path,
+            bundleResourceURL?.appendingPathComponent("public/icon.svg").path,
+            currentDirectoryURL.appendingPathComponent("public/icon.svg").path,
+            currentDirectoryURL.appendingPathComponent("../public/icon.svg").path,
+            currentDirectoryURL.appendingPathComponent("dist/icon.svg").path,
+            currentDirectoryURL.appendingPathComponent("../dist/icon.svg").path,
         ].compactMap { $0 }
 
         return candidates

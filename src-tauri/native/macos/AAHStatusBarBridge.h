@@ -14,9 +14,11 @@ double aah_status_bar_bridge_panel_height_clamped_to_available_height(double con
 int aah_status_bar_bridge_optional_string_length_from_json(const char *payload_json, const char *field_name);
 int aah_status_bar_bridge_debug_icon_ready(void);
 int aah_status_bar_bridge_debug_app_icon_source_variant(void);
+int aah_status_bar_bridge_debug_app_icon_source_variant_for_paths(const char *bundle_resource_path, const char *current_directory_path);
 int aah_status_bar_bridge_debug_app_icon_is_template(void);
 int aah_status_bar_bridge_debug_provider_icon_ready_for_tab(int tab_value);
 int aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab(int tab_value);
+int aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab_and_paths(int tab_value, const char *bundle_resource_path, const char *current_directory_path);
 int aah_status_bar_bridge_debug_section_count_from_json(const char *payload_json);
 int aah_status_bar_bridge_debug_selected_tab_value_from_json(const char *payload_json);
 int aah_status_bar_bridge_debug_visible_tab_count(void);

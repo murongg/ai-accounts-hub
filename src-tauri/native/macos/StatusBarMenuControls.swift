@@ -8,8 +8,26 @@ enum StatusBarProviderIconProvider {
     }
 
     static func image(for tab: StatusBarBridgeTab, template: Bool) -> NSImage? {
+        image(
+            for: tab,
+            template: template,
+            bundleResourceURL: Bundle.main.resourceURL,
+            currentDirectoryURL: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+        )
+    }
+
+    static func image(
+        for tab: StatusBarBridgeTab,
+        template: Bool,
+        bundleResourceURL: URL?,
+        currentDirectoryURL: URL
+    ) -> NSImage? {
         guard let resource = resource(for: tab),
-              let resourceURL = resourceURL(for: resource),
+              let resourceURL = resourceURL(
+                  for: resource,
+                  bundleResourceURL: bundleResourceURL,
+                  currentDirectoryURL: currentDirectoryURL
+              ),
               let data = try? Data(contentsOf: resourceURL),
               let loadedImage = NSImage(data: data),
               let image = loadedImage.copy() as? NSImage else {
@@ -29,6 +47,23 @@ enum StatusBarProviderIconProvider {
         resource(for: tab)?.variant
     }
 
+    static func resourceVariant(
+        for tab: StatusBarBridgeTab,
+        bundleResourceURL: URL?,
+        currentDirectoryURL: URL
+    ) -> ResourceVariant? {
+        guard let resource = resource(for: tab),
+              resourceURL(
+                  for: resource,
+                  bundleResourceURL: bundleResourceURL,
+                  currentDirectoryURL: currentDirectoryURL
+              ) != nil else {
+            return nil
+        }
+
+        return resource.variant
+    }
+
     private static func resource(for tab: StatusBarBridgeTab) -> (name: String, fileExtension: String, variant: ResourceVariant)? {
         switch tab {
         case .overview:
@@ -41,25 +76,29 @@ enum StatusBarProviderIconProvider {
     }
 
     private static func resourceURL(
-        for resource: (name: String, fileExtension: String, variant: ResourceVariant)
+        for resource: (name: String, fileExtension: String, variant: ResourceVariant),
+        bundleResourceURL: URL?,
+        currentDirectoryURL: URL
     ) -> URL? {
-        let currentDirectory = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
         let candidates: [URL?]
 
         switch resource.variant {
         case .vector:
             candidates = [
                 Bundle.main.url(forResource: resource.name, withExtension: resource.fileExtension),
-                Bundle.main.resourceURL?.appendingPathComponent("\(resource.name).\(resource.fileExtension)"),
-                currentDirectory.appendingPathComponent("src/assets/\(resource.name).\(resource.fileExtension)"),
-                currentDirectory.appendingPathComponent("../src/assets/\(resource.name).\(resource.fileExtension)"),
+                bundleResourceURL?.appendingPathComponent("\(resource.name).\(resource.fileExtension)"),
+                bundleResourceURL?.appendingPathComponent("_up_/src/assets/\(resource.name).\(resource.fileExtension)"),
+                bundleResourceURL?.appendingPathComponent("src/assets/\(resource.name).\(resource.fileExtension)"),
+                currentDirectoryURL.appendingPathComponent("src/assets/\(resource.name).\(resource.fileExtension)"),
+                currentDirectoryURL.appendingPathComponent("../src/assets/\(resource.name).\(resource.fileExtension)"),
             ]
         case .raster:
             candidates = [
                 Bundle.main.url(forResource: resource.name, withExtension: resource.fileExtension),
-                Bundle.main.resourceURL?.appendingPathComponent("\(resource.name).\(resource.fileExtension)"),
-                currentDirectory.appendingPathComponent("src-tauri/native/macos/provider-icons/\(resource.name).\(resource.fileExtension)"),
-                currentDirectory.appendingPathComponent("native/macos/provider-icons/\(resource.name).\(resource.fileExtension)"),
+                bundleResourceURL?.appendingPathComponent("\(resource.name).\(resource.fileExtension)"),
+                bundleResourceURL?.appendingPathComponent("native/macos/provider-icons/\(resource.name).\(resource.fileExtension)"),
+                currentDirectoryURL.appendingPathComponent("src-tauri/native/macos/provider-icons/\(resource.name).\(resource.fileExtension)"),
+                currentDirectoryURL.appendingPathComponent("native/macos/provider-icons/\(resource.name).\(resource.fileExtension)"),
             ]
         }
 
