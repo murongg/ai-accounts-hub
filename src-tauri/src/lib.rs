@@ -1,6 +1,7 @@
 use tauri::Manager;
 
 pub mod app_settings;
+pub mod claude_accounts;
 pub mod codex_accounts;
 pub mod codex_usage;
 pub mod gemini_accounts;
@@ -30,6 +31,10 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             greet,
+            claude_accounts::list_claude_accounts,
+            claude_accounts::start_claude_account_login,
+            claude_accounts::switch_claude_account,
+            claude_accounts::delete_claude_account,
             codex_accounts::list_codex_accounts,
             codex_accounts::start_codex_account_login,
             codex_accounts::switch_codex_account,

@@ -181,17 +181,9 @@ export function buildGeminiQuotaCards(
 }
 
 export function getPlatformAccountMetrics(
-  activePlatform: string,
+  _activePlatform: string,
   accounts: Array<{ is_active: boolean }>,
 ) {
-  if (activePlatform === "claude") {
-    return {
-      totalCount: 0,
-      activeCount: 0,
-      idleCount: 0,
-    };
-  }
-
   const activeCount = accounts.filter((account) => account.is_active).length;
 
   return {

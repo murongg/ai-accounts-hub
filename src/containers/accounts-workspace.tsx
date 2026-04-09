@@ -3,6 +3,12 @@ import { listen } from "@tauri-apps/api/event";
 
 import { AccountsPage } from "../pages/accounts-page";
 import {
+  deleteClaudeAccount,
+  listClaudeAccounts,
+  startClaudeAccountLogin,
+  switchClaudeAccount,
+} from "../lib/claude-accounts";
+import {
   deleteCodexAccount,
   listCodexAccounts,
   refreshCodexUsageNow,
@@ -18,6 +24,7 @@ import {
 } from "../lib/gemini-accounts";
 import { getPlatformAccountMetrics } from "../lib/accounts-display";
 import { createLatestRequestGate } from "../lib/accounts-workspace";
+import type { ClaudeAccountSummary } from "../types/claude";
 import type { CodexAccountSummary } from "../types/codex";
 import type { GeminiAccountSummary } from "../types/gemini";
 import type { AppLanguage } from "../types/settings";
@@ -44,21 +51,29 @@ function AccountsWorkspaceComponent({
   onToast,
 }: AccountsWorkspaceProps) {
   const [codexAccounts, setCodexAccounts] = useState<CodexAccountSummary[]>([]);
+  const [claudeAccounts, setClaudeAccounts] = useState<ClaudeAccountSummary[]>([]);
   const [geminiAccounts, setGeminiAccounts] = useState<GeminiAccountSummary[]>([]);
   const [isLoadingCodexAccounts, setIsLoadingCodexAccounts] = useState(true);
+  const [isLoadingClaudeAccounts, setIsLoadingClaudeAccounts] = useState(true);
   const [isLoadingGeminiAccounts, setIsLoadingGeminiAccounts] = useState(true);
   const [isAddingCodexAccount, setIsAddingCodexAccount] = useState(false);
+  const [isAddingClaudeAccount, setIsAddingClaudeAccount] = useState(false);
   const [isAddingGeminiAccount, setIsAddingGeminiAccount] = useState(false);
   const [switchingCodexAccountId, setSwitchingCodexAccountId] = useState<string | null>(null);
+  const [switchingClaudeAccountId, setSwitchingClaudeAccountId] = useState<string | null>(null);
   const [switchingGeminiAccountId, setSwitchingGeminiAccountId] = useState<string | null>(null);
   const [deletingCodexAccountId, setDeletingCodexAccountId] = useState<string | null>(null);
+  const [deletingClaudeAccountId, setDeletingClaudeAccountId] = useState<string | null>(null);
   const [deletingGeminiAccountId, setDeletingGeminiAccountId] = useState<string | null>(null);
   const [isRefreshingCodexUsage, setIsRefreshingCodexUsage] = useState(false);
+  const [isRefreshingClaudeAccounts, setIsRefreshingClaudeAccounts] = useState(false);
   const [isRefreshingGeminiAccounts, setIsRefreshingGeminiAccounts] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const codexAccountsRequestGate = useRef(createLatestRequestGate<CodexAccountSummary[]>());
+  const claudeAccountsRequestGate = useRef(createLatestRequestGate<ClaudeAccountSummary[]>());
   const geminiAccountsRequestGate = useRef(createLatestRequestGate<GeminiAccountSummary[]>());
   const codexLoadingRequestId = useRef<number | null>(null);
+  const claudeLoadingRequestId = useRef<number | null>(null);
   const geminiLoadingRequestId = useRef<number | null>(null);
 
   const refreshCodexAccounts = useCallback(
@@ -131,10 +146,46 @@ function AccountsWorkspaceComponent({
     [onToast],
   );
 
+  const refreshClaudeAccounts = useCallback(
+    async (showLoading = true) => {
+      const requestId = claudeAccountsRequestGate.current.begin();
+
+      try {
+        if (showLoading) {
+          claudeLoadingRequestId.current = requestId;
+          setIsLoadingClaudeAccounts(true);
+        }
+
+        const accounts = await listClaudeAccounts();
+        if (claudeAccountsRequestGate.current.isLatest(requestId)) {
+          setClaudeAccounts(accounts);
+        }
+      } catch (error) {
+        if (claudeAccountsRequestGate.current.isLatest(requestId)) {
+          onToast("error", errorMessage(error));
+        }
+      } finally {
+        if (showLoading && claudeLoadingRequestId.current === requestId) {
+          claudeLoadingRequestId.current = null;
+          setIsLoadingClaudeAccounts(false);
+        } else if (
+          !showLoading &&
+          claudeLoadingRequestId.current !== null &&
+          claudeAccountsRequestGate.current.isLatest(requestId)
+        ) {
+          claudeLoadingRequestId.current = null;
+          setIsLoadingClaudeAccounts(false);
+        }
+      }
+    },
+    [onToast],
+  );
+
   useEffect(() => {
     void refreshCodexAccounts();
+    void refreshClaudeAccounts();
     void refreshGeminiAccounts();
-  }, [refreshCodexAccounts, refreshGeminiAccounts]);
+  }, [refreshClaudeAccounts, refreshCodexAccounts, refreshGeminiAccounts]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -173,6 +224,19 @@ function AccountsWorkspaceComponent({
   }, [refreshGeminiAccounts]);
 
   const handleAddAccount = useCallback(async () => {
+    if (activePlatform === "claude") {
+      try {
+        setIsAddingClaudeAccount(true);
+        await startClaudeAccountLogin();
+        await refreshClaudeAccounts(false);
+      } catch (error) {
+        onToast("error", errorMessage(error));
+      } finally {
+        setIsAddingClaudeAccount(false);
+      }
+      return;
+    }
+
     if (activePlatform === "gemini") {
       try {
         setIsAddingGeminiAccount(true);
@@ -199,10 +263,23 @@ function AccountsWorkspaceComponent({
     } finally {
       setIsAddingCodexAccount(false);
     }
-  }, [activePlatform, onToast, refreshCodexAccounts, refreshGeminiAccounts]);
+  }, [activePlatform, onToast, refreshClaudeAccounts, refreshCodexAccounts, refreshGeminiAccounts]);
 
   const handleSwitchAccount = useCallback(
     async (accountId: string) => {
+      if (activePlatform === "claude") {
+        try {
+          setSwitchingClaudeAccountId(accountId);
+          await switchClaudeAccount(accountId);
+          await refreshClaudeAccounts(false);
+        } catch (error) {
+          onToast("error", errorMessage(error));
+        } finally {
+          setSwitchingClaudeAccountId(null);
+        }
+        return;
+      }
+
       if (activePlatform === "gemini") {
         try {
           setSwitchingGeminiAccountId(accountId);
@@ -230,11 +307,24 @@ function AccountsWorkspaceComponent({
         setSwitchingCodexAccountId(null);
       }
     },
-    [activePlatform, onToast, refreshCodexAccounts, refreshGeminiAccounts],
+    [activePlatform, onToast, refreshClaudeAccounts, refreshCodexAccounts, refreshGeminiAccounts],
   );
 
   const handleDeleteAccount = useCallback(
     async (accountId: string) => {
+      if (activePlatform === "claude") {
+        try {
+          setDeletingClaudeAccountId(accountId);
+          await deleteClaudeAccount(accountId);
+          await refreshClaudeAccounts(false);
+        } catch (error) {
+          onToast("error", errorMessage(error));
+        } finally {
+          setDeletingClaudeAccountId(null);
+        }
+        return;
+      }
+
       if (activePlatform === "gemini") {
         try {
           setDeletingGeminiAccountId(accountId);
@@ -262,10 +352,22 @@ function AccountsWorkspaceComponent({
         setDeletingCodexAccountId(null);
       }
     },
-    [activePlatform, onToast, refreshCodexAccounts, refreshGeminiAccounts],
+    [activePlatform, onToast, refreshClaudeAccounts, refreshCodexAccounts, refreshGeminiAccounts],
   );
 
   const handleRefreshUsage = useCallback(async () => {
+    if (activePlatform === "claude") {
+      try {
+        setIsRefreshingClaudeAccounts(true);
+        await refreshClaudeAccounts(false);
+      } catch (error) {
+        onToast("error", errorMessage(error));
+      } finally {
+        setIsRefreshingClaudeAccounts(false);
+      }
+      return;
+    }
+
     if (activePlatform === "gemini") {
       try {
         setIsRefreshingGeminiAccounts(true);
@@ -292,23 +394,43 @@ function AccountsWorkspaceComponent({
     } finally {
       setIsRefreshingCodexUsage(false);
     }
-  }, [activePlatform, onToast, refreshCodexAccounts, refreshGeminiAccounts]);
+  }, [activePlatform, onToast, refreshClaudeAccounts, refreshCodexAccounts, refreshGeminiAccounts]);
 
-  const currentAccounts: Array<CodexAccountSummary | GeminiAccountSummary> = activePlatform === "codex"
+  const currentAccounts: Array<CodexAccountSummary | ClaudeAccountSummary | GeminiAccountSummary> = activePlatform === "codex"
     ? codexAccounts
+    : activePlatform === "claude"
+      ? claudeAccounts
     : activePlatform === "gemini"
       ? geminiAccounts
       : [];
   const isLoadingAccounts = activePlatform === "codex"
     ? isLoadingCodexAccounts
+    : activePlatform === "claude"
+      ? isLoadingClaudeAccounts
     : activePlatform === "gemini"
       ? isLoadingGeminiAccounts
       : false;
-  const isAddingAccount = activePlatform === "codex" ? isAddingCodexAccount : isAddingGeminiAccount;
-  const switchingAccountId = activePlatform === "codex" ? switchingCodexAccountId : switchingGeminiAccountId;
-  const deletingAccountId = activePlatform === "codex" ? deletingCodexAccountId : deletingGeminiAccountId;
-  const isRefreshingUsage = activePlatform === "codex" ? isRefreshingCodexUsage : isRefreshingGeminiAccounts;
-  const actionsDisabled = activePlatform === "claude";
+  const isAddingAccount = activePlatform === "codex"
+    ? isAddingCodexAccount
+    : activePlatform === "claude"
+      ? isAddingClaudeAccount
+      : isAddingGeminiAccount;
+  const switchingAccountId = activePlatform === "codex"
+    ? switchingCodexAccountId
+    : activePlatform === "claude"
+      ? switchingClaudeAccountId
+      : switchingGeminiAccountId;
+  const deletingAccountId = activePlatform === "codex"
+    ? deletingCodexAccountId
+    : activePlatform === "claude"
+      ? deletingClaudeAccountId
+      : deletingGeminiAccountId;
+  const isRefreshingUsage = activePlatform === "codex"
+    ? isRefreshingCodexUsage
+    : activePlatform === "claude"
+      ? isRefreshingClaudeAccounts
+      : isRefreshingGeminiAccounts;
+  const actionsDisabled = false;
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const searchedAccounts = currentAccounts.filter((account) =>

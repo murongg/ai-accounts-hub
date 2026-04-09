@@ -19,14 +19,16 @@ dependencies = [
 
 [[package]]
 name = "ai-accounts-hub"
-version = "0.2.4"
+version = "0.2.3"
 dependencies = [
  "base64 0.22.1",
  "cc",
  "dirs",
  "reqwest 0.12.28",
+ "security-framework",
  "serde",
  "serde_json",
+ "sha2",
  "tauri",
  "tauri-build",
  "tauri-plugin-opener",

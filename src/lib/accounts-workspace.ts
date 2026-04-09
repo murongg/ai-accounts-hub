@@ -28,13 +28,6 @@ export function resolveAccountsPageState({
       ? "Claude"
       : "Codex";
 
-  if (activePlatform === "claude") {
-    return {
-      title: copy.accounts.emptyState.unsupportedPlatform(platformLabel),
-      description: copy.accounts.emptyState.unsupportedDescription,
-    };
-  }
-
   if (isLoading) {
     return {
       title: copy.accounts.emptyState.loadingTitle(platformLabel),

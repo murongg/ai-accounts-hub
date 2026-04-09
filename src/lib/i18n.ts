@@ -25,6 +25,8 @@ export interface I18nMessages {
     q2Label: string;
     waitingFirstSync: string;
     planUnknown: string;
+    claudeDisplayNameLabel: string;
+    claudeAccountHintLabel: string;
     geminiAuthTypeLabel: string;
     geminiProLabel: string;
     geminiFlashLabel: string;
@@ -194,6 +196,8 @@ function createChineseCopy(): I18nMessages {
       q2Label: "每周剩余配额",
       waitingFirstSync: "等待首次同步",
       planUnknown: "未知",
+      claudeDisplayNameLabel: "账号名称",
+      claudeAccountHintLabel: "账号标识",
       geminiAuthTypeLabel: "登录方式",
       geminiProLabel: "Pro 剩余配额",
       geminiFlashLabel: "Flash 剩余配额",
@@ -335,6 +339,8 @@ function createEnglishCopy(): I18nMessages {
       q2Label: "Weekly remaining quota",
       waitingFirstSync: "Waiting for first sync",
       planUnknown: "Unknown",
+      claudeDisplayNameLabel: "Account name",
+      claudeAccountHintLabel: "Account hint",
       geminiAuthTypeLabel: "Sign-in method",
       geminiProLabel: "Pro remaining quota",
       geminiFlashLabel: "Flash remaining quota",

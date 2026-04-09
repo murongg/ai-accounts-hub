@@ -11,6 +11,7 @@ import {
   getAccountCardPresentation,
 } from "../lib/accounts-display";
 import { resolveAccountsPageState } from "../lib/accounts-workspace";
+import type { ClaudeAccountSummary } from "../types/claude";
 import type { CodexAccountSummary } from "../types/codex";
 import type { GeminiAccountSummary } from "../types/gemini";
 import type { AppLanguage } from "../types/settings";
@@ -23,7 +24,7 @@ export interface AccountsPageProps {
   totalCount: number;
   idleCount: number;
   normalizedQuery: string;
-  visibleAccounts: Array<CodexAccountSummary | GeminiAccountSummary>;
+  visibleAccounts: Array<CodexAccountSummary | ClaudeAccountSummary | GeminiAccountSummary>;
   isLoadingAccounts: boolean;
   isAddingAccount: boolean;
   switchingAccountId: string | null;
@@ -100,6 +101,23 @@ function AccountsPageComponent({
       account.flash_remaining_percent !== null ||
       account.flash_lite_remaining_percent !== null
     );
+  }
+
+  function buildClaudeDetailRows(account: ClaudeAccountSummary) {
+    return [
+      account.display_name
+        ? {
+            label: copy.accounts.claudeDisplayNameLabel,
+            value: account.display_name,
+          }
+        : null,
+      account.account_hint
+        ? {
+            label: copy.accounts.claudeAccountHintLabel,
+            value: account.account_hint,
+          }
+        : null,
+    ].filter((detail): detail is { label: string; value: string } => detail !== null);
   }
 
   return (
@@ -201,6 +219,42 @@ function AccountsPageComponent({
                       language,
                     )}
                     activityKind={usageAvailable ? "sync" : "auth"}
+                    primaryLabel={
+                      account.is_active
+                        ? copy.accounts.activePrimary
+                        : switchingAccountId === account.id
+                          ? copy.accounts.switchingPrimary
+                          : copy.accounts.switchPrimary
+                    }
+                    primaryDisabled={account.is_active || switchingAccountId === account.id || isAddingAccount}
+                    secondaryDisabled={deletingAccountId === account.id || isAddingAccount}
+                    onPrimaryClick={onSwitchAccount}
+                    onSecondaryClick={onDeleteAccount}
+                  />
+                );
+              })()
+            ) : activePlatform === "claude" ? (
+              (() => {
+                const claudeAccount = account as ClaudeAccountSummary;
+
+                return (
+                  <AccountCard
+                    key={account.id}
+                    accountId={account.id}
+                    language={language}
+                    email={account.email}
+                    plan={claudeAccount.plan ?? copy.accounts.planUnknown}
+                    size={cardPresentation.cardSize}
+                    isActive={account.is_active}
+                    isAlive={!(claudeAccount.needs_relogin ?? false)}
+                    detailRows={buildClaudeDetailRows(claudeAccount)}
+                    activityLabel={copy.accounts.authenticatedPrefix}
+                    activityValue={formatTimestamp(
+                      claudeAccount.last_authenticated_at,
+                      copy.accounts.waitingFirstSync,
+                      language,
+                    )}
+                    activityKind="auth"
                     primaryLabel={
                       account.is_active
                         ? copy.accounts.activePrimary

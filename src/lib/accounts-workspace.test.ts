@@ -28,15 +28,15 @@ function createDeferred<T>() {
   return { promise, resolve, reject };
 }
 
-test("returns platform placeholder only for unsupported platforms", () => {
+test("returns the default empty-state copy for Claude when no managed accounts exist", () => {
   const state = expectState(resolveAccountsPageState({
     activePlatform: "claude",
     isLoading: false,
     normalizedQuery: "",
     visibleCount: 0,
   }));
-  assert.match(state.title, /Claude/);
-  assert.ok(state.description.length > 0);
+  assert.doesNotMatch(state.title, /Claude 即将接入|Claude is coming soon/);
+  assert.notEqual(state.title.length, 0);
 });
 
 test("returns the default empty-state copy for Gemini when no managed accounts exist", () => {

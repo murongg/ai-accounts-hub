@@ -98,16 +98,16 @@ test("returns counts for Gemini once the platform is supported", () => {
   });
 });
 
-test("returns zero counts for unsupported platforms", () => {
+test("returns counts for Claude once the platform is supported", () => {
   const metrics = getPlatformAccountMetrics("claude", [
     { is_active: true },
     { is_active: false },
   ]);
 
   assert.deepEqual(metrics, {
-    totalCount: 0,
-    activeCount: 0,
-    idleCount: 0,
+    totalCount: 2,
+    activeCount: 1,
+    idleCount: 1,
   });
 });
 
