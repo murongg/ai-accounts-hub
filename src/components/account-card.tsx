@@ -60,28 +60,29 @@ function AccountCardComponent({
       } ${theme.cardClass}`}
     >
       <div className={`card-body gap-0 ${isLarge ? "p-5 sm:p-6" : "p-4 sm:p-5"}`}>
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-3 min-w-0">
           <h2
-            className={`min-w-0 flex-1 pr-2 font-semibold tracking-tight text-base-content ${
+            className={`block min-w-0 truncate font-semibold tracking-tight text-base-content ${
               isLarge ? "text-[18px] sm:text-[22px]" : "text-[16px] sm:text-[18px]"
             }`}
+            title={email}
           >
             {email}
           </h2>
-          {isActive ? (
-            <span className="shrink-0 whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
-              {copy.card.activeMarker}
-            </span>
-          ) : null}
         </div>
 
-        <div className="mb-4 flex items-center gap-2">
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          {isActive ? (
+            <div className={`badge badge-sm gap-1.5 border px-2.5 py-3 ${theme.secondaryBadgeClass}`}>
+              <span className="text-[11px] font-medium">{copy.card.activeMarker}</span>
+            </div>
+          ) : null}
           <div className={`badge badge-sm gap-1.5 border px-2.5 py-3 ${theme.planBadgeClass}`}>
             <User size={10} strokeWidth={2.5} />
             <span className="text-[11px] font-medium">{plan}</span>
           </div>
           <div
-            className={`badge badge-sm shrink-0 whitespace-nowrap gap-1.5 border px-2.5 py-3 ${theme.statusBadgeClass}`}
+            className={`badge badge-sm shrink-0 gap-1.5 border px-2.5 py-3 ${theme.statusBadgeClass}`}
           >
             <span className={`h-1.5 w-1.5 rounded-full ${theme.statusDotClass}`} />
             <span className="text-[11px] font-medium">
