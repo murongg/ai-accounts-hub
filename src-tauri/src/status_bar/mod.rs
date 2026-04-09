@@ -8,13 +8,14 @@ use dirs::home_dir;
 use tauri::{AppHandle, Manager};
 
 use crate::codex_accounts::{paths::CodexAccountPaths, service::CodexAccountService};
+#[cfg(target_os = "macos")]
 use crate::codex_usage::scheduler::CodexUsageSchedulerState;
 use crate::gemini_accounts::{paths::GeminiAccountPaths, service::GeminiAccountService};
 
 use self::bridge_payload::StatusBarTab;
-use self::menu_model::{
-    build_provider_menu_state, parse_menu_action, MenuAccountState, MenuAction, MenuProvider,
-};
+use self::menu_model::{build_provider_menu_state, MenuProvider};
+#[cfg(target_os = "macos")]
+use self::menu_model::{parse_menu_action, MenuAccountState, MenuAction};
 
 const MAIN_WINDOW_LABEL: &str = "main";
 
@@ -157,7 +158,10 @@ pub fn handle_menu_event<R: tauri::Runtime>(app: &AppHandle<R>, event: tauri::me
 
     match action {
         MenuAction::SelectProvider(provider) => {
-            if let Err(error) = app.state::<StatusBarState>().set_selected_provider(provider) {
+            if let Err(error) = app
+                .state::<StatusBarState>()
+                .set_selected_provider(provider)
+            {
                 eprintln!("failed to update status bar provider: {error}");
                 return;
             }
@@ -169,7 +173,8 @@ pub fn handle_menu_event<R: tauri::Runtime>(app: &AppHandle<R>, event: tauri::me
         MenuAction::SwitchAccount(provider, account_id) => {
             let app = app.clone();
             tauri::async_runtime::spawn(async move {
-                if let Err(error) = switch_provider_account(app.clone(), provider, account_id).await {
+                if let Err(error) = switch_provider_account(app.clone(), provider, account_id).await
+                {
                     eprintln!("failed to switch status bar account: {error}");
                 }
 
@@ -189,7 +194,8 @@ pub fn handle_menu_event<R: tauri::Runtime>(app: &AppHandle<R>, event: tauri::me
                     }
                 };
 
-                if let Err(error) = refresh_selected_provider(app.clone(), selected_provider).await {
+                if let Err(error) = refresh_selected_provider(app.clone(), selected_provider).await
+                {
                     eprintln!("failed to refresh provider from status bar: {error}");
                 }
 
@@ -210,14 +216,13 @@ pub fn handle_menu_event<R: tauri::Runtime>(app: &AppHandle<R>, event: tauri::me
 }
 
 #[cfg(not(target_os = "macos"))]
-pub fn handle_menu_event<R: tauri::Runtime>(
-    _app: &AppHandle<R>,
-    _event: tauri::menu::MenuEvent,
-) {
-}
+pub fn handle_menu_event<R: tauri::Runtime>(_app: &AppHandle<R>, _event: tauri::menu::MenuEvent) {}
 
 #[cfg(target_os = "macos")]
-pub fn handle_window_event<R: tauri::Runtime>(window: &tauri::Window<R>, event: &tauri::WindowEvent) {
+pub fn handle_window_event<R: tauri::Runtime>(
+    window: &tauri::Window<R>,
+    event: &tauri::WindowEvent,
+) {
     use tauri::{ActivationPolicy, WindowEvent};
 
     if let WindowEvent::CloseRequested { api, .. } = event {
@@ -232,10 +237,16 @@ pub fn handle_window_event<R: tauri::Runtime>(window: &tauri::Window<R>, event: 
 }
 
 #[cfg(not(target_os = "macos"))]
-pub fn handle_window_event<R: tauri::Runtime>(_window: &tauri::Window<R>, _event: &tauri::WindowEvent) {}
+pub fn handle_window_event<R: tauri::Runtime>(
+    _window: &tauri::Window<R>,
+    _event: &tauri::WindowEvent,
+) {
+}
 
 #[cfg(target_os = "macos")]
-fn build_status_menu<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<tauri::menu::Menu<R>, String> {
+fn build_status_menu<R: tauri::Runtime>(
+    app: &AppHandle<R>,
+) -> Result<tauri::menu::Menu<R>, String> {
     use tauri::menu::{CheckMenuItem, Menu, MenuItem, PredefinedMenuItem};
 
     let selected_provider = app.state::<StatusBarState>().selected_provider()?;
@@ -271,9 +282,10 @@ fn build_status_menu<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<tauri::men
             MenuProvider::Codex => "暂无 Codex 账号",
             MenuProvider::Gemini => "暂无 Gemini 账号",
         };
-        let empty_item =
-            MenuItem::new(app, empty_label, false, None::<&str>).map_err(|error| error.to_string())?;
-        menu.append(&empty_item).map_err(|error| error.to_string())?;
+        let empty_item = MenuItem::new(app, empty_label, false, None::<&str>)
+            .map_err(|error| error.to_string())?;
+        menu.append(&empty_item)
+            .map_err(|error| error.to_string())?;
     } else {
         for account in &provider_state.accounts {
             let submenu = build_account_submenu(app, selected_provider, account)?;
@@ -288,9 +300,14 @@ fn build_status_menu<R: tauri::Runtime>(app: &AppHandle<R>) -> Result<tauri::men
         .map_err(|error| error.to_string())?;
     let open_main = MenuItem::with_id(app, MENU_ID_OPEN_MAIN, "打开主窗口", true, None::<&str>)
         .map_err(|error| error.to_string())?;
-    let quit =
-        MenuItem::with_id(app, MENU_ID_QUIT, "退出 AI Accounts Hub", true, None::<&str>)
-            .map_err(|error| error.to_string())?;
+    let quit = MenuItem::with_id(
+        app,
+        MENU_ID_QUIT,
+        "退出 AI Accounts Hub",
+        true,
+        None::<&str>,
+    )
+    .map_err(|error| error.to_string())?;
 
     menu.append(&refresh).map_err(|error| error.to_string())?;
     menu.append(&open_main).map_err(|error| error.to_string())?;
@@ -312,9 +329,8 @@ fn build_account_submenu<R: tauri::Runtime>(
     let submenu =
         Submenu::with_id(app, submenu_id, title, true).map_err(|error| error.to_string())?;
 
-    let plan =
-        MenuItem::new(app, format!("套餐: {}", account.plan), false, None::<&str>)
-            .map_err(|error| error.to_string())?;
+    let plan = MenuItem::new(app, format!("套餐: {}", account.plan), false, None::<&str>)
+        .map_err(|error| error.to_string())?;
     let status = MenuItem::new(
         app,
         format!("状态: {}", status_display_label(&account.status_label)),
@@ -379,7 +395,13 @@ fn build_fallback_menu<R: tauri::Runtime>(
     let unavailable = MenuItem::new(app, "状态栏数据暂不可用", false, None::<&str>)?;
     let error_item = MenuItem::new(app, truncate_menu_error(error), false, None::<&str>)?;
     let open_main = MenuItem::with_id(app, MENU_ID_OPEN_MAIN, "打开主窗口", true, None::<&str>)?;
-    let quit = MenuItem::with_id(app, MENU_ID_QUIT, "退出 AI Accounts Hub", true, None::<&str>)?;
+    let quit = MenuItem::with_id(
+        app,
+        MENU_ID_QUIT,
+        "退出 AI Accounts Hub",
+        true,
+        None::<&str>,
+    )?;
 
     menu.append(&unavailable)?;
     menu.append(&error_item)?;
@@ -448,10 +470,9 @@ fn load_account_lists<R: tauri::Runtime>(
         user_home.clone(),
     ))
     .list_accounts()?;
-    let gemini_accounts = GeminiAccountService::with_process_runner(GeminiAccountPaths::from_roots(
-        app_data_dir,
-        user_home,
-    ))
+    let gemini_accounts = GeminiAccountService::with_process_runner(
+        GeminiAccountPaths::from_roots(app_data_dir, user_home),
+    )
     .list_accounts()?;
 
     Ok((codex_accounts, gemini_accounts))

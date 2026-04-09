@@ -15,7 +15,8 @@ use tauri::{AppHandle, Manager, Runtime};
 use tokio::sync::mpsc;
 
 #[cfg(target_os = "macos")]
-use super::bridge_payload::{build_bridge_payload, StatusBarTab};
+use super::bridge_payload::build_bridge_payload;
+use super::bridge_payload::StatusBarTab;
 #[cfg(target_os = "macos")]
 use super::{load_account_lists, refresh_provider_for_tab, show_main_window_internal};
 #[cfg(target_os = "macos")]
@@ -37,8 +38,13 @@ unsafe extern "C" {
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 enum NativeBridgeAction {
-    SelectTab { tab: StatusBarTab },
-    SwitchAccount { provider: String, account_id: String },
+    SelectTab {
+        tab: StatusBarTab,
+    },
+    SwitchAccount {
+        provider: String,
+        account_id: String,
+    },
     Refresh,
     OpenMainWindow,
     Quit,
@@ -106,7 +112,8 @@ pub fn update_payload<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     );
 
     if visible_tab != selected_tab {
-        app.state::<super::StatusBarState>().set_selected_tab(visible_tab)?;
+        app.state::<super::StatusBarState>()
+            .set_selected_tab(visible_tab)?;
     }
 
     let payload = build_bridge_payload(
@@ -115,8 +122,8 @@ pub fn update_payload<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
         gemini_accounts,
         current_time_ms(),
     );
-    let payload_json =
-        serde_json::to_string(&payload).map_err(|error| format!("failed to serialize native status payload: {error}"))?;
+    let payload_json = serde_json::to_string(&payload)
+        .map_err(|error| format!("failed to serialize native status payload: {error}"))?;
     let payload_cstring = CString::new(payload_json)
         .map_err(|error| format!("failed to encode native status payload: {error}"))?;
 
@@ -135,7 +142,10 @@ async fn handle_native_action<R: Runtime>(app: AppHandle<R>, message: &str) -> R
             app.state::<super::StatusBarState>().set_selected_tab(tab)?;
             update_payload(&app)?;
         }
-        NativeBridgeAction::SwitchAccount { provider, account_id } => {
+        NativeBridgeAction::SwitchAccount {
+            provider,
+            account_id,
+        } => {
             let provider = match provider.as_str() {
                 "codex" => MenuProvider::Codex,
                 "gemini" => MenuProvider::Gemini,
@@ -177,7 +187,11 @@ fn current_time_ms() -> i64 {
         .unwrap_or_default()
 }
 
-fn visible_native_tab(selected_tab: StatusBarTab, has_codex: bool, has_gemini: bool) -> StatusBarTab {
+fn visible_native_tab(
+    selected_tab: StatusBarTab,
+    has_codex: bool,
+    has_gemini: bool,
+) -> StatusBarTab {
     match selected_tab {
         StatusBarTab::Overview => {
             if has_codex {
@@ -194,21 +208,30 @@ fn visible_native_tab(selected_tab: StatusBarTab, has_codex: bool, has_gemini: b
 
 #[cfg(test)]
 mod tests {
-    use super::StatusBarTab;
     use super::visible_native_tab;
+    use super::StatusBarTab;
 
     #[test]
     fn visible_native_tab_prefers_codex_when_overview_is_hidden() {
-        assert_eq!(visible_native_tab(StatusBarTab::Overview, true, true), StatusBarTab::Codex);
+        assert_eq!(
+            visible_native_tab(StatusBarTab::Overview, true, true),
+            StatusBarTab::Codex
+        );
     }
 
     #[test]
     fn visible_native_tab_falls_back_to_gemini_when_codex_is_unavailable() {
-        assert_eq!(visible_native_tab(StatusBarTab::Overview, false, true), StatusBarTab::Gemini);
+        assert_eq!(
+            visible_native_tab(StatusBarTab::Overview, false, true),
+            StatusBarTab::Gemini
+        );
     }
 
     #[test]
     fn visible_native_tab_keeps_explicit_provider_selection() {
-        assert_eq!(visible_native_tab(StatusBarTab::Gemini, true, true), StatusBarTab::Gemini);
+        assert_eq!(
+            visible_native_tab(StatusBarTab::Gemini, true, true),
+            StatusBarTab::Gemini
+        );
     }
 }

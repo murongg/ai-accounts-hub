@@ -2,7 +2,9 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::thread;
-use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
+use std::time::{Duration, Instant};
+#[cfg(target_os = "macos")]
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use super::paths::oauth_creds_path_for_home;
 
@@ -52,9 +54,8 @@ fn run_login_via_terminal(binary: &Path, managed_home: &Path) -> Result<(), Stri
     ));
     let escaped_binary = shell_escape(binary);
     let escaped_home = shell_escape(managed_home);
-    let script = format!(
-        "#!/bin/bash\nexport GEMINI_CLI_HOME={escaped_home}\ncd ~\n{escaped_binary}\n"
-    );
+    let script =
+        format!("#!/bin/bash\nexport GEMINI_CLI_HOME={escaped_home}\ncd ~\n{escaped_binary}\n");
 
     fs::write(&script_path, script)
         .map_err(|error| format!("failed to write Gemini login script: {error}"))?;
@@ -95,8 +96,16 @@ fn wait_for_credentials(managed_home: &Path, timeout: Duration) -> Result<(), St
 
 pub fn resolve_gemini_binary() -> Option<PathBuf> {
     which_in_path("gemini")
-        .or_else(|| dirs::home_dir().map(|home| home.join(".local/bin/gemini")).filter(|path| path.exists()))
-        .or_else(|| dirs::home_dir().map(|home| home.join(".bun/bin/gemini")).filter(|path| path.exists()))
+        .or_else(|| {
+            dirs::home_dir()
+                .map(|home| home.join(".local/bin/gemini"))
+                .filter(|path| path.exists())
+        })
+        .or_else(|| {
+            dirs::home_dir()
+                .map(|home| home.join(".bun/bin/gemini"))
+                .filter(|path| path.exists())
+        })
         .or_else(resolve_nvm_gemini_binary)
         .or_else(|| {
             ["/opt/homebrew/bin/gemini", "/usr/local/bin/gemini"]
