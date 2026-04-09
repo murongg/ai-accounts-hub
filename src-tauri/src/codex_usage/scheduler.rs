@@ -225,6 +225,8 @@ fn emit_refresh_events(app: &AppHandle, outcome: &RefreshOutcome) -> Result<(), 
         }
     }
 
+    crate::status_bar::refresh_status_menu(app)?;
+
     Ok(())
 }
 

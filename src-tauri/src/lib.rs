@@ -5,6 +5,7 @@ pub mod codex_accounts;
 pub mod codex_usage;
 pub mod gemini_accounts;
 pub mod gemini_usage;
+pub mod status_bar;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -16,9 +17,13 @@ fn greet(name: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .manage(codex_usage::scheduler::CodexUsageSchedulerState::default())
+        .manage(status_bar::StatusBarState::default())
+        .on_menu_event(|app, event| status_bar::handle_menu_event(app, event))
+        .on_window_event(|window, event| status_bar::handle_window_event(window, event))
         .setup(|app| {
             let scheduler = app.state::<codex_usage::scheduler::CodexUsageSchedulerState>();
             codex_usage::initialize_scheduler(&app.handle(), &scheduler)?;
+            status_bar::setup_status_bar(app)?;
             Ok(())
         })
         .plugin(tauri_plugin_opener::init())
@@ -41,7 +46,9 @@ pub fn run() {
             app_settings::clear_all_app_data,
             codex_usage::get_codex_refresh_settings,
             codex_usage::update_codex_refresh_settings,
-            codex_usage::refresh_codex_usage_now
+            codex_usage::refresh_codex_usage_now,
+            status_bar::show_main_window,
+            status_bar::quit_application
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

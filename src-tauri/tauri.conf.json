@@ -10,8 +10,10 @@
     "frontendDist": "../dist"
   },
   "app": {
+    "macOSPrivateApi": true,
     "windows": [
       {
+        "label": "main",
         "title": "",
         "width": 1360,
         "height": 800,
@@ -27,6 +29,12 @@
     "active": true,
     "createUpdaterArtifacts": true,
     "targets": "all",
+    "resources": [
+      "../public/icon.svg",
+      "../src/assets/openai.svg",
+      "../src/assets/gemini-color.svg",
+      "native/macos/provider-icons/gemini.png"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

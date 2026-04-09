@@ -1,0 +1,48 @@
+#include <stdbool.h>
+
+#import <Foundation/Foundation.h>
+
+typedef void (*AAHStatusBarBridgeCallback)(const char *json);
+
+bool aah_status_bar_bridge_initialize(AAHStatusBarBridgeCallback callback);
+void aah_status_bar_bridge_set_payload(const char *payload_json);
+
+int aah_status_bar_bridge_needs_main_queue_hop(int is_main_thread);
+double aah_status_bar_bridge_panel_height_for_content_height(double content_height);
+double aah_status_bar_bridge_panel_height_clamped_to_available_height(double content_height, double available_height);
+
+int aah_status_bar_bridge_optional_string_length_from_json(const char *payload_json, const char *field_name);
+int aah_status_bar_bridge_debug_icon_ready(void);
+int aah_status_bar_bridge_debug_app_icon_source_variant(void);
+int aah_status_bar_bridge_debug_app_icon_is_template(void);
+int aah_status_bar_bridge_debug_provider_icon_ready_for_tab(int tab_value);
+int aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab(int tab_value);
+int aah_status_bar_bridge_debug_section_count_from_json(const char *payload_json);
+int aah_status_bar_bridge_debug_selected_tab_value_from_json(const char *payload_json);
+int aah_status_bar_bridge_debug_visible_tab_count(void);
+int aah_status_bar_bridge_debug_active_section_index_from_json(const char *payload_json);
+int aah_status_bar_bridge_debug_total_metric_count_from_json(const char *payload_json);
+int aah_status_bar_bridge_debug_footer_action_count(void);
+int aah_status_bar_bridge_debug_selected_tab_after_action_from_json(const char *payload_json, const char *action_json);
+int aah_status_bar_bridge_debug_shows_account_chips_from_json(const char *payload_json);
+int aah_status_bar_bridge_debug_visible_detail_section_count_from_json(const char *payload_json);
+int aah_status_bar_bridge_debug_account_chip_layout_axis_from_json(const char *payload_json);
+int aah_status_bar_bridge_debug_hosting_view_allows_vibrancy(void);
+int aah_status_bar_bridge_debug_uses_outer_panel_chrome(void);
+int aah_status_bar_bridge_debug_uses_scrollable_detail_container(void);
+int aah_status_bar_bridge_debug_menu_refreshes_layout_on_open(void);
+int aah_status_bar_bridge_debug_panel_width(void);
+int aah_status_bar_bridge_debug_switcher_height(void);
+int aah_status_bar_bridge_debug_hover_corner_radius(void);
+int aah_status_bar_bridge_debug_footer_action_row_height(void);
+int aah_status_bar_bridge_debug_footer_icon_column_width(void);
+int aah_status_bar_bridge_debug_footer_chevron_column_width(void);
+int aah_status_bar_bridge_debug_footer_action_horizontal_padding(void);
+int aah_status_bar_bridge_debug_footer_action_vertical_padding(void);
+int aah_status_bar_bridge_debug_panel_content_padding(void);
+int aah_status_bar_bridge_debug_interactive_row_horizontal_padding(void);
+int aah_status_bar_bridge_debug_interactive_row_vertical_padding(void);
+int aah_status_bar_bridge_debug_account_section_hover_horizontal_padding(void);
+int aah_status_bar_bridge_debug_account_section_hover_vertical_padding(void);
+int aah_status_bar_bridge_debug_pinned_detail_section_count_from_json(const char *payload_json);
+int aah_status_bar_bridge_debug_scrollable_detail_section_count_from_json(const char *payload_json);

@@ -51,6 +51,20 @@ export interface I18nMessages {
     syncedPrefix: string;
     deleteAccountAria: string;
   };
+  statusPanel: {
+    title: string;
+    subtitle: string;
+    codexTab: string;
+    geminiTab: string;
+    refresh: string;
+    refreshing: string;
+    openApp: string;
+    quit: string;
+    noAccounts: string;
+    switchToAccount: string;
+    switching: string;
+    quotaUnknown: string;
+  };
   settings: {
     title: string;
     subtitle: string;
@@ -206,6 +220,20 @@ function createChineseCopy(): I18nMessages {
       syncedPrefix: "最近同步于",
       deleteAccountAria: "删除账号",
     },
+    statusPanel: {
+      title: "状态栏账号切换",
+      subtitle: "快速切换当前账号并查看剩余配额",
+      codexTab: "Codex",
+      geminiTab: "Gemini",
+      refresh: "刷新",
+      refreshing: "刷新中...",
+      openApp: "打开主窗口",
+      quit: "退出应用",
+      noAccounts: "当前平台还没有可用账号。",
+      switchToAccount: "切换至此账号",
+      switching: "切换中...",
+      quotaUnknown: "等待同步",
+    },
     settings: {
       title: "系统设置",
       subtitle: "管理系统偏好、同步行为与本地数据。",
@@ -332,6 +360,20 @@ function createEnglishCopy(): I18nMessages {
       reloginRequired: "Re-login required",
       syncedPrefix: "Synced",
       deleteAccountAria: "Delete account",
+    },
+    statusPanel: {
+      title: "Menu Bar Accounts",
+      subtitle: "Switch the active account and inspect remaining quota",
+      codexTab: "Codex",
+      geminiTab: "Gemini",
+      refresh: "Refresh",
+      refreshing: "Refreshing...",
+      openApp: "Open main window",
+      quit: "Quit",
+      noAccounts: "No accounts are available for this platform yet.",
+      switchToAccount: "Switch to account",
+      switching: "Switching...",
+      quotaUnknown: "Waiting for sync",
     },
     settings: {
       title: "Settings",
