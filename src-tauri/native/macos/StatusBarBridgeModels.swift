@@ -103,6 +103,24 @@ enum StatusBarBridgeAction {
     case openMainWindow
     case quit
 
+    var keepsMenuOpen: Bool {
+        switch self {
+        case .selectTab:
+            return true
+        case .switchAccount, .refresh, .openMainWindow, .quit:
+            return false
+        }
+    }
+
+    var isHandledLocally: Bool {
+        switch self {
+        case .quit:
+            return true
+        case .selectTab, .switchAccount, .refresh, .openMainWindow:
+            return false
+        }
+    }
+
     var jsonString: String? {
         let payload: [String: Any]
 

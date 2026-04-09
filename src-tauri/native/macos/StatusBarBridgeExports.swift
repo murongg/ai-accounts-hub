@@ -224,6 +224,24 @@ func aah_status_bar_bridge_debug_selected_tab_after_action_from_json(
     return session.displayedPayload.selectedTab.debugValue
 }
 
+@_cdecl("aah_status_bar_bridge_debug_action_keeps_menu_open")
+func aah_status_bar_bridge_debug_action_keeps_menu_open(_ actionJSON: UnsafePointer<CChar>?) -> Int32 {
+    guard let action = decodedAction(from: actionJSON) else {
+        return 0
+    }
+
+    return StatusBarBridgeController.debugActionKeepsMenuOpen(action) ? 1 : 0
+}
+
+@_cdecl("aah_status_bar_bridge_debug_action_is_handled_locally")
+func aah_status_bar_bridge_debug_action_is_handled_locally(_ actionJSON: UnsafePointer<CChar>?) -> Int32 {
+    guard let action = decodedAction(from: actionJSON) else {
+        return 0
+    }
+
+    return StatusBarBridgeController.debugActionIsHandledLocally(action) ? 1 : 0
+}
+
 @_cdecl("aah_status_bar_bridge_debug_shows_account_chips_from_json")
 func aah_status_bar_bridge_debug_shows_account_chips_from_json(_ payloadJSON: UnsafePointer<CChar>?) -> Int32 {
     let payload = decodedPayload(from: payloadJSON)
@@ -259,6 +277,11 @@ func aah_status_bar_bridge_debug_account_chip_layout_axis_from_json(_ payloadJSO
 @_cdecl("aah_status_bar_bridge_debug_hosting_view_allows_vibrancy")
 func aah_status_bar_bridge_debug_hosting_view_allows_vibrancy() -> Int32 {
     StatusBarBridgeController.debugHostingViewAllowsVibrancy() ? 1 : 0
+}
+
+@_cdecl("aah_status_bar_bridge_debug_hosting_view_accepts_first_mouse")
+func aah_status_bar_bridge_debug_hosting_view_accepts_first_mouse() -> Int32 {
+    StatusBarBridgeController.debugHostingViewAcceptsFirstMouse() ? 1 : 0
 }
 
 @_cdecl("aah_status_bar_bridge_debug_uses_outer_panel_chrome")

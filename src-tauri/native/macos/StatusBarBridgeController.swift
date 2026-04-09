@@ -11,6 +11,20 @@ final class StatusBarMenuHostingView<Content: View>: NSHostingView<Content> {
         false
     }
 
+    override var acceptsFirstResponder: Bool {
+        true
+    }
+
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool {
+        true
+    }
+
+    override func mouseDown(with event: NSEvent) {
+        window?.makeKey()
+        window?.makeFirstResponder(self)
+        super.mouseDown(with: event)
+    }
+
     required init(rootView: Content) {
         super.init(rootView: rootView)
         self.wantsLayer = true
@@ -230,8 +244,7 @@ final class StatusBarBridgeController: NSObject, NSMenuDelegate {
 
     private func makeRootView(secondaryDetailMaxHeight: CGFloat? = nil) -> StatusBarMenuRootView {
         StatusBarMenuRootView(session: session, secondaryDetailMaxHeight: secondaryDetailMaxHeight) { [weak self] action in
-            self?.applyLocal(action)
-            self?.emit(action)
+            self?.perform(action)
         }
     }
 
@@ -294,8 +307,59 @@ final class StatusBarBridgeController: NSObject, NSMenuDelegate {
         refreshLayout()
     }
 
+    private func perform(_ action: StatusBarBridgeAction) {
+        if action.keepsMenuOpen {
+            applyLocal(action)
+            emit(action)
+            return
+        }
+
+        dismissMenu()
+
+        if action.isHandledLocally {
+            handleLocally(action)
+            return
+        }
+
+        DispatchQueue.main.async { [weak self] in
+            self?.emit(action)
+        }
+    }
+
+    private func dismissMenu() {
+        guard let menu else {
+            return
+        }
+
+        menu.cancelTracking()
+    }
+
+    private func handleLocally(_ action: StatusBarBridgeAction) {
+        switch action {
+        case .quit:
+            DispatchQueue.main.async {
+                NSApp.terminate(nil)
+            }
+        case .selectTab, .switchAccount, .refresh, .openMainWindow:
+            break
+        }
+    }
+
     static func debugHostingViewAllowsVibrancy() -> Bool {
         StatusBarMenuHostingView(rootView: StatusBarMenuRootView(session: StatusBarMenuSession()) { _ in }).allowsVibrancy
+    }
+
+    static func debugHostingViewAcceptsFirstMouse() -> Bool {
+        StatusBarMenuHostingView(rootView: StatusBarMenuRootView(session: StatusBarMenuSession()) { _ in })
+            .acceptsFirstMouse(for: nil)
+    }
+
+    static func debugActionKeepsMenuOpen(_ action: StatusBarBridgeAction) -> Bool {
+        action.keepsMenuOpen
+    }
+
+    static func debugActionIsHandledLocally(_ action: StatusBarBridgeAction) -> Bool {
+        action.isHandledLocally
     }
 
     static func debugRefreshesMenuLayoutOnOpen() -> Bool {

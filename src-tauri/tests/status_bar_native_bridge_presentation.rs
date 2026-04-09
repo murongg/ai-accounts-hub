@@ -31,6 +31,8 @@ unsafe extern "C" {
         payload_json: *const i8,
         action_json: *const i8,
     ) -> c_int;
+    fn aah_status_bar_bridge_debug_action_keeps_menu_open(action_json: *const i8) -> c_int;
+    fn aah_status_bar_bridge_debug_action_is_handled_locally(action_json: *const i8) -> c_int;
     fn aah_status_bar_bridge_debug_shows_account_chips_from_json(payload_json: *const i8) -> c_int;
     fn aah_status_bar_bridge_debug_visible_detail_section_count_from_json(payload_json: *const i8) -> c_int;
     fn aah_status_bar_bridge_debug_pinned_detail_section_count_from_json(payload_json: *const i8) -> c_int;
@@ -39,6 +41,7 @@ unsafe extern "C" {
     ) -> c_int;
     fn aah_status_bar_bridge_debug_account_chip_layout_axis_from_json(payload_json: *const i8) -> c_int;
     fn aah_status_bar_bridge_debug_hosting_view_allows_vibrancy() -> c_int;
+    fn aah_status_bar_bridge_debug_hosting_view_accepts_first_mouse() -> c_int;
     fn aah_status_bar_bridge_debug_uses_outer_panel_chrome() -> c_int;
     fn aah_status_bar_bridge_debug_uses_scrollable_detail_container() -> c_int;
     fn aah_status_bar_bridge_debug_menu_refreshes_layout_on_open() -> c_int;
@@ -94,6 +97,31 @@ fn native_bridge_select_tab_action_updates_visible_tab_immediately() {
 
 #[cfg(target_os = "macos")]
 #[test]
+fn native_bridge_select_tab_action_keeps_the_menu_open() {
+    let action = CString::new(r#"{"type":"select_tab","tab":"gemini"}"#).unwrap();
+
+    let keeps_menu_open =
+        unsafe { aah_status_bar_bridge_debug_action_keeps_menu_open(action.as_ptr()) };
+
+    assert_eq!(keeps_menu_open, 1);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn native_bridge_quit_action_is_handled_locally_after_dismissing_the_menu() {
+    let action = CString::new(r#"{"type":"quit"}"#).unwrap();
+
+    let keeps_menu_open =
+        unsafe { aah_status_bar_bridge_debug_action_keeps_menu_open(action.as_ptr()) };
+    let handled_locally =
+        unsafe { aah_status_bar_bridge_debug_action_is_handled_locally(action.as_ptr()) };
+
+    assert_eq!(keeps_menu_open, 0);
+    assert_eq!(handled_locally, 1);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
 fn native_bridge_stacks_provider_accounts_as_vertical_detail_sections() {
     let payload = CString::new(
         r#"{"selectedTab":"codex","sections":[{"id":"codex:active","providerId":"codex","providerTitle":"Codex","email":"active@example.com","subtitle":"Updated just now","plan":"Pro","isActive":true,"needsRelogin":false,"metrics":[],"switchAccountId":null},{"id":"codex:other","providerId":"codex","providerTitle":"Codex","email":"other@example.com","subtitle":"Updated 5m ago","plan":"Free","isActive":false,"needsRelogin":false,"metrics":[],"switchAccountId":"acct-other"}]}"#,
@@ -137,6 +165,14 @@ fn native_bridge_hosting_view_enables_menu_vibrancy() {
     let allows_vibrancy = unsafe { aah_status_bar_bridge_debug_hosting_view_allows_vibrancy() };
 
     assert_eq!(allows_vibrancy, 1);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn native_bridge_hosting_view_accepts_first_mouse_for_immediate_menu_clicks() {
+    let accepts_first_mouse = unsafe { aah_status_bar_bridge_debug_hosting_view_accepts_first_mouse() };
+
+    assert_eq!(accepts_first_mouse, 1);
 }
 
 #[cfg(target_os = "macos")]

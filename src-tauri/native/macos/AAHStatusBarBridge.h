@@ -24,10 +24,13 @@ int aah_status_bar_bridge_debug_active_section_index_from_json(const char *paylo
 int aah_status_bar_bridge_debug_total_metric_count_from_json(const char *payload_json);
 int aah_status_bar_bridge_debug_footer_action_count(void);
 int aah_status_bar_bridge_debug_selected_tab_after_action_from_json(const char *payload_json, const char *action_json);
+int aah_status_bar_bridge_debug_action_keeps_menu_open(const char *action_json);
+int aah_status_bar_bridge_debug_action_is_handled_locally(const char *action_json);
 int aah_status_bar_bridge_debug_shows_account_chips_from_json(const char *payload_json);
 int aah_status_bar_bridge_debug_visible_detail_section_count_from_json(const char *payload_json);
 int aah_status_bar_bridge_debug_account_chip_layout_axis_from_json(const char *payload_json);
 int aah_status_bar_bridge_debug_hosting_view_allows_vibrancy(void);
+int aah_status_bar_bridge_debug_hosting_view_accepts_first_mouse(void);
 int aah_status_bar_bridge_debug_uses_outer_panel_chrome(void);
 int aah_status_bar_bridge_debug_uses_scrollable_detail_container(void);
 int aah_status_bar_bridge_debug_menu_refreshes_layout_on_open(void);
