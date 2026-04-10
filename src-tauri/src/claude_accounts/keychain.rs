@@ -1,9 +1,8 @@
 use std::collections::BTreeMap;
-#[cfg(not(target_os = "macos"))]
-use std::collections::BTreeMap as _UnusedBTreeMap;
 
 use serde::{Deserialize, Serialize};
 
+#[cfg(target_os = "macos")]
 const MANAGED_CLAUDE_BUNDLE_SERVICE: &str = "ai-accounts-hub.claude-account-bundle";
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

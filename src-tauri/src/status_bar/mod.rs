@@ -4,16 +4,21 @@ pub mod native_bridge;
 
 use std::sync::Mutex;
 
+#[cfg(target_os = "macos")]
 use dirs::home_dir;
 use tauri::{AppHandle, Manager};
 
+#[cfg(target_os = "macos")]
 use crate::claude_accounts::{paths::ClaudeAccountPaths, service::ClaudeAccountService};
+#[cfg(target_os = "macos")]
 use crate::codex_accounts::{paths::CodexAccountPaths, service::CodexAccountService};
 #[cfg(target_os = "macos")]
 use crate::codex_usage::scheduler::CodexUsageSchedulerState;
+#[cfg(target_os = "macos")]
 use crate::gemini_accounts::{paths::GeminiAccountPaths, service::GeminiAccountService};
 
 use self::bridge_payload::StatusBarTab;
+#[cfg(target_os = "macos")]
 use self::menu_model::{build_provider_menu_state, MenuProvider};
 #[cfg(target_os = "macos")]
 use self::menu_model::{parse_menu_action, MenuAccountState, MenuAction};
@@ -23,14 +28,21 @@ const MAIN_WINDOW_LABEL: &str = "main";
 #[cfg(target_os = "macos")]
 const STATUS_TRAY_ID: &str = "status-bar";
 
+#[cfg(target_os = "macos")]
 const MENU_ID_PROVIDER_CODEX: &str = "provider:codex";
+#[cfg(target_os = "macos")]
 const MENU_ID_PROVIDER_CLAUDE: &str = "provider:claude";
+#[cfg(target_os = "macos")]
 const MENU_ID_PROVIDER_GEMINI: &str = "provider:gemini";
+#[cfg(target_os = "macos")]
 const MENU_ID_REFRESH: &str = "refresh";
+#[cfg(target_os = "macos")]
 const MENU_ID_OPEN_MAIN: &str = "open-main";
+#[cfg(target_os = "macos")]
 const MENU_ID_QUIT: &str = "quit";
 
 pub struct StatusBarState {
+    #[cfg(target_os = "macos")]
     selected_provider: Mutex<MenuProvider>,
     selected_tab: Mutex<StatusBarTab>,
 }
@@ -38,6 +50,7 @@ pub struct StatusBarState {
 impl Default for StatusBarState {
     fn default() -> Self {
         Self {
+            #[cfg(target_os = "macos")]
             selected_provider: Mutex::new(MenuProvider::Codex),
             selected_tab: Mutex::new(StatusBarTab::Overview),
         }
@@ -45,6 +58,7 @@ impl Default for StatusBarState {
 }
 
 impl StatusBarState {
+    #[cfg(target_os = "macos")]
     fn selected_provider(&self) -> Result<MenuProvider, String> {
         self.selected_provider
             .lock()
@@ -52,6 +66,7 @@ impl StatusBarState {
             .map_err(|_| "status bar state lock poisoned".to_string())
     }
 
+    #[cfg(target_os = "macos")]
     fn set_selected_provider(&self, provider: MenuProvider) -> Result<(), String> {
         let mut selected_provider = self
             .selected_provider
@@ -436,6 +451,7 @@ fn truncate_menu_error(error: &str) -> String {
     }
 }
 
+#[cfg(target_os = "macos")]
 fn status_display_label(status_label: &str) -> &str {
     match status_label {
         "Re-login required" => "需要重登",
@@ -443,6 +459,7 @@ fn status_display_label(status_label: &str) -> &str {
     }
 }
 
+#[cfg(target_os = "macos")]
 fn provider_slug(provider: MenuProvider) -> &'static str {
     match provider {
         MenuProvider::Codex => "codex",
@@ -451,6 +468,7 @@ fn provider_slug(provider: MenuProvider) -> &'static str {
     }
 }
 
+#[cfg(target_os = "macos")]
 fn load_provider_menu_state<R: tauri::Runtime>(
     app: &AppHandle<R>,
     selected_provider: MenuProvider,
@@ -465,6 +483,7 @@ fn load_provider_menu_state<R: tauri::Runtime>(
     ))
 }
 
+#[cfg(target_os = "macos")]
 fn load_account_lists<R: tauri::Runtime>(
     app: &AppHandle<R>,
 ) -> Result<

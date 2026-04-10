@@ -16,6 +16,7 @@ use tokio::sync::mpsc;
 
 #[cfg(target_os = "macos")]
 use super::bridge_payload::build_bridge_payload;
+#[cfg(any(target_os = "macos", test))]
 use super::bridge_payload::StatusBarTab;
 #[cfg(target_os = "macos")]
 use super::{load_account_lists, refresh_provider_for_tab, show_main_window_internal};
@@ -190,6 +191,7 @@ fn current_time_ms() -> i64 {
         .unwrap_or_default()
 }
 
+#[cfg(any(target_os = "macos", test))]
 fn visible_native_tab(
     selected_tab: StatusBarTab,
     has_codex: bool,
