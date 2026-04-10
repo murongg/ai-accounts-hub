@@ -74,4 +74,4 @@ pnpm tauri build
 
 ## License
 
-仓库目前还没有附带 `LICENSE` 文件；如果要公开分发，建议补上。
+本项目采用 `MIT` License，见 [LICENSE](./LICENSE)。
