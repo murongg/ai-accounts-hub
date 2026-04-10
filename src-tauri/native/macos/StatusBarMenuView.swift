@@ -203,13 +203,17 @@ private struct StatusBarMetricRow: View {
     let metric: StatusBarBridgeMetric
     let providerID: String
 
+    private var progressTint: Color {
+        StatusBarQuotaTone(percent: metric.percent).color(for: providerID)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: StatusBarPanelTokens.rowSpacing) {
             Text(metric.title)
                 .font(.system(size: 13, weight: .bold))
                 .foregroundStyle(StatusBarPanelPalette.textPrimary)
 
-            StatusBarProgressBar(percent: metric.percent, tint: StatusBarPanelAccent.color(for: providerID))
+            StatusBarProgressBar(percent: metric.percent, tint: progressTint)
                 .frame(height: StatusBarPanelTokens.progressHeight)
 
             HStack(spacing: StatusBarPanelTokens.itemSpacing) {

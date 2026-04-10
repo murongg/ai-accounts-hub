@@ -40,6 +40,8 @@ enum StatusBarPanelPalette {
     static let chipIdle = Color(nsColor: NSColor(white: 0.92, alpha: 0.88))
     static let rowHover = Color(nsColor: NSColor(red: 0.862, green: 0.899, blue: 0.980, alpha: 0.72))
     static let progressTrack = Color(nsColor: NSColor(white: 0.78, alpha: 0.9))
+    static let quotaWarning = Color(nsColor: NSColor.systemOrange.withAlphaComponent(0.96))
+    static let quotaCritical = Color(nsColor: NSColor.systemRed.withAlphaComponent(0.96))
     static let textPrimary = Color(nsColor: textPrimaryColor)
     static let textSecondary = Color(nsColor: textSecondaryColor)
     static let codexAccent = Color(
@@ -108,6 +110,33 @@ enum StatusBarPanelAccent {
             return StatusBarPanelPalette.geminiAccent
         default:
             return StatusBarPanelPalette.overviewAccent
+        }
+    }
+}
+
+enum StatusBarQuotaTone: Int32 {
+    case healthy = 0
+    case warning = 1
+    case critical = 2
+
+    init(percent: UInt8) {
+        if percent <= 10 {
+            self = .critical
+        } else if percent <= 30 {
+            self = .warning
+        } else {
+            self = .healthy
+        }
+    }
+
+    func color(for providerID: String) -> Color {
+        switch self {
+        case .healthy:
+            return StatusBarPanelAccent.color(for: providerID)
+        case .warning:
+            return StatusBarPanelPalette.quotaWarning
+        case .critical:
+            return StatusBarPanelPalette.quotaCritical
         }
     }
 }

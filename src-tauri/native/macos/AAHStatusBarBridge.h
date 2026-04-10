@@ -53,3 +53,4 @@ int aah_status_bar_bridge_debug_account_section_hover_horizontal_padding(void);
 int aah_status_bar_bridge_debug_account_section_hover_vertical_padding(void);
 int aah_status_bar_bridge_debug_pinned_detail_section_count_from_json(const char *payload_json);
 int aah_status_bar_bridge_debug_scrollable_detail_section_count_from_json(const char *payload_json);
+int aah_status_bar_bridge_debug_quota_tone_for_percent(unsigned char percent);

@@ -58,6 +58,7 @@ unsafe extern "C" {
     fn aah_status_bar_bridge_debug_interactive_row_vertical_padding() -> c_int;
     fn aah_status_bar_bridge_debug_account_section_hover_horizontal_padding() -> c_int;
     fn aah_status_bar_bridge_debug_account_section_hover_vertical_padding() -> c_int;
+    fn aah_status_bar_bridge_debug_quota_tone_for_percent(percent: u8) -> c_int;
 }
 
 #[cfg(target_os = "macos")]
@@ -241,4 +242,16 @@ fn native_bridge_presentation_exposes_consistent_padding_tokens() {
     assert_eq!(row_vertical_padding, 3);
     assert_eq!(section_hover_horizontal_padding, panel_padding);
     assert_eq!(section_hover_vertical_padding, 6);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn native_bridge_maps_remaining_quota_to_severity_tones() {
+    let healthy_tone = unsafe { aah_status_bar_bridge_debug_quota_tone_for_percent(72) };
+    let warning_tone = unsafe { aah_status_bar_bridge_debug_quota_tone_for_percent(30) };
+    let critical_tone = unsafe { aah_status_bar_bridge_debug_quota_tone_for_percent(10) };
+
+    assert_eq!(healthy_tone, 0);
+    assert_eq!(warning_tone, 1);
+    assert_eq!(critical_tone, 2);
 }

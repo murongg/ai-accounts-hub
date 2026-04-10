@@ -438,3 +438,8 @@ func aah_status_bar_bridge_debug_account_section_hover_horizontal_padding() -> I
 func aah_status_bar_bridge_debug_account_section_hover_vertical_padding() -> Int32 {
     Int32(StatusBarPanelTokens.accountSectionHoverVerticalPadding)
 }
+
+@_cdecl("aah_status_bar_bridge_debug_quota_tone_for_percent")
+func aah_status_bar_bridge_debug_quota_tone_for_percent(_ percent: UInt8) -> Int32 {
+    StatusBarQuotaTone(percent: percent).rawValue
+}
