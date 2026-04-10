@@ -443,3 +443,8 @@ func aah_status_bar_bridge_debug_account_section_hover_vertical_padding() -> Int
 func aah_status_bar_bridge_debug_quota_tone_for_percent(_ percent: UInt8) -> Int32 {
     StatusBarQuotaTone(percent: percent).rawValue
 }
+
+@_cdecl("aah_status_bar_bridge_debug_progress_fill_width")
+func aah_status_bar_bridge_debug_progress_fill_width(_ trackWidth: Double, _ percent: UInt8) -> Double {
+    Double(statusBarProgressFillWidth(totalWidth: CGFloat(trackWidth), percent: percent))
+}

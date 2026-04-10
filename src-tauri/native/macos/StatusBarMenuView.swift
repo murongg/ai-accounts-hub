@@ -242,10 +242,19 @@ private struct StatusBarProgressBar: View {
 
                 Capsule(style: .continuous)
                     .fill(tint)
-                    .frame(width: max(8, proxy.size.width * CGFloat(percent) / 100.0))
+                    .frame(width: statusBarProgressFillWidth(totalWidth: proxy.size.width, percent: percent))
             }
         }
     }
+}
+
+func statusBarProgressFillWidth(totalWidth: CGFloat, percent: UInt8) -> CGFloat {
+    guard totalWidth > 0, percent > 0 else {
+        return 0
+    }
+
+    let proportionalWidth = totalWidth * CGFloat(percent) / 100.0
+    return min(totalWidth, max(8, proportionalWidth))
 }
 
 private struct StatusBarFooterRows: View {

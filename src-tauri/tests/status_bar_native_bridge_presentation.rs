@@ -59,6 +59,7 @@ unsafe extern "C" {
     fn aah_status_bar_bridge_debug_account_section_hover_horizontal_padding() -> c_int;
     fn aah_status_bar_bridge_debug_account_section_hover_vertical_padding() -> c_int;
     fn aah_status_bar_bridge_debug_quota_tone_for_percent(percent: u8) -> c_int;
+    fn aah_status_bar_bridge_debug_progress_fill_width(track_width: f64, percent: u8) -> f64;
 }
 
 #[cfg(target_os = "macos")]
@@ -254,4 +255,14 @@ fn native_bridge_maps_remaining_quota_to_severity_tones() {
     assert_eq!(healthy_tone, 0);
     assert_eq!(warning_tone, 1);
     assert_eq!(critical_tone, 2);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn native_bridge_hides_progress_fill_when_remaining_quota_is_zero() {
+    let empty_width = unsafe { aah_status_bar_bridge_debug_progress_fill_width(200.0, 0) };
+    let minimal_visible_width = unsafe { aah_status_bar_bridge_debug_progress_fill_width(200.0, 1) };
+
+    assert_eq!(empty_width, 0.0);
+    assert_eq!(minimal_visible_width, 8.0);
 }
