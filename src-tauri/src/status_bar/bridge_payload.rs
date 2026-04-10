@@ -270,16 +270,19 @@ fn format_countdown(raw: Option<&str>, now_ms: i64) -> String {
         if minutes == 0 {
             return format!("{total_hours}h");
         }
-        return format!("{total_hours}h");
+        return format!("{total_hours}h {minutes}m");
     }
 
     let days = total_hours / 24;
     let hours = total_hours % 24;
-    if hours == 0 {
-        format!("{days}d")
-    } else {
-        format!("{days}d {hours}h")
+    let mut parts = vec![format!("{days}d")];
+    if hours > 0 {
+        parts.push(format!("{hours}h"));
     }
+    if minutes > 0 {
+        parts.push(format!("{minutes}m"));
+    }
+    parts.join(" ")
 }
 
 fn resolve_refresh_at_ms(raw: Option<&str>) -> Option<i64> {

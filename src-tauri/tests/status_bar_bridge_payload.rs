@@ -137,6 +137,25 @@ fn codex_payload_includes_session_and_weekly_metrics() {
 }
 
 #[test]
+fn codex_payload_keeps_reset_countdown_at_minute_precision() {
+    let mut account = codex_account("active", "active@example.com", true, Some(82), Some(64));
+    account.five_hour_refresh_at = Some("1775645400".to_string());
+    account.weekly_refresh_at = Some("1776249300".to_string());
+
+    let payload = build_bridge_payload(
+        StatusBarTab::Codex,
+        vec![account],
+        Vec::new(),
+        Vec::new(),
+        1_775_640_000_000,
+    );
+
+    assert_eq!(payload.sections.len(), 1);
+    assert_eq!(payload.sections[0].metrics[0].reset_text, "Resets in 1h 30m");
+    assert_eq!(payload.sections[0].metrics[1].reset_text, "Resets in 7d 1h 15m");
+}
+
+#[test]
 fn relogin_payload_clears_metrics_and_marks_status() {
     let mut broken = gemini_account("bad", "broken@example.com", false, Some(100), Some(90), Some(75));
     broken.needs_relogin = Some(true);
