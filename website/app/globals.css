@@ -1,0 +1,124 @@
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: bumblebee --default, luxury --prefersdark;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-body), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: var(--font-display), system-ui, sans-serif;
+}
+
+/* Provider card animations */
+@keyframes float-0 {
+  0%, 100% { transform: translateY(0px) rotate(-1deg); }
+  50% { transform: translateY(-8px) rotate(-1deg); }
+}
+@keyframes float-1 {
+  0%, 100% { transform: translateY(0px) rotate(1.5deg); }
+  50% { transform: translateY(-12px) rotate(1.5deg); }
+}
+@keyframes float-2 {
+  0%, 100% { transform: translateY(0px) rotate(-0.5deg); }
+  50% { transform: translateY(-6px) rotate(-0.5deg); }
+}
+
+.animate-float-0 { animation: float-0 5s ease-in-out infinite; }
+.animate-float-1 { animation: float-1 6.5s ease-in-out infinite 0.8s; }
+.animate-float-2 { animation: float-2 4.5s ease-in-out infinite 1.6s; }
+
+/* Fade in up animation */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-delay-100 { animation-delay: 0.1s; }
+.animate-delay-200 { animation-delay: 0.2s; }
+.animate-delay-300 { animation-delay: 0.3s; }
+.animate-delay-400 { animation-delay: 0.4s; }
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: color-mix(in oklch, var(--color-base-content) 20%, transparent); border-radius: 3px; }
+
+/* Progress ring */
+.progress-ring-value {
+  transition: stroke-dashoffset 1s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+
+/* ── Download CTA Box — theme-aware ─────────────────────────────────────── */
+/* bumblebee: golden primary background */
+[data-theme="bumblebee"] .download-cta-box {
+  background-color: var(--color-primary);
+}
+[data-theme="bumblebee"] .cta-title { color: var(--color-primary-content); }
+[data-theme="bumblebee"] .cta-subtitle { color: oklch(42% 0.095 57.708 / 0.75); }
+[data-theme="bumblebee"] .cta-bullets { color: oklch(42% 0.095 57.708 / 0.55); }
+[data-theme="bumblebee"] .cta-icon-bg { background-color: oklch(42% 0.095 57.708 / 0.15); }
+[data-theme="bumblebee"] .cta-outline-btn {
+  border-color: oklch(42% 0.095 57.708 / 0.4);
+  color: var(--color-primary-content);
+}
+[data-theme="bumblebee"] .cta-outline-btn:hover {
+  background-color: oklch(42% 0.095 57.708 / 0.1);
+  border-color: oklch(42% 0.095 57.708 / 0.6);
+}
+
+/* luxury dark: neutral (dark warm) background */
+[data-theme="luxury"] .download-cta-box {
+  background: linear-gradient(135deg, var(--color-neutral) 0%, var(--color-base-300) 100%);
+  border: 1px solid oklch(40% 0.08 80 / 0.5);
+}
+[data-theme="luxury"] .cta-title { color: var(--color-neutral-content); }
+[data-theme="luxury"] .cta-subtitle { color: oklch(93.203% 0.089 90.861 / 0.7); }
+[data-theme="luxury"] .cta-bullets { color: oklch(93.203% 0.089 90.861 / 0.5); }
+[data-theme="luxury"] .cta-icon-bg { background-color: oklch(93.203% 0.089 90.861 / 0.12); }
+[data-theme="luxury"] .cta-outline-btn {
+  border-color: oklch(93.203% 0.089 90.861 / 0.35);
+  color: var(--color-neutral-content);
+}
+[data-theme="luxury"] .cta-outline-btn:hover {
+  background-color: oklch(93.203% 0.089 90.861 / 0.1);
+  border-color: oklch(93.203% 0.089 90.861 / 0.5);
+}
+
+/* ── CTA primary download button inside the cta box ────────────────────── */
+[data-theme="bumblebee"] .download-cta-primary-btn {
+  background-color: var(--color-primary-content);
+  color: var(--color-primary);
+}
+[data-theme="luxury"] .download-cta-primary-btn {
+  background-color: var(--color-neutral-content);
+  color: var(--color-neutral);
+}
+
+/* ── Provider icon containers — theme-aware ─────────────────────────────── */
+/* Light (bumblebee): soft tinted backgrounds */
+[data-theme="bumblebee"] .provider-icon-claude  { background: #FEF0EB; }
+[data-theme="bumblebee"] .provider-icon-codex   { background: #F3F3F3; }
+[data-theme="bumblebee"] .provider-icon-codex img { filter: none; }
+[data-theme="bumblebee"] .provider-icon-gemini  { background: #EEF3FF; }
+
+/* Dark (luxury): muted dark backgrounds */
+[data-theme="luxury"] .provider-icon-claude  { background: oklch(0.25 0.04 30); }
+[data-theme="luxury"] .provider-icon-codex   { background: oklch(0.22 0 0); }
+[data-theme="luxury"] .provider-icon-codex img { filter: invert(1) brightness(0.85); }
+[data-theme="luxury"] .provider-icon-gemini  { background: oklch(0.22 0.04 260); }
+
+/* ── Hero provider cards — fix dark mode card backgrounds ───────────────── */
+/* These are absolutely positioned floating cards, bg-base-100 handles theming */
+
