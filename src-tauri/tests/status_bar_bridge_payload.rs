@@ -62,6 +62,10 @@ fn claude_account(
     id: &str,
     email: &str,
     is_active: bool,
+    session_remaining_percent: Option<u8>,
+    weekly_remaining_percent: Option<u8>,
+    model_weekly_label: Option<&str>,
+    model_weekly_remaining_percent: Option<u8>,
 ) -> ClaudeAccountListItem {
     ClaudeAccountListItem {
         id: id.to_string(),
@@ -71,6 +75,13 @@ fn claude_account(
         account_hint: Some(format!("org-{id}")),
         is_active,
         last_authenticated_at: "1775640000".to_string(),
+        session_remaining_percent,
+        session_refresh_at: Some("1775650800".to_string()),
+        weekly_remaining_percent,
+        weekly_refresh_at: Some("1776248400".to_string()),
+        model_weekly_label: model_weekly_label.map(str::to_string),
+        model_weekly_remaining_percent,
+        model_weekly_refresh_at: Some("1776248400".to_string()),
         last_synced_at: Some("1775642700".to_string()),
         last_sync_error: None,
         needs_relogin: Some(false),
@@ -86,8 +97,8 @@ fn overview_payload_uses_active_accounts_from_both_providers() {
             codex_account("active", "active@example.com", true, Some(82), Some(64)),
         ],
         vec![
-            claude_account("idle-c", "idle-c@example.com", false),
-            claude_account("active-c", "active-c@example.com", true),
+            claude_account("idle-c", "idle-c@example.com", false, None, None, None, None),
+            claude_account("active-c", "active-c@example.com", true, None, None, None, None),
         ],
         vec![
             gemini_account("idle-g", "idle-g@example.com", false, Some(88), Some(70), Some(52)),
@@ -186,11 +197,19 @@ fn relogin_payload_clears_metrics_and_marks_status() {
 }
 
 #[test]
-fn claude_payload_keeps_account_metadata_and_omits_usage_metrics() {
+fn claude_payload_includes_session_weekly_and_model_metrics() {
     let payload = build_bridge_payload(
         StatusBarTab::Claude,
         Vec::new(),
-        vec![claude_account("active-c", "active-c@example.com", true)],
+        vec![claude_account(
+            "active-c",
+            "active-c@example.com",
+            true,
+            Some(82),
+            Some(74),
+            Some("Opus Weekly"),
+            Some(61),
+        )],
         Vec::new(),
         1_775_643_000_000,
     );
@@ -207,7 +226,26 @@ fn claude_payload_keeps_account_metadata_and_omits_usage_metrics() {
             plan: Some("Pro".to_string()),
             is_active: true,
             needs_relogin: false,
-            metrics: Vec::new(),
+            metrics: vec![
+                BridgeMetricPayload {
+                    title: "Session".to_string(),
+                    percent: 82,
+                    left_text: "82% left".to_string(),
+                    reset_text: "Resets in 2h 10m".to_string(),
+                },
+                BridgeMetricPayload {
+                    title: "Weekly".to_string(),
+                    percent: 74,
+                    left_text: "74% left".to_string(),
+                    reset_text: "Resets in 7d 10m".to_string(),
+                },
+                BridgeMetricPayload {
+                    title: "Opus Weekly".to_string(),
+                    percent: 61,
+                    left_text: "61% left".to_string(),
+                    reset_text: "Resets in 7d 10m".to_string(),
+                },
+            ],
             switch_account_id: None,
         }
     );

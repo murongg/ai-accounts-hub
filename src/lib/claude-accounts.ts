@@ -47,3 +47,7 @@ export function switchClaudeAccount(accountId: string) {
 export function deleteClaudeAccount(accountId: string) {
   return invoke<void>("delete_claude_account", { accountId });
 }
+
+export function refreshClaudeUsageNow() {
+  return invoke<void>("refresh_claude_usage_now");
+}

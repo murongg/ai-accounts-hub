@@ -70,6 +70,7 @@ pub fn build_provider_menu_state(
             claude_accounts
                 .into_iter()
                 .map(|account| {
+                    let quota_summary = build_claude_quota_summary(&account);
                     let status_label = if account.needs_relogin.unwrap_or(false) {
                         "Re-login required".to_string()
                     } else {
@@ -80,7 +81,7 @@ pub fn build_provider_menu_state(
                         id: account.id,
                         email: account.email,
                         plan: account.plan.unwrap_or_else(|| "Unknown".to_string()),
-                        quota_summary: None,
+                        quota_summary,
                         is_active: account.is_active,
                         status_label,
                     }
@@ -190,6 +191,33 @@ fn build_gemini_quota_summary(account: &GeminiAccountListItem) -> Option<String>
 
     if let Some(percent) = account.flash_lite_remaining_percent {
         parts.push(format!("Lite {percent}%"));
+    }
+
+    if parts.is_empty() {
+        None
+    } else {
+        Some(parts.join(" • "))
+    }
+}
+
+fn build_claude_quota_summary(account: &ClaudeAccountListItem) -> Option<String> {
+    let mut parts = Vec::new();
+
+    if let Some(percent) = account.session_remaining_percent {
+        parts.push(format!("Session {percent}%"));
+    }
+
+    if let Some(percent) = account.weekly_remaining_percent {
+        parts.push(format!("Week {percent}%"));
+    }
+
+    if let Some(percent) = account.model_weekly_remaining_percent {
+        let label = account
+            .model_weekly_label
+            .as_deref()
+            .map(|value| value.replace(" Weekly", ""))
+            .unwrap_or_else(|| "Model".to_string());
+        parts.push(format!("{label} {percent}%"));
     }
 
     if parts.is_empty() {

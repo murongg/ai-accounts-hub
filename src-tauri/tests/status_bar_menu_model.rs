@@ -62,6 +62,10 @@ fn claude_account(
     id: &str,
     email: &str,
     is_active: bool,
+    session_remaining_percent: Option<u8>,
+    weekly_remaining_percent: Option<u8>,
+    model_weekly_label: Option<&str>,
+    model_weekly_remaining_percent: Option<u8>,
 ) -> ClaudeAccountListItem {
     ClaudeAccountListItem {
         id: id.to_string(),
@@ -71,6 +75,13 @@ fn claude_account(
         account_hint: Some(format!("org-{id}")),
         is_active,
         last_authenticated_at: "0".to_string(),
+        session_remaining_percent,
+        session_refresh_at: Some("1775643600".to_string()),
+        weekly_remaining_percent,
+        weekly_refresh_at: Some("1776248400".to_string()),
+        model_weekly_label: model_weekly_label.map(str::to_string),
+        model_weekly_remaining_percent,
+        model_weekly_refresh_at: Some("1776248400".to_string()),
         last_synced_at: Some("1775643000".to_string()),
         last_sync_error: None,
         needs_relogin: Some(false),
@@ -135,14 +146,25 @@ fn claude_menu_state_shows_status_without_quota_summary() {
     let state = build_provider_menu_state(
         MenuProvider::Claude,
         Vec::new(),
-        vec![claude_account("claude", "claude@example.com", true)],
+        vec![claude_account(
+            "claude",
+            "claude@example.com",
+            true,
+            Some(82),
+            Some(74),
+            Some("Opus Weekly"),
+            Some(61),
+        )],
         Vec::new(),
     );
 
     assert_eq!(state.selected_provider, MenuProvider::Claude);
     assert_eq!(state.accounts.len(), 1);
     assert_eq!(state.accounts[0].id, "claude");
-    assert_eq!(state.accounts[0].quota_summary, None);
+    assert_eq!(
+        state.accounts[0].quota_summary.as_deref(),
+        Some("Session 82% • Week 74% • Opus 61%")
+    );
     assert_eq!(state.accounts[0].status_label, "Healthy");
 }
 

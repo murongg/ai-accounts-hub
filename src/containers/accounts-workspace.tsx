@@ -5,6 +5,7 @@ import { AccountsPage } from "../pages/accounts-page";
 import {
   deleteClaudeAccount,
   listClaudeAccounts,
+  refreshClaudeUsageNow,
   startClaudeAccountLogin,
   switchClaudeAccount,
 } from "../lib/claude-accounts";
@@ -66,7 +67,7 @@ function AccountsWorkspaceComponent({
   const [deletingClaudeAccountId, setDeletingClaudeAccountId] = useState<string | null>(null);
   const [deletingGeminiAccountId, setDeletingGeminiAccountId] = useState<string | null>(null);
   const [isRefreshingCodexUsage, setIsRefreshingCodexUsage] = useState(false);
-  const [isRefreshingClaudeAccounts, setIsRefreshingClaudeAccounts] = useState(false);
+  const [isRefreshingClaudeUsage, setIsRefreshingClaudeUsage] = useState(false);
   const [isRefreshingGeminiAccounts, setIsRefreshingGeminiAccounts] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const codexAccountsRequestGate = useRef(createLatestRequestGate<CodexAccountSummary[]>());
@@ -223,6 +224,20 @@ function AccountsWorkspaceComponent({
     };
   }, [refreshGeminiAccounts]);
 
+  useEffect(() => {
+    let disposed = false;
+    const unlistenPromise = listen("claude-usage-updated", () => {
+      if (!disposed) {
+        void refreshClaudeAccounts(false);
+      }
+    });
+
+    return () => {
+      disposed = true;
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [refreshClaudeAccounts]);
+
   const handleAddAccount = useCallback(async () => {
     if (activePlatform === "claude") {
       try {
@@ -358,12 +373,13 @@ function AccountsWorkspaceComponent({
   const handleRefreshUsage = useCallback(async () => {
     if (activePlatform === "claude") {
       try {
-        setIsRefreshingClaudeAccounts(true);
+        setIsRefreshingClaudeUsage(true);
+        await refreshClaudeUsageNow();
         await refreshClaudeAccounts(false);
       } catch (error) {
         onToast("error", errorMessage(error));
       } finally {
-        setIsRefreshingClaudeAccounts(false);
+        setIsRefreshingClaudeUsage(false);
       }
       return;
     }
@@ -428,7 +444,7 @@ function AccountsWorkspaceComponent({
   const isRefreshingUsage = activePlatform === "codex"
     ? isRefreshingCodexUsage
     : activePlatform === "claude"
-      ? isRefreshingClaudeAccounts
+      ? isRefreshingClaudeUsage
       : isRefreshingGeminiAccounts;
   const actionsDisabled = false;
 

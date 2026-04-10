@@ -1,4 +1,5 @@
 import { getI18n } from "./i18n.ts";
+import type { ClaudeAccountSummary } from "../types/claude";
 import type { GeminiAccountSummary } from "../types/gemini.ts";
 import type { AppLanguage } from "../types/settings";
 
@@ -170,6 +171,48 @@ export function buildGeminiQuotaCards(
       percent: account.flash_lite_remaining_percent,
       label: copy.accounts.geminiFlashLiteLabel,
       refreshAt: account.flash_lite_refresh_at,
+    },
+  ]
+    .filter((quota) => quota.percent !== null)
+    .map((quota) => ({
+      percent: quota.percent ?? 0,
+      label: quota.label,
+      time: formatRefreshCountdown(quota.refreshAt, nowMs, language),
+    }));
+}
+
+export function buildClaudeQuotaCards(
+  account: ClaudeAccountSummary,
+  nowMs: number,
+  language: AppLanguage,
+): GeminiQuotaCard[] {
+  const labels = language === "en-US"
+    ? {
+        session: "Session",
+        weekly: "Weekly",
+        fallbackModel: "Model Weekly",
+      }
+    : {
+        session: "Session 剩余配额",
+        weekly: "Weekly 剩余配额",
+        fallbackModel: "模型周额度",
+      };
+
+  return [
+    {
+      percent: account.session_remaining_percent,
+      label: labels.session,
+      refreshAt: account.session_refresh_at,
+    },
+    {
+      percent: account.weekly_remaining_percent,
+      label: labels.weekly,
+      refreshAt: account.weekly_refresh_at,
+    },
+    {
+      percent: account.model_weekly_remaining_percent,
+      label: account.model_weekly_label ?? labels.fallbackModel,
+      refreshAt: account.model_weekly_refresh_at,
     },
   ]
     .filter((quota) => quota.percent !== null)

@@ -195,6 +195,45 @@ fn build_claude_sections(accounts: Vec<ClaudeAccountListItem>, now_ms: i64) -> V
         .into_iter()
         .map(|account| {
             let needs_relogin = account.needs_relogin.unwrap_or(false);
+            let metrics = if needs_relogin {
+                Vec::new()
+            } else {
+                [
+                    account.session_remaining_percent.map(|percent| BridgeMetricPayload {
+                        title: "Session".to_string(),
+                        percent,
+                        left_text: format!("{percent}% left"),
+                        reset_text: format!(
+                            "Resets in {}",
+                            format_countdown(account.session_refresh_at.as_deref(), now_ms)
+                        ),
+                    }),
+                    account.weekly_remaining_percent.map(|percent| BridgeMetricPayload {
+                        title: "Weekly".to_string(),
+                        percent,
+                        left_text: format!("{percent}% left"),
+                        reset_text: format!(
+                            "Resets in {}",
+                            format_countdown(account.weekly_refresh_at.as_deref(), now_ms)
+                        ),
+                    }),
+                    account
+                        .model_weekly_remaining_percent
+                        .zip(account.model_weekly_label.clone())
+                        .map(|(percent, title)| BridgeMetricPayload {
+                            title,
+                            percent,
+                            left_text: format!("{percent}% left"),
+                            reset_text: format!(
+                                "Resets in {}",
+                                format_countdown(account.model_weekly_refresh_at.as_deref(), now_ms)
+                            ),
+                        }),
+                ]
+                .into_iter()
+                .flatten()
+                .collect()
+            };
 
             BridgeProviderPayload {
                 id: format!("claude:{}", account.id),
@@ -205,7 +244,7 @@ fn build_claude_sections(accounts: Vec<ClaudeAccountListItem>, now_ms: i64) -> V
                 plan: account.plan,
                 is_active: account.is_active,
                 needs_relogin,
-                metrics: Vec::new(),
+                metrics,
                 switch_account_id: (!account.is_active).then_some(account.id),
             }
         })

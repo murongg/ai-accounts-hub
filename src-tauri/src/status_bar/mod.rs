@@ -576,7 +576,7 @@ async fn refresh_selected_provider<R: tauri::Runtime>(
     let scheduler = app.state::<CodexUsageSchedulerState>();
     match provider {
         MenuProvider::Codex => scheduler.refresh_codex_now().await,
-        MenuProvider::Claude => Ok(()),
+        MenuProvider::Claude => scheduler.refresh_claude_now().await,
         MenuProvider::Gemini => scheduler.refresh_gemini_now().await,
     }
 }
@@ -591,7 +591,7 @@ async fn refresh_provider_for_tab<R: tauri::Runtime>(
     match tab {
         StatusBarTab::Overview => scheduler.refresh_all_now().await,
         StatusBarTab::Codex => scheduler.refresh_codex_now().await,
-        StatusBarTab::Claude => Ok(()),
+        StatusBarTab::Claude => scheduler.refresh_claude_now().await,
         StatusBarTab::Gemini => scheduler.refresh_gemini_now().await,
     }
 }

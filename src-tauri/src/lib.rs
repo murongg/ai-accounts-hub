@@ -2,6 +2,7 @@ use tauri::Manager;
 
 pub mod app_settings;
 pub mod claude_accounts;
+pub mod claude_usage;
 pub mod codex_accounts;
 pub mod codex_usage;
 pub mod gemini_accounts;
@@ -35,6 +36,7 @@ pub fn run() {
             claude_accounts::start_claude_account_login,
             claude_accounts::switch_claude_account,
             claude_accounts::delete_claude_account,
+            claude_usage::refresh_claude_usage_now,
             codex_accounts::list_codex_accounts,
             codex_accounts::start_codex_account_login,
             codex_accounts::switch_codex_account,

@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  buildClaudeQuotaCards,
   buildGeminiQuotaCards,
   formatRefreshCountdown,
   formatResetLabel,
@@ -9,6 +10,7 @@ import {
   getPlatformAccountMetrics,
   getQuotaProgressTone,
 } from "./accounts-display.ts";
+import type { ClaudeAccountSummary } from "../types/claude.ts";
 import type { GeminiAccountSummary } from "../types/gemini.ts";
 
 function account(overrides: Partial<GeminiAccountSummary> = {}): GeminiAccountSummary {
@@ -26,6 +28,29 @@ function account(overrides: Partial<GeminiAccountSummary> = {}): GeminiAccountSu
     pro_refresh_at: "2026-04-09T10:31:46Z",
     flash_refresh_at: "2026-04-09T10:31:46Z",
     flash_lite_refresh_at: "2026-04-09T10:31:46Z",
+    last_synced_at: "1775644364",
+    last_sync_error: null,
+    needs_relogin: false,
+    ...overrides,
+  };
+}
+
+function claudeAccount(overrides: Partial<ClaudeAccountSummary> = {}): ClaudeAccountSummary {
+  return {
+    id: "claude-1",
+    email: "claude@example.com",
+    display_name: "Murong",
+    plan: "Pro",
+    account_hint: "org-1",
+    is_active: true,
+    last_authenticated_at: "1775640000",
+    session_remaining_percent: 82,
+    session_refresh_at: "1775650800",
+    weekly_remaining_percent: 74,
+    weekly_refresh_at: "1776248400",
+    model_weekly_label: "Opus Weekly",
+    model_weekly_remaining_percent: 61,
+    model_weekly_refresh_at: "1776248400",
     last_synced_at: "1775644364",
     last_sync_error: null,
     needs_relogin: false,
@@ -69,6 +94,16 @@ test("buildGeminiQuotaCards returns Pro, Flash, and Flash Lite in order", () => 
       { label: "Flash Lite 剩余配额", percent: 80 },
     ],
   );
+});
+
+test("buildClaudeQuotaCards returns Session, Weekly, and model weekly in order", () => {
+  const cards = buildClaudeQuotaCards(claudeAccount(), 1775640000000, "en-US");
+
+  assert.deepEqual(cards, [
+    { percent: 82, label: "Session", time: "3h" },
+    { percent: 74, label: "Weekly", time: "7d 1h" },
+    { percent: 61, label: "Opus Weekly", time: "7d 1h" },
+  ]);
 });
 
 test("returns codex account counts when the codex platform is active", () => {

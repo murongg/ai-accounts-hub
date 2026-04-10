@@ -5,6 +5,8 @@ use tokio::sync::{mpsc, oneshot};
 
 use tauri::{AppHandle, Emitter};
 
+use crate::claude_accounts::paths::ClaudeAccountPaths;
+use crate::claude_usage::service::ClaudeUsageService;
 use crate::codex_accounts::paths::CodexAccountPaths;
 use crate::gemini_accounts::paths::GeminiAccountPaths;
 use crate::gemini_usage::service::GeminiUsageService;
@@ -16,6 +18,7 @@ use super::store::load_refresh_settings;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RefreshTarget {
     Codex,
+    Claude,
     Gemini,
     All,
 }
@@ -87,6 +90,10 @@ impl CodexUsageSchedulerState {
 
     pub async fn refresh_gemini_now(&self) -> Result<(), String> {
         self.refresh_target(RefreshTarget::Gemini).await
+    }
+
+    pub async fn refresh_claude_now(&self) -> Result<(), String> {
+        self.refresh_target(RefreshTarget::Claude).await
     }
 
     async fn refresh_target(&self, target: RefreshTarget) -> Result<(), String> {
@@ -165,11 +172,13 @@ async fn run_refresh_cycle(
         .to_path_buf();
 
     let outcome = tauri::async_runtime::spawn_blocking(move || {
+        let claude_paths = ClaudeAccountPaths::from_roots(paths.app_data_dir.clone(), home_dir.clone());
         let gemini_paths = GeminiAccountPaths::from_roots(paths.app_data_dir.clone(), home_dir);
 
         run_refresh_actions(
             target,
             || CodexUsageService::with_process_fetcher(paths.clone()).refresh_all(),
+            || ClaudeUsageService::with_process_fetchers(claude_paths.clone()).refresh_all(),
             || GeminiUsageService::with_process_fetcher(gemini_paths.clone()).refresh_all(),
         )
     })
@@ -180,14 +189,16 @@ async fn run_refresh_cycle(
     outcome.error_message().map_or(Ok(()), Err)
 }
 
-fn run_refresh_actions<F1, F2>(
+fn run_refresh_actions<F1, F2, F3>(
     target: RefreshTarget,
     mut refresh_codex: F1,
-    mut refresh_gemini: F2,
+    mut refresh_claude: F2,
+    mut refresh_gemini: F3,
 ) -> RefreshOutcome
 where
     F1: FnMut() -> Result<(), String>,
     F2: FnMut() -> Result<(), String>,
+    F3: FnMut() -> Result<(), String>,
 {
     let mut outcome = RefreshOutcome::default();
 
@@ -197,6 +208,15 @@ where
             Err(error) => outcome
                 .errors
                 .push(format!("Codex refresh failed: {error}")),
+        }
+    }
+
+    if matches!(target, RefreshTarget::Claude | RefreshTarget::All) {
+        match refresh_claude() {
+            Ok(()) => outcome.successful_targets.push(RefreshTarget::Claude),
+            Err(error) => outcome
+                .errors
+                .push(format!("Claude refresh failed: {error}")),
         }
     }
 
@@ -218,6 +238,9 @@ fn emit_refresh_events(app: &AppHandle, outcome: &RefreshOutcome) -> Result<(), 
             RefreshTarget::Codex => app
                 .emit("codex-usage-updated", ())
                 .map_err(|error| error.to_string())?,
+            RefreshTarget::Claude => app
+                .emit("claude-usage-updated", ())
+                .map_err(|error| error.to_string())?,
             RefreshTarget::Gemini => app
                 .emit("gemini-usage-updated", ())
                 .map_err(|error| error.to_string())?,
@@ -237,6 +260,7 @@ mod tests {
     #[test]
     fn gemini_only_refresh_does_not_call_codex_refresh() {
         let mut codex_calls = 0;
+        let mut claude_calls = 0;
         let mut gemini_calls = 0;
 
         let outcome = run_refresh_actions(
@@ -246,20 +270,26 @@ mod tests {
                 Ok(())
             },
             || {
+                claude_calls += 1;
+                Ok(())
+            },
+            || {
                 gemini_calls += 1;
                 Ok(())
             },
         );
 
         assert_eq!(codex_calls, 0);
+        assert_eq!(claude_calls, 0);
         assert_eq!(gemini_calls, 1);
         assert_eq!(outcome.successful_targets, vec![RefreshTarget::Gemini]);
         assert_eq!(outcome.error_message(), None);
     }
 
     #[test]
-    fn refresh_all_continues_to_gemini_when_codex_refresh_fails() {
+    fn refresh_all_continues_to_other_targets_when_codex_refresh_fails() {
         let mut codex_calls = 0;
+        let mut claude_calls = 0;
         let mut gemini_calls = 0;
 
         let outcome = run_refresh_actions(
@@ -269,17 +299,54 @@ mod tests {
                 Err("codex unavailable".to_string())
             },
             || {
+                claude_calls += 1;
+                Ok(())
+            },
+            || {
                 gemini_calls += 1;
                 Ok(())
             },
         );
 
         assert_eq!(codex_calls, 1);
+        assert_eq!(claude_calls, 1);
         assert_eq!(gemini_calls, 1);
-        assert_eq!(outcome.successful_targets, vec![RefreshTarget::Gemini]);
+        assert_eq!(
+            outcome.successful_targets,
+            vec![RefreshTarget::Claude, RefreshTarget::Gemini]
+        );
         assert_eq!(
             outcome.error_message(),
             Some("Codex refresh failed: codex unavailable".to_string())
         );
+    }
+
+    #[test]
+    fn claude_only_refresh_does_not_call_codex_or_gemini_refresh() {
+        let mut codex_calls = 0;
+        let mut claude_calls = 0;
+        let mut gemini_calls = 0;
+
+        let outcome = run_refresh_actions(
+            RefreshTarget::Claude,
+            || {
+                codex_calls += 1;
+                Ok(())
+            },
+            || {
+                claude_calls += 1;
+                Ok(())
+            },
+            || {
+                gemini_calls += 1;
+                Ok(())
+            },
+        );
+
+        assert_eq!(codex_calls, 0);
+        assert_eq!(claude_calls, 1);
+        assert_eq!(gemini_calls, 0);
+        assert_eq!(outcome.successful_targets, vec![RefreshTarget::Claude]);
+        assert_eq!(outcome.error_message(), None);
     }
 }

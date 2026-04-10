@@ -13,6 +13,7 @@ use tauri::{AppHandle, Manager};
 use self::models::{ClaudeAccountListItem, StoredClaudeAccount};
 use self::paths::ClaudeAccountPaths;
 use self::service::ClaudeAccountService;
+use crate::codex_usage::scheduler::CodexUsageSchedulerState;
 
 fn service_from_app(
     app: &AppHandle,
@@ -42,7 +43,10 @@ pub async fn list_claude_accounts(app: AppHandle) -> Result<Vec<ClaudeAccountLis
 }
 
 #[tauri::command]
-pub async fn start_claude_account_login(app: AppHandle) -> Result<StoredClaudeAccount, String> {
+pub async fn start_claude_account_login(
+    app: AppHandle,
+    scheduler: tauri::State<'_, CodexUsageSchedulerState>,
+) -> Result<StoredClaudeAccount, String> {
     let refresh_app = app.clone();
     let account = tauri::async_runtime::spawn_blocking(move || {
         let mut service = service_from_app(&app)?;
@@ -51,6 +55,7 @@ pub async fn start_claude_account_login(app: AppHandle) -> Result<StoredClaudeAc
     .await
     .map_err(|error| error.to_string())??;
 
+    let _ = scheduler.refresh_claude_now().await;
     let _ = crate::status_bar::refresh_status_menu(&refresh_app);
     Ok(account)
 }

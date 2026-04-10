@@ -1,4 +1,5 @@
 use std::collections::BTreeMap;
+use std::sync::{Arc, Mutex};
 
 use serde::{Deserialize, Serialize};
 
@@ -19,8 +20,8 @@ pub trait ClaudeCredentialBundleStore: Send + Sync {
     fn delete(&mut self, key: &str) -> Result<(), String>;
 }
 
-#[derive(Default)]
-pub struct InMemoryClaudeKeychainStore(BTreeMap<String, ClaudeCredentialBundle>);
+#[derive(Clone, Default)]
+pub struct InMemoryClaudeKeychainStore(Arc<Mutex<BTreeMap<String, ClaudeCredentialBundle>>>);
 
 impl InMemoryClaudeKeychainStore {
     pub fn save(&mut self, key: &str, bundle: &ClaudeCredentialBundle) -> Result<(), String> {
@@ -38,16 +39,27 @@ impl InMemoryClaudeKeychainStore {
 
 impl ClaudeCredentialBundleStore for InMemoryClaudeKeychainStore {
     fn save(&mut self, key: &str, bundle: &ClaudeCredentialBundle) -> Result<(), String> {
-        self.0.insert(key.to_string(), bundle.clone());
+        self.0
+            .lock()
+            .map_err(|_| "Claude in-memory keychain lock poisoned".to_string())?
+            .insert(key.to_string(), bundle.clone());
         Ok(())
     }
 
     fn load(&self, key: &str) -> Result<Option<ClaudeCredentialBundle>, String> {
-        Ok(self.0.get(key).cloned())
+        Ok(self
+            .0
+            .lock()
+            .map_err(|_| "Claude in-memory keychain lock poisoned".to_string())?
+            .get(key)
+            .cloned())
     }
 
     fn delete(&mut self, key: &str) -> Result<(), String> {
-        self.0.remove(key);
+        self.0
+            .lock()
+            .map_err(|_| "Claude in-memory keychain lock poisoned".to_string())?
+            .remove(key);
         Ok(())
     }
 }

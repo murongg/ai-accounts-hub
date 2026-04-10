@@ -5,6 +5,7 @@ import { AccountCard } from "../components/account-card";
 import { EmptyStateCard } from "../components/empty-state-card";
 import { getI18n } from "../lib/i18n";
 import {
+  buildClaudeQuotaCards,
   buildGeminiQuotaCards,
   formatRefreshCountdown,
   formatTimestamp,
@@ -118,6 +119,14 @@ function AccountsPageComponent({
           }
         : null,
     ].filter((detail): detail is { label: string; value: string } => detail !== null);
+  }
+
+  function hasClaudeUsage(account: ClaudeAccountSummary) {
+    return (
+      account.session_remaining_percent !== null ||
+      account.weekly_remaining_percent !== null ||
+      account.model_weekly_remaining_percent !== null
+    );
   }
 
   return (
@@ -236,6 +245,7 @@ function AccountsPageComponent({
             ) : activePlatform === "claude" ? (
               (() => {
                 const claudeAccount = account as ClaudeAccountSummary;
+                const usageAvailable = hasClaudeUsage(claudeAccount);
 
                 return (
                   <AccountCard
@@ -247,14 +257,15 @@ function AccountsPageComponent({
                     size={cardPresentation.cardSize}
                     isActive={account.is_active}
                     isAlive={!(claudeAccount.needs_relogin ?? false)}
-                    detailRows={buildClaudeDetailRows(claudeAccount)}
-                    activityLabel={copy.accounts.authenticatedPrefix}
+                    quotas={usageAvailable ? buildClaudeQuotaCards(claudeAccount, nowMs, language) : undefined}
+                    detailRows={usageAvailable ? undefined : buildClaudeDetailRows(claudeAccount)}
+                    activityLabel={usageAvailable ? copy.card.syncedPrefix : copy.accounts.authenticatedPrefix}
                     activityValue={formatTimestamp(
-                      claudeAccount.last_authenticated_at,
+                      usageAvailable ? claudeAccount.last_synced_at : claudeAccount.last_authenticated_at,
                       copy.accounts.waitingFirstSync,
                       language,
                     )}
-                    activityKind="auth"
+                    activityKind={usageAvailable ? "sync" : "auth"}
                     primaryLabel={
                       account.is_active
                         ? copy.accounts.activePrimary

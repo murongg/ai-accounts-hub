@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 
 import {
   CLAUDE_ACCOUNT_LOGIN_TIMEOUT_MESSAGE,
+  refreshClaudeUsageNow,
   withTimeout,
 } from "./claude-accounts.ts";
 
@@ -22,4 +23,26 @@ test("withTimeout rejects with the provided timeout message", async () => {
       return true;
     },
   );
+});
+
+test("refreshClaudeUsageNow invokes the Claude usage refresh command", async () => {
+  const previousWindow = globalThis.window;
+  const calls: Array<{ command: string; payload: unknown }> = [];
+
+  (globalThis as { window?: unknown }).window = {
+    __TAURI_INTERNALS__: {
+      invoke(command: string, payload: unknown) {
+        calls.push({ command, payload });
+        return Promise.resolve();
+      },
+    },
+  };
+
+  try {
+    await refreshClaudeUsageNow();
+  } finally {
+    (globalThis as { window?: unknown }).window = previousWindow;
+  }
+
+  assert.deepEqual(calls, [{ command: "refresh_claude_usage_now", payload: {} }]);
 });

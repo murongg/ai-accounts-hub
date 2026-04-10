@@ -129,7 +129,7 @@ fn wait_for_terminal_markers(
     Err("Claude 登录未完成或已超时".to_string())
 }
 
-fn resolve_claude_binary() -> Option<PathBuf> {
+pub fn resolve_claude_binary() -> Option<PathBuf> {
     which_in_path("claude")
         .or_else(|| {
             dirs::home_dir()
