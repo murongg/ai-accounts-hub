@@ -25,6 +25,7 @@ dist-ssr
 
 # Local planning/spec artifacts
 docs/superpowers/
+.superpowers/
 
 # Local developer tools
 .tools/
