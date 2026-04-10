@@ -6,6 +6,9 @@ use std::time::{Duration, Instant};
 #[cfg(target_os = "macos")]
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[cfg(target_os = "macos")]
+use crate::proxy_env::build_proxy_export_block_from_current_env;
+
 use super::paths::oauth_creds_path_for_home;
 
 pub trait GeminiLoginRunner: Send + Sync {
@@ -52,10 +55,8 @@ fn run_login_via_terminal(binary: &Path, managed_home: &Path) -> Result<(), Stri
         std::process::id(),
         unique_suffix()
     ));
-    let escaped_binary = shell_escape(binary);
-    let escaped_home = shell_escape(managed_home);
-    let script =
-        format!("#!/bin/bash\nexport GEMINI_CLI_HOME={escaped_home}\ncd ~\n{escaped_binary}\n");
+    let proxy_export_block = build_proxy_export_block_from_current_env();
+    let script = build_terminal_login_script(binary, managed_home, &proxy_export_block);
 
     fs::write(&script_path, script)
         .map_err(|error| format!("failed to write Gemini login script: {error}"))?;
@@ -77,6 +78,14 @@ fn run_login_via_terminal(binary: &Path, managed_home: &Path) -> Result<(), Stri
 
     let _ = fs::remove_file(&script_path);
     wait_result
+}
+
+#[cfg(target_os = "macos")]
+fn build_terminal_login_script(binary: &Path, managed_home: &Path, proxy_export_block: &str) -> String {
+    let escaped_binary = shell_escape(binary);
+    let escaped_home = shell_escape(managed_home);
+
+    format!("#!/bin/bash\nexport GEMINI_CLI_HOME={escaped_home}\n{proxy_export_block}cd ~\n{escaped_binary}\n")
 }
 
 fn wait_for_credentials(managed_home: &Path, timeout: Duration) -> Result<(), String> {
@@ -147,4 +156,24 @@ fn unique_suffix() -> String {
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_nanos().to_string())
         .unwrap_or_else(|_| "0".to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn macos_terminal_script_runs_gemini_with_managed_home_and_proxy_env() {
+        let script = build_terminal_login_script(
+            Path::new("/opt/homebrew/bin/gemini"),
+            Path::new("/tmp/gemini-home"),
+            "export HTTP_PROXY='http://127.0.0.1:7890'\nexport HTTPS_PROXY='http://127.0.0.1:7890'\n",
+        );
+
+        assert!(script.contains("GEMINI_CLI_HOME='/tmp/gemini-home'"));
+        assert!(script.contains("'/opt/homebrew/bin/gemini'"));
+        assert!(script.contains("export HTTP_PROXY='http://127.0.0.1:7890'"));
+        assert!(script.contains("export HTTPS_PROXY='http://127.0.0.1:7890'"));
+    }
 }

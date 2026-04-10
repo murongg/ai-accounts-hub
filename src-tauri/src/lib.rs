@@ -7,6 +7,7 @@ pub mod codex_accounts;
 pub mod codex_usage;
 pub mod gemini_accounts;
 pub mod gemini_usage;
+pub mod proxy_env;
 pub mod status_bar;
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
@@ -23,6 +24,7 @@ pub fn run() {
         .on_menu_event(|app, event| status_bar::handle_menu_event(app, event))
         .on_window_event(|window, event| status_bar::handle_window_event(window, event))
         .setup(|app| {
+            proxy_env::import_shell_proxy_env_if_missing();
             let scheduler = app.state::<codex_usage::scheduler::CodexUsageSchedulerState>();
             codex_usage::initialize_scheduler(&app.handle(), &scheduler)?;
             status_bar::setup_status_bar(app)?;

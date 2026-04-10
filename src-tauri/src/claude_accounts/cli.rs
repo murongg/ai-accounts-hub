@@ -8,6 +8,9 @@ use std::time::{Duration, Instant};
 #[cfg(target_os = "macos")]
 use std::time::{SystemTime, UNIX_EPOCH};
 
+#[cfg(target_os = "macos")]
+use crate::proxy_env::build_proxy_export_block_from_current_env;
+
 pub trait ClaudeLoginRunner: Send + Sync {
     fn run_login(&self, managed_config_dir: &Path) -> Result<(), String>;
 }
@@ -63,9 +66,15 @@ fn run_login_via_terminal(binary: &Path, managed_config_dir: &Path) -> Result<()
         std::process::id(),
         unique_suffix()
     ));
+    let proxy_export_block = build_proxy_export_block_from_current_env();
 
-    let script =
-        build_terminal_login_script(binary, managed_config_dir, &success_marker, &failure_marker);
+    let script = build_terminal_login_script(
+        binary,
+        managed_config_dir,
+        &success_marker,
+        &failure_marker,
+        &proxy_export_block,
+    );
 
     fs::write(&script_path, script)
         .map_err(|error| format!("failed to write Claude login script: {error}"))?;
@@ -97,6 +106,7 @@ fn build_terminal_login_script(
     managed_config_dir: &Path,
     success_marker: &Path,
     failure_marker: &Path,
+    proxy_export_block: &str,
 ) -> String {
     let escaped_binary = shell_escape(binary);
     let escaped_config_dir = shell_escape(managed_config_dir);
@@ -104,7 +114,7 @@ fn build_terminal_login_script(
     let escaped_failure_marker = shell_escape(failure_marker);
 
     format!(
-        "#!/bin/bash\nexport CLAUDE_CONFIG_DIR={escaped_config_dir}\nmkdir -p {escaped_config_dir}\ncd ~\nif {escaped_binary} auth login; then\n  touch {escaped_success_marker}\nelse\n  touch {escaped_failure_marker}\n  exit 1\nfi\n"
+        "#!/bin/bash\nexport CLAUDE_CONFIG_DIR={escaped_config_dir}\n{proxy_export_block}mkdir -p {escaped_config_dir}\ncd ~\nif {escaped_binary} auth login; then\n  touch {escaped_success_marker}\nelse\n  touch {escaped_failure_marker}\n  exit 1\nfi\n"
     )
 }
 
@@ -182,11 +192,14 @@ mod tests {
             Path::new("/tmp/claude-session"),
             Path::new("/tmp/success-marker"),
             Path::new("/tmp/failure-marker"),
+            "export HTTP_PROXY='http://127.0.0.1:7890'\nexport HTTPS_PROXY='http://127.0.0.1:7890'\n",
         );
 
         assert!(script.contains("CLAUDE_CONFIG_DIR='/tmp/claude-session'"));
         assert!(script.contains("'/opt/homebrew/bin/claude' auth login"));
         assert!(script.contains("touch '/tmp/success-marker'"));
         assert!(script.contains("touch '/tmp/failure-marker'"));
+        assert!(script.contains("export HTTP_PROXY='http://127.0.0.1:7890'"));
+        assert!(script.contains("export HTTPS_PROXY='http://127.0.0.1:7890'"));
     }
 }
