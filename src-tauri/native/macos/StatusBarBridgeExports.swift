@@ -168,6 +168,8 @@ func aah_status_bar_bridge_debug_provider_icon_ready_for_tab(_ tabValue: Int32) 
     case 1:
         tab = .codex
     case 2:
+        tab = .claude
+    case 3:
         tab = .gemini
     default:
         tab = nil
@@ -187,6 +189,8 @@ func aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab(_ tabVal
     case 1:
         tab = .codex
     case 2:
+        tab = .claude
+    case 3:
         tab = .gemini
     default:
         tab = nil
@@ -211,6 +215,8 @@ func aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab_and_path
     case 1:
         tab = .codex
     case 2:
+        tab = .claude
+    case 3:
         tab = .gemini
     default:
         tab = nil

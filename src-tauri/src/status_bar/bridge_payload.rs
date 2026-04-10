@@ -1,6 +1,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::codex_accounts::models::CodexAccountListItem;
+use crate::claude_accounts::models::ClaudeAccountListItem;
 use crate::gemini_accounts::models::GeminiAccountListItem;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -8,6 +9,7 @@ use crate::gemini_accounts::models::GeminiAccountListItem;
 pub enum StatusBarTab {
     Overview,
     Codex,
+    Claude,
     Gemini,
 }
 
@@ -45,10 +47,12 @@ pub struct BridgePayload {
 pub fn build_bridge_payload(
     selected_tab: StatusBarTab,
     codex_accounts: Vec<CodexAccountListItem>,
+    claude_accounts: Vec<ClaudeAccountListItem>,
     gemini_accounts: Vec<GeminiAccountListItem>,
     now_ms: i64,
 ) -> BridgePayload {
     let mut codex_sections = build_codex_sections(codex_accounts, now_ms);
+    let mut claude_sections = build_claude_sections(claude_accounts, now_ms);
     let mut gemini_sections = build_gemini_sections(gemini_accounts, now_ms);
 
     let sections = match selected_tab {
@@ -58,6 +62,11 @@ pub fn build_bridge_payload(
                 .or_else(|| codex_sections.first().cloned())
             {
                 overview.push(active_codex);
+            }
+            if let Some(active_claude) = claude_sections.iter().find(|section| section.is_active).cloned()
+                .or_else(|| claude_sections.first().cloned())
+            {
+                overview.push(active_claude);
             }
             if let Some(active_gemini) = gemini_sections.iter().find(|section| section.is_active).cloned()
                 .or_else(|| gemini_sections.first().cloned())
@@ -69,6 +78,10 @@ pub fn build_bridge_payload(
         StatusBarTab::Codex => {
             sort_sections(&mut codex_sections);
             codex_sections
+        }
+        StatusBarTab::Claude => {
+            sort_sections(&mut claude_sections);
+            claude_sections
         }
         StatusBarTab::Gemini => {
             sort_sections(&mut gemini_sections);
@@ -171,6 +184,28 @@ fn build_gemini_sections(accounts: Vec<GeminiAccountListItem>, now_ms: i64) -> V
                 is_active: account.is_active,
                 needs_relogin,
                 metrics,
+                switch_account_id: (!account.is_active).then_some(account.id),
+            }
+        })
+        .collect()
+}
+
+fn build_claude_sections(accounts: Vec<ClaudeAccountListItem>, now_ms: i64) -> Vec<BridgeProviderPayload> {
+    accounts
+        .into_iter()
+        .map(|account| {
+            let needs_relogin = account.needs_relogin.unwrap_or(false);
+
+            BridgeProviderPayload {
+                id: format!("claude:{}", account.id),
+                provider_id: "claude".to_string(),
+                provider_title: "Claude".to_string(),
+                email: account.email,
+                subtitle: section_subtitle(needs_relogin, account.last_synced_at.as_deref(), now_ms),
+                plan: account.plan,
+                is_active: account.is_active,
+                needs_relogin,
+                metrics: Vec::new(),
                 switch_account_id: (!account.is_active).then_some(account.id),
             }
         })

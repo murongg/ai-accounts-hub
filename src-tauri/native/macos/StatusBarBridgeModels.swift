@@ -3,6 +3,7 @@ import Foundation
 enum StatusBarBridgeTab: String, Codable, CaseIterable, Hashable {
     case overview
     case codex
+    case claude
     case gemini
 
     var debugValue: Int32 {
@@ -11,8 +12,10 @@ enum StatusBarBridgeTab: String, Codable, CaseIterable, Hashable {
             return 0
         case .codex:
             return 1
-        case .gemini:
+        case .claude:
             return 2
+        case .gemini:
+            return 3
         }
     }
 
@@ -22,6 +25,8 @@ enum StatusBarBridgeTab: String, Codable, CaseIterable, Hashable {
             return "Overview"
         case .codex:
             return "Codex"
+        case .claude:
+            return "Claude"
         case .gemini:
             return "Gemini"
         }

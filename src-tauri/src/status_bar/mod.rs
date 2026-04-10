@@ -7,6 +7,7 @@ use std::sync::Mutex;
 use dirs::home_dir;
 use tauri::{AppHandle, Manager};
 
+use crate::claude_accounts::{paths::ClaudeAccountPaths, service::ClaudeAccountService};
 use crate::codex_accounts::{paths::CodexAccountPaths, service::CodexAccountService};
 #[cfg(target_os = "macos")]
 use crate::codex_usage::scheduler::CodexUsageSchedulerState;
@@ -23,6 +24,7 @@ const MAIN_WINDOW_LABEL: &str = "main";
 const STATUS_TRAY_ID: &str = "status-bar";
 
 const MENU_ID_PROVIDER_CODEX: &str = "provider:codex";
+const MENU_ID_PROVIDER_CLAUDE: &str = "provider:claude";
 const MENU_ID_PROVIDER_GEMINI: &str = "provider:gemini";
 const MENU_ID_REFRESH: &str = "refresh";
 const MENU_ID_OPEN_MAIN: &str = "open-main";
@@ -271,8 +273,18 @@ fn build_status_menu<R: tauri::Runtime>(
         None::<&str>,
     )
     .map_err(|error| error.to_string())?;
+    let claude = CheckMenuItem::with_id(
+        app,
+        MENU_ID_PROVIDER_CLAUDE,
+        "Claude",
+        true,
+        selected_provider == MenuProvider::Claude,
+        None::<&str>,
+    )
+    .map_err(|error| error.to_string())?;
 
     menu.append(&codex).map_err(|error| error.to_string())?;
+    menu.append(&claude).map_err(|error| error.to_string())?;
     menu.append(&gemini).map_err(|error| error.to_string())?;
     menu.append(&PredefinedMenuItem::separator(app).map_err(|error| error.to_string())?)
         .map_err(|error| error.to_string())?;
@@ -280,6 +292,7 @@ fn build_status_menu<R: tauri::Runtime>(
     if provider_state.accounts.is_empty() {
         let empty_label = match selected_provider {
             MenuProvider::Codex => "暂无 Codex 账号",
+            MenuProvider::Claude => "暂无 Claude 账号",
             MenuProvider::Gemini => "暂无 Gemini 账号",
         };
         let empty_item = MenuItem::new(app, empty_label, false, None::<&str>)
@@ -433,6 +446,7 @@ fn status_display_label(status_label: &str) -> &str {
 fn provider_slug(provider: MenuProvider) -> &'static str {
     match provider {
         MenuProvider::Codex => "codex",
+        MenuProvider::Claude => "claude",
         MenuProvider::Gemini => "gemini",
     }
 }
@@ -441,11 +455,12 @@ fn load_provider_menu_state<R: tauri::Runtime>(
     app: &AppHandle<R>,
     selected_provider: MenuProvider,
 ) -> Result<menu_model::ProviderMenuState, String> {
-    let (codex_accounts, gemini_accounts) = load_account_lists(app)?;
+    let (codex_accounts, claude_accounts, gemini_accounts) = load_account_lists(app)?;
 
     Ok(build_provider_menu_state(
         selected_provider,
         codex_accounts,
+        claude_accounts,
         gemini_accounts,
     ))
 }
@@ -455,6 +470,7 @@ fn load_account_lists<R: tauri::Runtime>(
 ) -> Result<
     (
         Vec<crate::codex_accounts::models::CodexAccountListItem>,
+        Vec<crate::claude_accounts::models::ClaudeAccountListItem>,
         Vec<crate::gemini_accounts::models::GeminiAccountListItem>,
     ),
     String,
@@ -471,11 +487,15 @@ fn load_account_lists<R: tauri::Runtime>(
     ))
     .list_accounts()?;
     let gemini_accounts = GeminiAccountService::with_process_runner(
-        GeminiAccountPaths::from_roots(app_data_dir, user_home),
+        GeminiAccountPaths::from_roots(app_data_dir.clone(), user_home.clone()),
+    )
+    .list_accounts()?;
+    let claude_accounts = ClaudeAccountService::with_process_runner(
+        ClaudeAccountPaths::from_roots(app_data_dir, user_home),
     )
     .list_accounts()?;
 
-    Ok((codex_accounts, gemini_accounts))
+    Ok((codex_accounts, claude_accounts, gemini_accounts))
 }
 
 #[cfg(target_os = "macos")]
@@ -511,6 +531,19 @@ async fn switch_provider_account<R: tauri::Runtime>(
             ))
             .switch_account(&account_id)
         }
+        MenuProvider::Claude => {
+            let app_data_dir = app
+                .path()
+                .app_data_dir()
+                .map_err(|error| format!("failed to resolve app data dir: {error}"))?;
+            let user_home =
+                home_dir().ok_or_else(|| "failed to resolve user home dir".to_string())?;
+            ClaudeAccountService::with_process_runner(ClaudeAccountPaths::from_roots(
+                app_data_dir,
+                user_home,
+            ))
+            .switch_account(&account_id)
+        }
     })
     .await
     .map_err(|error| error.to_string())?
@@ -524,6 +557,7 @@ async fn refresh_selected_provider<R: tauri::Runtime>(
     let scheduler = app.state::<CodexUsageSchedulerState>();
     match provider {
         MenuProvider::Codex => scheduler.refresh_codex_now().await,
+        MenuProvider::Claude => Ok(()),
         MenuProvider::Gemini => scheduler.refresh_gemini_now().await,
     }
 }
@@ -538,6 +572,7 @@ async fn refresh_provider_for_tab<R: tauri::Runtime>(
     match tab {
         StatusBarTab::Overview => scheduler.refresh_all_now().await,
         StatusBarTab::Codex => scheduler.refresh_codex_now().await,
+        StatusBarTab::Claude => Ok(()),
         StatusBarTab::Gemini => scheduler.refresh_gemini_now().await,
     }
 }

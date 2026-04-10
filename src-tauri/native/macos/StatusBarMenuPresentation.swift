@@ -7,7 +7,7 @@ struct StatusBarMenuPresentation {
         let metrics: [StatusBarBridgeMetric]
     }
 
-    static let visibleTabs: [StatusBarBridgeTab] = [.codex, .gemini]
+    static let visibleTabs: [StatusBarBridgeTab] = [.codex, .claude, .gemini]
     static let footerActionCount: Int32 = 3
 
     let rawSelectedTab: StatusBarBridgeTab

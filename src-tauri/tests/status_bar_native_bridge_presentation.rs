@@ -74,7 +74,7 @@ fn native_bridge_presentation_keeps_tabs_actions_and_active_section_order() {
     let metric_count = unsafe { aah_status_bar_bridge_debug_total_metric_count_from_json(payload.as_ptr()) };
     let footer_count = unsafe { aah_status_bar_bridge_debug_footer_action_count() };
 
-    assert_eq!(tab_count, 2);
+    assert_eq!(tab_count, 3);
     assert_eq!(active_index, 0);
     assert_eq!(metric_count, 3);
     assert_eq!(footer_count, 3);
@@ -92,7 +92,7 @@ fn native_bridge_select_tab_action_updates_visible_tab_immediately() {
     let selected_tab =
         unsafe { aah_status_bar_bridge_debug_selected_tab_after_action_from_json(payload.as_ptr(), action.as_ptr()) };
 
-    assert_eq!(selected_tab, 2);
+    assert_eq!(selected_tab, 3);
 }
 
 #[cfg(target_os = "macos")]

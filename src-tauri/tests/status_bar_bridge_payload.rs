@@ -1,4 +1,5 @@
 use ai_accounts_hub_lib::codex_accounts::models::CodexAccountListItem;
+use ai_accounts_hub_lib::claude_accounts::models::ClaudeAccountListItem;
 use ai_accounts_hub_lib::gemini_accounts::models::GeminiAccountListItem;
 use ai_accounts_hub_lib::status_bar::bridge_payload::{
     build_bridge_payload, BridgeMetricPayload, BridgeProviderPayload, StatusBarTab,
@@ -57,6 +58,25 @@ fn gemini_account(
     }
 }
 
+fn claude_account(
+    id: &str,
+    email: &str,
+    is_active: bool,
+) -> ClaudeAccountListItem {
+    ClaudeAccountListItem {
+        id: id.to_string(),
+        email: email.to_string(),
+        display_name: Some(format!("Claude {id}")),
+        plan: Some("Pro".to_string()),
+        account_hint: Some(format!("org-{id}")),
+        is_active,
+        last_authenticated_at: "1775640000".to_string(),
+        last_synced_at: Some("1775642700".to_string()),
+        last_sync_error: None,
+        needs_relogin: Some(false),
+    }
+}
+
 #[test]
 fn overview_payload_uses_active_accounts_from_both_providers() {
     let payload = build_bridge_payload(
@@ -66,6 +86,10 @@ fn overview_payload_uses_active_accounts_from_both_providers() {
             codex_account("active", "active@example.com", true, Some(82), Some(64)),
         ],
         vec![
+            claude_account("idle-c", "idle-c@example.com", false),
+            claude_account("active-c", "active-c@example.com", true),
+        ],
+        vec![
             gemini_account("idle-g", "idle-g@example.com", false, Some(88), Some(70), Some(52)),
             gemini_account("active-g", "active-g@example.com", true, Some(100), Some(90), Some(75)),
         ],
@@ -73,11 +97,13 @@ fn overview_payload_uses_active_accounts_from_both_providers() {
     );
 
     assert_eq!(payload.selected_tab, StatusBarTab::Overview);
-    assert_eq!(payload.sections.len(), 2);
+    assert_eq!(payload.sections.len(), 3);
     assert_eq!(payload.sections[0].provider_id, "codex");
     assert_eq!(payload.sections[0].email, "active@example.com");
-    assert_eq!(payload.sections[1].provider_id, "gemini");
-    assert_eq!(payload.sections[1].email, "active-g@example.com");
+    assert_eq!(payload.sections[1].provider_id, "claude");
+    assert_eq!(payload.sections[1].email, "active-c@example.com");
+    assert_eq!(payload.sections[2].provider_id, "gemini");
+    assert_eq!(payload.sections[2].email, "active-g@example.com");
 }
 
 #[test]
@@ -85,6 +111,7 @@ fn codex_payload_includes_session_and_weekly_metrics() {
     let payload = build_bridge_payload(
         StatusBarTab::Codex,
         vec![codex_account("active", "active@example.com", true, Some(82), Some(64))],
+        Vec::new(),
         Vec::new(),
         1_775_640_000_000,
     );
@@ -114,7 +141,13 @@ fn relogin_payload_clears_metrics_and_marks_status() {
     let mut broken = gemini_account("bad", "broken@example.com", false, Some(100), Some(90), Some(75));
     broken.needs_relogin = Some(true);
 
-    let payload = build_bridge_payload(StatusBarTab::Gemini, Vec::new(), vec![broken], 1_775_643_000_000);
+    let payload = build_bridge_payload(
+        StatusBarTab::Gemini,
+        Vec::new(),
+        Vec::new(),
+        vec![broken],
+        1_775_643_000_000,
+    );
 
     assert_eq!(
         payload.sections[0],
@@ -129,6 +162,34 @@ fn relogin_payload_clears_metrics_and_marks_status() {
             needs_relogin: true,
             metrics: Vec::new(),
             switch_account_id: Some("bad".to_string()),
+        }
+    );
+}
+
+#[test]
+fn claude_payload_keeps_account_metadata_and_omits_usage_metrics() {
+    let payload = build_bridge_payload(
+        StatusBarTab::Claude,
+        Vec::new(),
+        vec![claude_account("active-c", "active-c@example.com", true)],
+        Vec::new(),
+        1_775_643_000_000,
+    );
+
+    assert_eq!(payload.sections.len(), 1);
+    assert_eq!(
+        payload.sections[0],
+        BridgeProviderPayload {
+            id: "claude:active-c".to_string(),
+            provider_id: "claude".to_string(),
+            provider_title: "Claude".to_string(),
+            email: "active-c@example.com".to_string(),
+            subtitle: "Updated 5m ago".to_string(),
+            plan: Some("Pro".to_string()),
+            is_active: true,
+            needs_relogin: false,
+            metrics: Vec::new(),
+            switch_account_id: None,
         }
     );
 }

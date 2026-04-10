@@ -70,6 +70,8 @@ enum StatusBarProviderIconProvider {
             return nil
         case .codex:
             return ("openai", "svg", .vector)
+        case .claude:
+            return ("claude-color", "svg", .vector)
         case .gemini:
             return ("gemini", "png", .raster)
         }
@@ -242,6 +244,8 @@ private struct StatusBarTopSwitcherIcon: View {
             return true
         case .codex:
             return true
+        case .claude:
+            return true
         case .gemini:
             return false
         }
@@ -257,6 +261,8 @@ private struct StatusBarTopSwitcherIcon: View {
             return "square.grid.2x2"
         case .codex:
             return "swirl.circle.righthalf.filled"
+        case .claude:
+            return "text.bubble"
         case .gemini:
             return "sparkles"
         }

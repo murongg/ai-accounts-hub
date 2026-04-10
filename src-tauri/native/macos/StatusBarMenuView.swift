@@ -263,7 +263,7 @@ private struct StatusBarEmptyState: View {
                 .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(StatusBarPanelPalette.textPrimary)
 
-            Text("Add a Codex or Gemini account in the main app to populate the menu bar view.")
+            Text("Add a Codex, Claude, or Gemini account in the main app to populate the menu bar view.")
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(StatusBarPanelPalette.textSecondary)
         }

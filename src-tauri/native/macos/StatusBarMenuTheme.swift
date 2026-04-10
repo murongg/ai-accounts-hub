@@ -45,6 +45,9 @@ enum StatusBarPanelPalette {
     static let codexAccent = Color(
         nsColor: NSColor(red: 0.109, green: 0.522, blue: 0.988, alpha: 1.0)
     )
+    static let claudeAccent = Color(
+        nsColor: NSColor(red: 0.851, green: 0.467, blue: 0.341, alpha: 1.0)
+    )
     static let geminiAccent = Color(
         nsColor: NSColor(red: 0.675, green: 0.514, blue: 0.973, alpha: 1.0)
     )
@@ -88,6 +91,8 @@ enum StatusBarPanelAccent {
             return StatusBarPanelPalette.overviewAccent
         case .codex:
             return StatusBarPanelPalette.codexAccent
+        case .claude:
+            return StatusBarPanelPalette.claudeAccent
         case .gemini:
             return StatusBarPanelPalette.geminiAccent
         }
@@ -97,6 +102,8 @@ enum StatusBarPanelAccent {
         switch providerID {
         case "codex":
             return StatusBarPanelPalette.codexAccent
+        case "claude":
+            return StatusBarPanelPalette.claudeAccent
         case "gemini":
             return StatusBarPanelPalette.geminiAccent
         default:

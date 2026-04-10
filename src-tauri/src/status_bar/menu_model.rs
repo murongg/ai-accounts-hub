@@ -1,9 +1,11 @@
 use crate::codex_accounts::models::CodexAccountListItem;
+use crate::claude_accounts::models::ClaudeAccountListItem;
 use crate::gemini_accounts::models::GeminiAccountListItem;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MenuProvider {
     Codex,
+    Claude,
     Gemini,
 }
 
@@ -35,6 +37,7 @@ pub struct ProviderMenuState {
 pub fn build_provider_menu_state(
     selected_provider: MenuProvider,
     codex_accounts: Vec<CodexAccountListItem>,
+    claude_accounts: Vec<ClaudeAccountListItem>,
     gemini_accounts: Vec<GeminiAccountListItem>,
 ) -> ProviderMenuState {
     let accounts = match selected_provider {
@@ -57,6 +60,27 @@ pub fn build_provider_menu_state(
                             .clone()
                             .unwrap_or_else(|| "Unknown".to_string()),
                         quota_summary,
+                        is_active: account.is_active,
+                        status_label,
+                    }
+                })
+                .collect(),
+        ),
+        MenuProvider::Claude => sort_menu_accounts(
+            claude_accounts
+                .into_iter()
+                .map(|account| {
+                    let status_label = if account.needs_relogin.unwrap_or(false) {
+                        "Re-login required".to_string()
+                    } else {
+                        "Healthy".to_string()
+                    };
+
+                    MenuAccountState {
+                        id: account.id,
+                        email: account.email,
+                        plan: account.plan.unwrap_or_else(|| "Unknown".to_string()),
+                        quota_summary: None,
                         is_active: account.is_active,
                         status_label,
                     }
@@ -99,6 +123,7 @@ pub fn build_provider_menu_state(
 pub fn parse_menu_action(id: &str) -> Option<MenuAction> {
     match id {
         "provider:codex" => Some(MenuAction::SelectProvider(MenuProvider::Codex)),
+        "provider:claude" => Some(MenuAction::SelectProvider(MenuProvider::Claude)),
         "provider:gemini" => Some(MenuAction::SelectProvider(MenuProvider::Gemini)),
         "refresh" => Some(MenuAction::RefreshSelectedProvider),
         "open-main" => Some(MenuAction::OpenMainWindow),
@@ -116,6 +141,7 @@ fn parse_switch_action(id: &str) -> Option<MenuAction> {
 
     let provider = match provider {
         "codex" => MenuProvider::Codex,
+        "claude" => MenuProvider::Claude,
         "gemini" => MenuProvider::Gemini,
         _ => return None,
     };

@@ -32,6 +32,7 @@
     "resources": [
       "../public/icon.svg",
       "../src/assets/openai.svg",
+      "../src/assets/claude-color.svg",
       "../src/assets/gemini-color.svg",
       "native/macos/provider-icons/gemini.png"
     ],

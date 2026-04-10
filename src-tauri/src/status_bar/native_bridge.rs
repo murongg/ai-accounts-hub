@@ -103,11 +103,12 @@ pub fn update_payload<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
         return Ok(());
     }
 
-    let (codex_accounts, gemini_accounts) = load_account_lists(app)?;
+    let (codex_accounts, claude_accounts, gemini_accounts) = load_account_lists(app)?;
     let selected_tab = app.state::<super::StatusBarState>().selected_tab()?;
     let visible_tab = visible_native_tab(
         selected_tab,
         !codex_accounts.is_empty(),
+        !claude_accounts.is_empty(),
         !gemini_accounts.is_empty(),
     );
 
@@ -119,6 +120,7 @@ pub fn update_payload<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     let payload = build_bridge_payload(
         visible_tab,
         codex_accounts,
+        claude_accounts,
         gemini_accounts,
         current_time_ms(),
     );
@@ -148,6 +150,7 @@ async fn handle_native_action<R: Runtime>(app: AppHandle<R>, message: &str) -> R
         } => {
             let provider = match provider.as_str() {
                 "codex" => MenuProvider::Codex,
+                "claude" => MenuProvider::Claude,
                 "gemini" => MenuProvider::Gemini,
                 _ => return Err(format!("unknown provider: {provider}")),
             };
@@ -190,12 +193,15 @@ fn current_time_ms() -> i64 {
 fn visible_native_tab(
     selected_tab: StatusBarTab,
     has_codex: bool,
+    has_claude: bool,
     has_gemini: bool,
 ) -> StatusBarTab {
     match selected_tab {
         StatusBarTab::Overview => {
             if has_codex {
                 StatusBarTab::Codex
+            } else if has_claude {
+                StatusBarTab::Claude
             } else if has_gemini {
                 StatusBarTab::Gemini
             } else {
@@ -214,15 +220,23 @@ mod tests {
     #[test]
     fn visible_native_tab_prefers_codex_when_overview_is_hidden() {
         assert_eq!(
-            visible_native_tab(StatusBarTab::Overview, true, true),
+            visible_native_tab(StatusBarTab::Overview, true, true, true),
             StatusBarTab::Codex
         );
     }
 
     #[test]
-    fn visible_native_tab_falls_back_to_gemini_when_codex_is_unavailable() {
+    fn visible_native_tab_falls_back_to_claude_before_gemini() {
         assert_eq!(
-            visible_native_tab(StatusBarTab::Overview, false, true),
+            visible_native_tab(StatusBarTab::Overview, false, true, true),
+            StatusBarTab::Claude
+        );
+    }
+
+    #[test]
+    fn visible_native_tab_falls_back_to_gemini_when_codex_and_claude_are_unavailable() {
+        assert_eq!(
+            visible_native_tab(StatusBarTab::Overview, false, false, true),
             StatusBarTab::Gemini
         );
     }
@@ -230,7 +244,7 @@ mod tests {
     #[test]
     fn visible_native_tab_keeps_explicit_provider_selection() {
         assert_eq!(
-            visible_native_tab(StatusBarTab::Gemini, true, true),
+            visible_native_tab(StatusBarTab::Gemini, true, true, true),
             StatusBarTab::Gemini
         );
     }

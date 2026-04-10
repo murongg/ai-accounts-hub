@@ -76,6 +76,10 @@ impl TempIconLayout {
             &resources.join("_up_/src/assets/openai.svg"),
         );
         copy_fixture(
+            &repo_root.join("src/assets/claude-color.svg"),
+            &resources.join("_up_/src/assets/claude-color.svg"),
+        );
+        copy_fixture(
             &repo_root.join("src-tauri/native/macos/provider-icons/gemini.png"),
             &resources.join("native/macos/provider-icons/gemini.png"),
         );
@@ -129,21 +133,25 @@ fn native_bridge_uses_a_template_menubar_icon() {
 
 #[cfg(target_os = "macos")]
 #[test]
-fn native_bridge_builds_provider_icons_for_codex_and_gemini() {
+ fn native_bridge_builds_provider_icons_for_all_supported_providers() {
     let codex_ready = unsafe { aah_status_bar_bridge_debug_provider_icon_ready_for_tab(1) };
-    let gemini_ready = unsafe { aah_status_bar_bridge_debug_provider_icon_ready_for_tab(2) };
+    let claude_ready = unsafe { aah_status_bar_bridge_debug_provider_icon_ready_for_tab(2) };
+    let gemini_ready = unsafe { aah_status_bar_bridge_debug_provider_icon_ready_for_tab(3) };
 
     assert_eq!(codex_ready, 1);
+    assert_eq!(claude_ready, 1);
     assert_eq!(gemini_ready, 1);
 }
 
 #[cfg(target_os = "macos")]
 #[test]
-fn native_bridge_uses_vector_codex_icon_and_raster_gemini_icon() {
+fn native_bridge_uses_vector_codex_and_claude_icons_and_raster_gemini_icon() {
     let codex_variant = unsafe { aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab(1) };
-    let gemini_variant = unsafe { aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab(2) };
+    let claude_variant = unsafe { aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab(2) };
+    let gemini_variant = unsafe { aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab(3) };
 
     assert_eq!(codex_variant, 1);
+    assert_eq!(claude_variant, 1);
     assert_eq!(gemini_variant, 2);
 }
 
@@ -169,9 +177,16 @@ fn native_bridge_resolves_release_bundle_icon_paths() {
             empty_workdir_path.as_ptr(),
         )
     };
-    let gemini_variant = unsafe {
+    let claude_variant = unsafe {
         aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab_and_paths(
             2,
+            bundle_resource_path.as_ptr(),
+            empty_workdir_path.as_ptr(),
+        )
+    };
+    let gemini_variant = unsafe {
+        aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab_and_paths(
+            3,
             bundle_resource_path.as_ptr(),
             empty_workdir_path.as_ptr(),
         )
@@ -179,5 +194,6 @@ fn native_bridge_resolves_release_bundle_icon_paths() {
 
     assert_eq!(app_icon_variant, 1);
     assert_eq!(codex_variant, 1);
+    assert_eq!(claude_variant, 1);
     assert_eq!(gemini_variant, 2);
 }
