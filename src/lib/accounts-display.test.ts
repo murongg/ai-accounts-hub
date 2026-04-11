@@ -106,6 +106,29 @@ test("buildClaudeQuotaCards returns Session, Weekly, and model weekly in order",
   ]);
 });
 
+test("buildClaudeQuotaCards returns placeholder quota cards before first sync", () => {
+  const cards = buildClaudeQuotaCards(
+    claudeAccount({
+      session_remaining_percent: null,
+      session_refresh_at: null,
+      weekly_remaining_percent: null,
+      weekly_refresh_at: null,
+      model_weekly_remaining_percent: null,
+      model_weekly_refresh_at: null,
+      model_weekly_label: null,
+      last_synced_at: null,
+    }),
+    1775640000000,
+    "zh-CN",
+  );
+
+  assert.deepEqual(cards, [
+    { percent: null, label: "Session 剩余配额", time: "等待首次同步", is_placeholder: true },
+    { percent: null, label: "Weekly 剩余配额", time: "等待首次同步", is_placeholder: true },
+    { percent: null, label: "模型周额度", time: "等待首次同步", is_placeholder: true },
+  ]);
+});
+
 test("returns codex account counts when the codex platform is active", () => {
   const metrics = getPlatformAccountMetrics("codex", [
     { is_active: true },

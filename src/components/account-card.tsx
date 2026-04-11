@@ -21,7 +21,7 @@ export interface AccountCardProps {
   activityLabel: string;
   activityValue: string;
   activityKind?: "sync" | "auth";
-  quotas?: Array<{ percent: number; label: string; time: string }>;
+  quotas?: Array<{ percent: number | null; label: string; time: string; is_placeholder?: boolean }>;
   detailRows?: Array<{ label: string; value: string }>;
   primaryLabel: string;
   primaryDisabled: boolean;
@@ -103,7 +103,8 @@ function AccountCardComponent({
                 language={language}
                 percent={quota.percent}
                 label={quota.label}
-                resetText={quota.time}
+                statusText={quota.time}
+                isPlaceholder={quota.is_placeholder}
                 compact={quotas.length >= 3 && !isLarge}
                 large={isLarge}
               />
@@ -170,14 +171,16 @@ function QuotaCard({
   language,
   percent,
   label,
-  resetText,
+  statusText,
+  isPlaceholder = false,
   compact = false,
   large = false,
 }: {
   language: AppLanguage;
-  percent: number;
+  percent: number | null;
   label: string;
-  resetText: string;
+  statusText: string;
+  isPlaceholder?: boolean;
   compact?: boolean;
   large?: boolean;
 }) {
@@ -188,7 +191,12 @@ function QuotaCard({
       }`}
     >
       <div className="flex flex-col items-center">
-        <CircularProgress percent={percent} compact={compact} large={large} />
+        <CircularProgress
+          percent={percent}
+          compact={compact}
+          large={large}
+          isPlaceholder={isPlaceholder}
+        />
         <div className="mt-2.5 w-full text-center">
           <p
             className={`mb-0.5 text-base-content/55 ${
@@ -198,11 +206,11 @@ function QuotaCard({
             {label}
           </p>
           <p
-            className={`text-primary ${
+            className={`${isPlaceholder ? "text-base-content/45" : "text-primary"} ${
               large ? "min-h-[2rem] text-[9px] leading-tight whitespace-normal" : "truncate text-[9px]"
             }`}
           >
-            {formatResetLabel(resetText, language)}
+            {isPlaceholder ? statusText : formatResetLabel(statusText, language)}
           </p>
         </div>
       </div>
@@ -214,31 +222,38 @@ function CircularProgress({
   percent,
   compact = false,
   large = false,
+  isPlaceholder = false,
 }: {
-  percent: number;
+  percent: number | null;
   compact?: boolean;
   large?: boolean;
+  isPlaceholder?: boolean;
 }) {
-  const progressTone = getQuotaProgressTone(percent);
+  const resolvedPercent = percent ?? 0;
+  const progressTone = getQuotaProgressTone(resolvedPercent);
   const progressStyle = {
-    "--value": percent,
+    "--value": resolvedPercent,
     "--size": compact ? "4rem" : large ? "5.1rem" : "4.75rem",
     "--thickness": compact ? "0.3rem" : large ? "0.38rem" : "0.34rem",
   } as CSSProperties;
 
   return (
     <div
-      className={`radial-progress shrink-0 ${progressTone} bg-base-300/70`}
+      className={`radial-progress shrink-0 ${
+        isPlaceholder ? "text-base-300 bg-base-300/40" : `${progressTone} bg-base-300/70`
+      }`}
       style={progressStyle}
       role="progressbar"
-      aria-label="remaining quota"
-      aria-valuenow={percent}
+      aria-label={isPlaceholder ? "quota pending sync" : "remaining quota"}
+      aria-valuenow={resolvedPercent}
     >
       <div className="flex flex-col items-center leading-none">
         <span
-          className={`${compact ? "text-[14px]" : large ? "text-[17px]" : "text-[16px]"} font-bold text-base-content`}
+          className={`${
+            compact ? "text-[14px]" : large ? "text-[17px]" : "text-[16px]"
+          } font-bold ${isPlaceholder ? "text-base-content/35" : "text-base-content"}`}
         >
-          {percent}%
+          {isPlaceholder ? "..." : `${resolvedPercent}%`}
         </span>
       </div>
     </div>

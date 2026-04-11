@@ -5,10 +5,11 @@ import type { AppLanguage } from "../types/settings";
 
 export type AccountCardSize = "default" | "large";
 
-export interface GeminiQuotaCard {
-  percent: number;
+export interface QuotaCardModel {
+  percent: number | null;
   label: string;
   time: string;
+  is_placeholder?: boolean;
 }
 
 export function getAccountCardPresentation(activePlatform: string): {
@@ -153,7 +154,7 @@ export function buildGeminiQuotaCards(
   account: GeminiAccountSummary,
   nowMs: number,
   language: AppLanguage,
-): GeminiQuotaCard[] {
+): QuotaCardModel[] {
   const copy = getI18n(language);
 
   return [
@@ -185,7 +186,7 @@ export function buildClaudeQuotaCards(
   account: ClaudeAccountSummary,
   nowMs: number,
   language: AppLanguage,
-): GeminiQuotaCard[] {
+): QuotaCardModel[] {
   const labels = language === "en-US"
     ? {
         session: "Session",
@@ -197,6 +198,7 @@ export function buildClaudeQuotaCards(
         weekly: "Weekly 剩余配额",
         fallbackModel: "模型周额度",
       };
+  const copy = getI18n(language);
 
   return [
     {
@@ -215,12 +217,18 @@ export function buildClaudeQuotaCards(
       refreshAt: account.model_weekly_refresh_at,
     },
   ]
-    .filter((quota) => quota.percent !== null)
-    .map((quota) => ({
-      percent: quota.percent ?? 0,
-      label: quota.label,
-      time: formatRefreshCountdown(quota.refreshAt, nowMs, language),
-    }));
+    .map((quota) => quota.percent === null
+      ? {
+          percent: null,
+          label: quota.label,
+          time: copy.accounts.waitingFirstSync,
+          is_placeholder: true,
+        }
+      : {
+          percent: quota.percent,
+          label: quota.label,
+          time: formatRefreshCountdown(quota.refreshAt, nowMs, language),
+        });
 }
 
 export function getPlatformAccountMetrics(

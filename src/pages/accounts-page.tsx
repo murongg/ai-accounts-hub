@@ -104,23 +104,6 @@ function AccountsPageComponent({
     );
   }
 
-  function buildClaudeDetailRows(account: ClaudeAccountSummary) {
-    return [
-      account.display_name
-        ? {
-            label: copy.accounts.claudeDisplayNameLabel,
-            value: account.display_name,
-          }
-        : null,
-      account.account_hint
-        ? {
-            label: copy.accounts.claudeAccountHintLabel,
-            value: account.account_hint,
-          }
-        : null,
-    ].filter((detail): detail is { label: string; value: string } => detail !== null);
-  }
-
   function hasClaudeUsage(account: ClaudeAccountSummary) {
     return (
       account.session_remaining_percent !== null ||
@@ -257,8 +240,7 @@ function AccountsPageComponent({
                     size={cardPresentation.cardSize}
                     isActive={account.is_active}
                     isAlive={!(claudeAccount.needs_relogin ?? false)}
-                    quotas={usageAvailable ? buildClaudeQuotaCards(claudeAccount, nowMs, language) : undefined}
-                    detailRows={usageAvailable ? undefined : buildClaudeDetailRows(claudeAccount)}
+                    quotas={buildClaudeQuotaCards(claudeAccount, nowMs, language)}
                     activityLabel={usageAvailable ? copy.card.syncedPrefix : copy.accounts.authenticatedPrefix}
                     activityValue={formatTimestamp(
                       usageAvailable ? claudeAccount.last_synced_at : claudeAccount.last_authenticated_at,
