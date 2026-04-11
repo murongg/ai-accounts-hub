@@ -122,6 +122,19 @@ fn native_bridge_select_tab_action_keeps_the_menu_open() {
 
 #[cfg(target_os = "macos")]
 #[test]
+fn native_bridge_switch_account_action_keeps_the_menu_open() {
+    let action =
+        CString::new(r#"{"type":"switch_account","provider":"codex","account_id":"acct-2"}"#)
+            .unwrap();
+
+    let keeps_menu_open =
+        unsafe { aah_status_bar_bridge_debug_action_keeps_menu_open(action.as_ptr()) };
+
+    assert_eq!(keeps_menu_open, 1);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
 fn native_bridge_quit_action_is_handled_locally_after_dismissing_the_menu() {
     let action = CString::new(r#"{"type":"quit"}"#).unwrap();
 

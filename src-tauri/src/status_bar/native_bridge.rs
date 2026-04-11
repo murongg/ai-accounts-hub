@@ -1,5 +1,7 @@
 #[cfg(target_os = "macos")]
 use std::ffi::{CStr, CString};
+#[cfg(any(target_os = "macos", test))]
+use std::future::Future;
 #[cfg(target_os = "macos")]
 use std::os::raw::c_char;
 #[cfg(target_os = "macos")]
@@ -135,6 +137,39 @@ pub fn update_payload<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     Ok(())
 }
 
+#[cfg(any(target_os = "macos", test))]
+async fn run_switch_account_flow<SwitchAccount, SwitchFuture, UpdatePayload, NotifyAccountSwitch>(
+    switch_account: SwitchAccount,
+    mut update_payload: UpdatePayload,
+    notify_account_switch: NotifyAccountSwitch,
+) -> Result<(), String>
+where
+    SwitchAccount: FnOnce() -> SwitchFuture,
+    SwitchFuture: Future<Output = Result<(), String>>,
+    UpdatePayload: FnMut() -> Result<(), String>,
+    NotifyAccountSwitch: FnOnce() -> Result<(), String>,
+{
+    switch_account().await?;
+    update_payload()?;
+    notify_account_switch()?;
+    Ok(())
+}
+
+#[cfg(any(target_os = "macos", test))]
+async fn run_post_switch_refresh<RefreshUsage, RefreshFuture, UpdatePayload>(
+    refresh_usage: RefreshUsage,
+    mut update_payload: UpdatePayload,
+) -> Result<(), String>
+where
+    RefreshUsage: FnOnce() -> RefreshFuture,
+    RefreshFuture: Future<Output = Result<(), String>>,
+    UpdatePayload: FnMut() -> Result<(), String>,
+{
+    refresh_usage().await?;
+    update_payload()?;
+    Ok(())
+}
+
 #[cfg(target_os = "macos")]
 async fn handle_native_action<R: Runtime>(app: AppHandle<R>, message: &str) -> Result<(), String> {
     let action: NativeBridgeAction = serde_json::from_str(message)
@@ -156,13 +191,24 @@ async fn handle_native_action<R: Runtime>(app: AppHandle<R>, message: &str) -> R
                 _ => return Err(format!("unknown provider: {provider}")),
             };
 
-            super::switch_provider_account(app.clone(), provider, account_id).await?;
-            refresh_provider_for_tab(
-                app.clone(),
-                app.state::<super::StatusBarState>().selected_tab()?,
+            run_switch_account_flow(
+                || super::switch_provider_account(app.clone(), provider, account_id),
+                || update_payload(&app),
+                || super::emit_account_switched(&app, provider),
             )
             .await?;
-            update_payload(&app)?;
+
+            let refresh_app = app.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(error) = run_post_switch_refresh(
+                    || super::refresh_selected_provider(refresh_app.clone(), provider),
+                    || update_payload(&refresh_app),
+                )
+                .await
+                {
+                    eprintln!("native status bar post-switch refresh failed: {error}");
+                }
+            });
         }
         NativeBridgeAction::Refresh => {
             refresh_provider_for_tab(
@@ -216,6 +262,8 @@ fn visible_native_tab(
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{Arc, Mutex};
+
     use super::visible_native_tab;
     use super::StatusBarTab;
 
@@ -249,5 +297,70 @@ mod tests {
             visible_native_tab(StatusBarTab::Gemini, true, true, true),
             StatusBarTab::Gemini
         );
+    }
+
+    #[tokio::test]
+    async fn switch_account_flow_returns_after_immediate_update_and_notifies_app() {
+        let events = Arc::new(Mutex::new(Vec::new()));
+
+        super::run_switch_account_flow(
+            {
+                let events = Arc::clone(&events);
+                move || {
+                    let events = Arc::clone(&events);
+                    async move {
+                        events.lock().unwrap().push("switch");
+                        Ok::<(), String>(())
+                    }
+                }
+            },
+            {
+                let events = Arc::clone(&events);
+                move || {
+                    events.lock().unwrap().push("update");
+                    Ok::<(), String>(())
+                }
+            },
+            {
+                let events = Arc::clone(&events);
+                move || {
+                    events.lock().unwrap().push("notify");
+                    Ok::<(), String>(())
+                }
+            },
+        )
+        .await
+        .expect("switch flow should succeed");
+
+        assert_eq!(*events.lock().unwrap(), vec!["switch", "update", "notify"]);
+    }
+
+    #[tokio::test]
+    async fn post_switch_refresh_updates_payload_after_refreshing_usage() {
+        let events = Arc::new(Mutex::new(Vec::new()));
+
+        super::run_post_switch_refresh(
+            {
+                let events = Arc::clone(&events);
+                move || {
+                    let events = Arc::clone(&events);
+                    async move {
+                        events.lock().unwrap().push("refresh");
+                        Ok::<(), String>(())
+                    }
+                }
+            },
+            {
+                let events = Arc::clone(&events);
+                move || {
+                    events.lock().unwrap().push("update");
+                    Ok::<(), String>(())
+                }
+            },
+        )
+        .await
+        .expect("refresh flow should succeed");
+
+        assert_eq!(*events.lock().unwrap(), vec!["refresh", "update"]);
     }
 }

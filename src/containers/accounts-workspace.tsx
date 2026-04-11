@@ -212,6 +212,20 @@ function AccountsWorkspaceComponent({
 
   useEffect(() => {
     let disposed = false;
+    const unlistenPromise = listen("codex-account-switched", () => {
+      if (!disposed) {
+        void refreshCodexAccounts(false);
+      }
+    });
+
+    return () => {
+      disposed = true;
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [refreshCodexAccounts]);
+
+  useEffect(() => {
+    let disposed = false;
     const unlistenPromise = listen("gemini-usage-updated", () => {
       if (!disposed) {
         void refreshGeminiAccounts(false);
@@ -226,7 +240,35 @@ function AccountsWorkspaceComponent({
 
   useEffect(() => {
     let disposed = false;
+    const unlistenPromise = listen("gemini-account-switched", () => {
+      if (!disposed) {
+        void refreshGeminiAccounts(false);
+      }
+    });
+
+    return () => {
+      disposed = true;
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [refreshGeminiAccounts]);
+
+  useEffect(() => {
+    let disposed = false;
     const unlistenPromise = listen("claude-usage-updated", () => {
+      if (!disposed) {
+        void refreshClaudeAccounts(false);
+      }
+    });
+
+    return () => {
+      disposed = true;
+      void unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, [refreshClaudeAccounts]);
+
+  useEffect(() => {
+    let disposed = false;
+    const unlistenPromise = listen("claude-account-switched", () => {
       if (!disposed) {
         void refreshClaudeAccounts(false);
       }

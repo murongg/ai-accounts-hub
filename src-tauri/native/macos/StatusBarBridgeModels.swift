@@ -110,9 +110,9 @@ enum StatusBarBridgeAction {
 
     var keepsMenuOpen: Bool {
         switch self {
-        case .selectTab:
+        case .selectTab, .switchAccount:
             return true
-        case .switchAccount, .refresh, .openMainWindow, .quit:
+        case .refresh, .openMainWindow, .quit:
             return false
         }
     }

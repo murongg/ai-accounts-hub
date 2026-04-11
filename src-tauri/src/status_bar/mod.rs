@@ -6,7 +6,7 @@ use std::sync::Mutex;
 
 #[cfg(target_os = "macos")]
 use dirs::home_dir;
-use tauri::{AppHandle, Manager};
+use tauri::{AppHandle, Emitter, Manager};
 
 #[cfg(target_os = "macos")]
 use crate::claude_accounts::{paths::ClaudeAccountPaths, service::ClaudeAccountService};
@@ -466,6 +466,20 @@ fn provider_slug(provider: MenuProvider) -> &'static str {
         MenuProvider::Claude => "claude",
         MenuProvider::Gemini => "gemini",
     }
+}
+
+#[cfg(target_os = "macos")]
+pub fn emit_account_switched<R: tauri::Runtime>(
+    app: &AppHandle<R>,
+    provider: MenuProvider,
+) -> Result<(), String> {
+    let event_name = match provider {
+        MenuProvider::Codex => "codex-account-switched",
+        MenuProvider::Claude => "claude-account-switched",
+        MenuProvider::Gemini => "gemini-account-switched",
+    };
+
+    app.emit(event_name, ()).map_err(|error| error.to_string())
 }
 
 #[cfg(target_os = "macos")]
