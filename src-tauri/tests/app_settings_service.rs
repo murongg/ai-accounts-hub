@@ -1,5 +1,7 @@
 use ai_accounts_hub_lib::app_settings::models::{AppLanguage, AppSettings, AppTheme};
-use ai_accounts_hub_lib::app_settings::service::{clear_all_app_data, current_data_directory_info, reset_data_directory_to_default};
+use ai_accounts_hub_lib::app_settings::service::{
+    clear_all_app_data, current_data_directory_info, reset_data_directory_to_default,
+};
 use ai_accounts_hub_lib::app_settings::store::{load_app_settings, save_app_settings};
 use ai_accounts_hub_lib::codex_accounts::paths::CodexAccountPaths;
 use ai_accounts_hub_lib::codex_usage::models::CodexRefreshSettings;
@@ -71,14 +73,24 @@ fn clear_all_data_resets_settings_and_removes_private_codex_data() {
     )
     .expect("save refresh");
     save_usage_snapshots(&paths, &[]).expect("save usage snapshots");
-    fs::write(&paths.account_index_path, "{\"version\":1,\"accounts\":[{\"id\":\"a1\"}]}")
-        .expect("account index");
+    fs::write(
+        &paths.account_index_path,
+        "{\"version\":1,\"accounts\":[{\"id\":\"a1\"}]}",
+    )
+    .expect("account index");
     fs::create_dir_all(paths.managed_homes_dir.join("managed-1")).expect("managed dir");
     let gemini_data_dir = paths.app_data_dir.join("gemini");
-    fs::create_dir_all(gemini_data_dir.join("managed-gemini-homes").join("managed-1"))
-        .expect("gemini dir");
-    fs::write(gemini_data_dir.join("accounts.json"), "{\"version\":1,\"accounts\":[{\"id\":\"g1\"}]}")
-        .expect("gemini account index");
+    fs::create_dir_all(
+        gemini_data_dir
+            .join("managed-gemini-homes")
+            .join("managed-1"),
+    )
+    .expect("gemini dir");
+    fs::write(
+        gemini_data_dir.join("accounts.json"),
+        "{\"version\":1,\"accounts\":[{\"id\":\"g1\"}]}",
+    )
+    .expect("gemini account index");
 
     let result = clear_all_app_data(&paths).expect("clear all data");
 
@@ -89,8 +101,13 @@ fn clear_all_data_resets_settings_and_removes_private_codex_data() {
     assert!(result.data_directory.is_default);
     assert!(!paths.managed_homes_dir.join("managed-1").exists());
     assert!(!gemini_data_dir.exists());
-    assert!(load_usage_snapshots(&paths).expect("usage snapshots").is_empty());
-    assert_eq!(load_app_settings(&paths).expect("app settings"), AppSettings::default());
+    assert!(load_usage_snapshots(&paths)
+        .expect("usage snapshots")
+        .is_empty());
+    assert_eq!(
+        load_app_settings(&paths).expect("app settings"),
+        AppSettings::default()
+    );
     assert_eq!(
         load_refresh_settings(&paths).expect("refresh settings"),
         CodexRefreshSettings::default()

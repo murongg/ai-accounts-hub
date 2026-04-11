@@ -2,7 +2,9 @@ use ai_accounts_hub_lib::claude_accounts::paths::ClaudeAccountPaths;
 use ai_accounts_hub_lib::claude_usage::models::{
     ClaudeRateWindowSnapshot, ClaudeUsageSnapshot, FetchedClaudeUsage,
 };
-use ai_accounts_hub_lib::claude_usage::store::{load_usage_snapshots, save_usage_snapshots, ClaudeUsageStore};
+use ai_accounts_hub_lib::claude_usage::store::{
+    load_usage_snapshots, save_usage_snapshots, ClaudeUsageStore,
+};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -36,7 +38,8 @@ impl Drop for TempDir {
 #[test]
 fn usage_snapshots_round_trip_through_disk() {
     let temp = TempDir::new("claude-usage-snapshots");
-    let paths = ClaudeAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let paths =
+        ClaudeAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
 
     let snapshots = vec![ClaudeUsageSnapshot {
         managed_account_id: "managed-1".into(),
@@ -70,7 +73,8 @@ fn usage_snapshots_round_trip_through_disk() {
 #[test]
 fn upsert_success_persists_session_weekly_and_model_windows() {
     let temp = TempDir::new("claude-usage-store-success");
-    let paths = ClaudeAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let paths =
+        ClaudeAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
     let mut store = ClaudeUsageStore::load(&paths).expect("load");
 
     store.upsert_success(
@@ -100,11 +104,17 @@ fn upsert_success_persists_session_weekly_and_model_windows() {
     let snapshot = reloaded.get("claude-1").expect("snapshot");
 
     assert_eq!(
-        snapshot.session.as_ref().map(|window| window.remaining_percent),
+        snapshot
+            .session
+            .as_ref()
+            .map(|window| window.remaining_percent),
         Some(82)
     );
     assert_eq!(
-        snapshot.weekly.as_ref().map(|window| window.remaining_percent),
+        snapshot
+            .weekly
+            .as_ref()
+            .map(|window| window.remaining_percent),
         Some(74)
     );
     assert_eq!(snapshot.model_weekly_label.as_deref(), Some("Opus Weekly"));
@@ -123,7 +133,8 @@ fn upsert_success_persists_session_weekly_and_model_windows() {
 #[test]
 fn upsert_error_keeps_previous_quota_and_marks_relogin() {
     let temp = TempDir::new("claude-usage-store-error");
-    let paths = ClaudeAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let paths =
+        ClaudeAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
     let mut store = ClaudeUsageStore::load(&paths).expect("load");
 
     store.upsert_success(
@@ -143,7 +154,10 @@ fn upsert_error_keeps_previous_quota_and_marks_relogin() {
 
     let snapshot = store.get("claude-1").expect("snapshot");
     assert_eq!(
-        snapshot.session.as_ref().map(|window| window.remaining_percent),
+        snapshot
+            .session
+            .as_ref()
+            .map(|window| window.remaining_percent),
         Some(45)
     );
     assert_eq!(snapshot.last_sync_error.as_deref(), Some("oauth expired"));
@@ -153,7 +167,8 @@ fn upsert_error_keeps_previous_quota_and_marks_relogin() {
 #[test]
 fn retain_only_removes_deleted_accounts() {
     let temp = TempDir::new("claude-usage-store-retain");
-    let paths = ClaudeAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let paths =
+        ClaudeAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
     let mut store = ClaudeUsageStore::load(&paths).expect("load");
 
     store.upsert_error("keep-me", "temporary".into(), false);

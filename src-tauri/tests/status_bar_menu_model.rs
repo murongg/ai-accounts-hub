@@ -1,5 +1,5 @@
-use ai_accounts_hub_lib::codex_accounts::models::CodexAccountListItem;
 use ai_accounts_hub_lib::claude_accounts::models::ClaudeAccountListItem;
+use ai_accounts_hub_lib::codex_accounts::models::CodexAccountListItem;
 use ai_accounts_hub_lib::gemini_accounts::models::GeminiAccountListItem;
 use ai_accounts_hub_lib::status_bar::menu_model::{
     build_provider_menu_state, parse_menu_action, MenuAction, MenuProvider,
@@ -103,7 +103,10 @@ fn codex_menu_state_puts_active_account_first_and_formats_quota_summary() {
     assert_eq!(state.selected_provider, MenuProvider::Codex);
     assert_eq!(state.accounts.len(), 2);
     assert_eq!(state.accounts[0].id, "active");
-    assert_eq!(state.accounts[0].quota_summary.as_deref(), Some("5h 82% • Week 64%"));
+    assert_eq!(
+        state.accounts[0].quota_summary.as_deref(),
+        Some("5h 82% • Week 64%")
+    );
     assert!(state.accounts[0].is_active);
 }
 
@@ -135,7 +138,8 @@ fn menu_state_marks_accounts_needing_relogin() {
     let mut account = codex_account("bad", "broken@example.com", false, None, None);
     account.needs_relogin = Some(true);
 
-    let state = build_provider_menu_state(MenuProvider::Codex, vec![account], Vec::new(), Vec::new());
+    let state =
+        build_provider_menu_state(MenuProvider::Codex, vec![account], Vec::new(), Vec::new());
 
     assert_eq!(state.accounts[0].status_label, "Re-login required");
     assert_eq!(state.accounts[0].quota_summary, None);
@@ -184,7 +188,10 @@ fn parse_menu_action_understands_provider_switch_and_account_actions() {
     );
     assert_eq!(
         parse_menu_action("switch:codex:acct-1"),
-        Some(MenuAction::SwitchAccount(MenuProvider::Codex, "acct-1".to_string()))
+        Some(MenuAction::SwitchAccount(
+            MenuProvider::Codex,
+            "acct-1".to_string()
+        ))
     );
     assert_eq!(
         parse_menu_action("switch:claude:acct-3"),
@@ -200,8 +207,14 @@ fn parse_menu_action_understands_provider_switch_and_account_actions() {
             "acct-2".to_string()
         ))
     );
-    assert_eq!(parse_menu_action("refresh"), Some(MenuAction::RefreshSelectedProvider));
-    assert_eq!(parse_menu_action("open-main"), Some(MenuAction::OpenMainWindow));
+    assert_eq!(
+        parse_menu_action("refresh"),
+        Some(MenuAction::RefreshSelectedProvider)
+    );
+    assert_eq!(
+        parse_menu_action("open-main"),
+        Some(MenuAction::OpenMainWindow)
+    );
     assert_eq!(parse_menu_action("quit"), Some(MenuAction::Quit));
     assert_eq!(parse_menu_action("switch:codex:"), None);
     assert_eq!(parse_menu_action("ignored"), None);

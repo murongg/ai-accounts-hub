@@ -78,8 +78,10 @@ fn decode_id_token_claims(token: &str) -> Result<Value, String> {
 }
 
 fn read_json_value(path: &Path) -> Result<Value, String> {
-    let bytes = fs::read(path).map_err(|error| format!("failed to read {}: {error}", path.display()))?;
-    serde_json::from_slice(&bytes).map_err(|error| format!("failed to parse {}: {error}", path.display()))
+    let bytes =
+        fs::read(path).map_err(|error| format!("failed to read {}: {error}", path.display()))?;
+    serde_json::from_slice(&bytes)
+        .map_err(|error| format!("failed to parse {}: {error}", path.display()))
 }
 
 fn read_optional_json_value(path: &Path) -> Result<Option<Value>, String> {

@@ -17,7 +17,10 @@ pub struct CodexAccountService {
 
 impl CodexAccountService {
     pub fn new(paths: CodexAccountPaths, login_runner: Box<dyn CodexLoginRunner>) -> Self {
-        Self { paths, login_runner }
+        Self {
+            paths,
+            login_runner,
+        }
     }
 
     pub fn with_process_runner(paths: CodexAccountPaths) -> Self {
@@ -83,14 +86,30 @@ impl CodexAccountService {
                     account_id: account.account_id.clone(),
                     is_active: active_id.as_deref() == Some(account.id.as_str()),
                     last_authenticated_at: account.last_authenticated_at.clone(),
-                    five_hour_remaining_percent: usage
-                        .and_then(|snapshot| snapshot.five_hour.as_ref().map(|window| window.remaining_percent)),
-                    weekly_remaining_percent: usage
-                        .and_then(|snapshot| snapshot.weekly.as_ref().map(|window| window.remaining_percent)),
-                    five_hour_refresh_at: usage
-                        .and_then(|snapshot| snapshot.five_hour.as_ref().map(|window| window.reset_at.clone())),
-                    weekly_refresh_at: usage
-                        .and_then(|snapshot| snapshot.weekly.as_ref().map(|window| window.reset_at.clone())),
+                    five_hour_remaining_percent: usage.and_then(|snapshot| {
+                        snapshot
+                            .five_hour
+                            .as_ref()
+                            .map(|window| window.remaining_percent)
+                    }),
+                    weekly_remaining_percent: usage.and_then(|snapshot| {
+                        snapshot
+                            .weekly
+                            .as_ref()
+                            .map(|window| window.remaining_percent)
+                    }),
+                    five_hour_refresh_at: usage.and_then(|snapshot| {
+                        snapshot
+                            .five_hour
+                            .as_ref()
+                            .map(|window| window.reset_at.clone())
+                    }),
+                    weekly_refresh_at: usage.and_then(|snapshot| {
+                        snapshot
+                            .weekly
+                            .as_ref()
+                            .map(|window| window.reset_at.clone())
+                    }),
                     last_synced_at: usage.and_then(|snapshot| snapshot.last_synced_at.clone()),
                     last_sync_error: usage.and_then(|snapshot| snapshot.last_sync_error.clone()),
                     credits_balance: usage.and_then(|snapshot| snapshot.credits_balance),

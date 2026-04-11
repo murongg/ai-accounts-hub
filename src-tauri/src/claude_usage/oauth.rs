@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
 
 use reqwest::blocking::Client;
-use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue, USER_AGENT};
+use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT};
 use serde::Deserialize;
 use serde_json::Value;
 
@@ -23,7 +23,10 @@ pub struct ClaudeOAuthCredentials {
 }
 
 pub trait ClaudeOAuthHttpClient: Send + Sync {
-    fn get_usage(&self, access_token: &str) -> Result<ClaudeUsageApiResponse, ClaudeUsageFetchError>;
+    fn get_usage(
+        &self,
+        access_token: &str,
+    ) -> Result<ClaudeUsageApiResponse, ClaudeUsageFetchError>;
     fn refresh_access_token(
         &self,
         refresh_token: &str,
@@ -110,7 +113,10 @@ impl Default for ProcessClaudeOAuthHttpClient {
 }
 
 impl ClaudeOAuthHttpClient for ProcessClaudeOAuthHttpClient {
-    fn get_usage(&self, access_token: &str) -> Result<ClaudeUsageApiResponse, ClaudeUsageFetchError> {
+    fn get_usage(
+        &self,
+        access_token: &str,
+    ) -> Result<ClaudeUsageApiResponse, ClaudeUsageFetchError> {
         let response = self
             .client
             .get(OAUTH_USAGE_URL)
@@ -175,7 +181,9 @@ impl ClaudeOAuthHttpClient for ProcessClaudeOAuthHttpClient {
 
         Ok(ClaudeOAuthCredentials {
             access_token: parsed.access_token,
-            refresh_token: parsed.refresh_token.or_else(|| Some(refresh_token.to_string())),
+            refresh_token: parsed
+                .refresh_token
+                .or_else(|| Some(refresh_token.to_string())),
         })
     }
 }
@@ -224,9 +232,11 @@ pub fn extract_oauth_credentials(
     snapshot: &ClaudeLiveCredentialSnapshot,
 ) -> Result<ClaudeOAuthCredentials, ClaudeUsageFetchError> {
     let envelope: RawStoredOAuthEnvelope = serde_json::from_slice(&snapshot.credentials_json)
-        .map_err(|error| ClaudeUsageFetchError::MissingCredentials(format!(
-            "failed to parse Claude secure storage payload: {error}"
-        )))?;
+        .map_err(|error| {
+            ClaudeUsageFetchError::MissingCredentials(format!(
+                "failed to parse Claude secure storage payload: {error}"
+            ))
+        })?;
     let Some(oauth) = envelope.claude_ai_oauth else {
         return Err(ClaudeUsageFetchError::MissingCredentials(
             "Claude secure storage payload is missing claudeAiOauth".to_string(),
@@ -256,13 +266,14 @@ pub fn normalize_usage_response(
 ) -> Result<FetchedClaudeUsage, ClaudeUsageFetchError> {
     let session = response.five_hour.and_then(window_from_api);
     let weekly = response.seven_day.and_then(window_from_api);
-    let (model_weekly_label, model_weekly) = if let Some(window) = response.seven_day_opus.and_then(window_from_api) {
-        (Some("Opus Weekly".to_string()), Some(window))
-    } else if let Some(window) = response.seven_day_sonnet.and_then(window_from_api) {
-        (Some("Sonnet Weekly".to_string()), Some(window))
-    } else {
-        (None, None)
-    };
+    let (model_weekly_label, model_weekly) =
+        if let Some(window) = response.seven_day_opus.and_then(window_from_api) {
+            (Some("Opus Weekly".to_string()), Some(window))
+        } else if let Some(window) = response.seven_day_sonnet.and_then(window_from_api) {
+            (Some("Sonnet Weekly".to_string()), Some(window))
+        } else {
+            (None, None)
+        };
 
     if session.is_none() && weekly.is_none() && model_weekly.is_none() {
         return Err(ClaudeUsageFetchError::InvalidResponse(

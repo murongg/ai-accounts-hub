@@ -38,9 +38,10 @@ pub async fn start_gemini_account_login(
     scheduler: tauri::State<'_, CodexUsageSchedulerState>,
 ) -> Result<StoredGeminiAccount, String> {
     let refresh_app = app.clone();
-    let account = tauri::async_runtime::spawn_blocking(move || service_from_app(&app)?.start_login())
-        .await
-        .map_err(|error| error.to_string())??;
+    let account =
+        tauri::async_runtime::spawn_blocking(move || service_from_app(&app)?.start_login())
+            .await
+            .map_err(|error| error.to_string())??;
 
     let _ = scheduler.refresh_gemini_now().await;
     let _ = crate::status_bar::refresh_status_menu(&refresh_app);
@@ -51,9 +52,11 @@ pub async fn start_gemini_account_login(
 #[tauri::command]
 pub async fn switch_gemini_account(app: AppHandle, account_id: String) -> Result<(), String> {
     let refresh_app = app.clone();
-    tauri::async_runtime::spawn_blocking(move || service_from_app(&app)?.switch_account(&account_id))
-        .await
-        .map_err(|error| error.to_string())??;
+    tauri::async_runtime::spawn_blocking(move || {
+        service_from_app(&app)?.switch_account(&account_id)
+    })
+    .await
+    .map_err(|error| error.to_string())??;
     let _ = crate::status_bar::refresh_status_menu(&refresh_app);
     Ok(())
 }
@@ -61,9 +64,11 @@ pub async fn switch_gemini_account(app: AppHandle, account_id: String) -> Result
 #[tauri::command]
 pub async fn delete_gemini_account(app: AppHandle, account_id: String) -> Result<(), String> {
     let refresh_app = app.clone();
-    tauri::async_runtime::spawn_blocking(move || service_from_app(&app)?.delete_account(&account_id))
-        .await
-        .map_err(|error| error.to_string())??;
+    tauri::async_runtime::spawn_blocking(move || {
+        service_from_app(&app)?.delete_account(&account_id)
+    })
+    .await
+    .map_err(|error| error.to_string())??;
     let _ = crate::status_bar::refresh_status_menu(&refresh_app);
     Ok(())
 }

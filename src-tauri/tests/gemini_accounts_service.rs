@@ -67,7 +67,8 @@ impl GeminiLoginRunner for FakeLoginRunner {
         )
         .map_err(|error| error.to_string())?;
         fs::create_dir_all(gemini_dir.join("history")).map_err(|error| error.to_string())?;
-        fs::write(gemini_dir.join("history").join("session.log"), "history").map_err(|error| error.to_string())?;
+        fs::write(gemini_dir.join("history").join("session.log"), "history")
+            .map_err(|error| error.to_string())?;
         Ok(())
     }
 }
@@ -99,8 +100,12 @@ fn fake_runner(email: &str, subject: &str) -> FakeLoginRunner {
 #[test]
 fn start_login_saves_a_managed_gemini_account() {
     let temp = TempDir::new("gemini-service-start");
-    let paths = GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
-    let service = GeminiAccountService::new(paths.clone(), Box::new(fake_runner("gemini@example.com", "sub-123")));
+    let paths =
+        GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let service = GeminiAccountService::new(
+        paths.clone(),
+        Box::new(fake_runner("gemini@example.com", "sub-123")),
+    );
 
     let saved = service.start_login().expect("managed login");
 
@@ -114,8 +119,12 @@ fn start_login_saves_a_managed_gemini_account() {
 #[test]
 fn list_accounts_marks_the_live_system_gemini_account_active() {
     let temp = TempDir::new("gemini-service-list");
-    let paths = GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
-    let service = GeminiAccountService::new(paths.clone(), Box::new(fake_runner("gemini@example.com", "sub-123")));
+    let paths =
+        GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let service = GeminiAccountService::new(
+        paths.clone(),
+        Box::new(fake_runner("gemini@example.com", "sub-123")),
+    );
     let saved = service.start_login().expect("save account");
     let managed_gemini_dir = Path::new(&saved.managed_home_path).join(".gemini");
     fs::create_dir_all(&paths.system_gemini_dir).expect("system dir");
@@ -138,16 +147,22 @@ fn list_accounts_marks_the_live_system_gemini_account_active() {
 #[test]
 fn switch_account_overwrites_only_live_auth_files() {
     let temp = TempDir::new("gemini-service-switch");
-    let paths = GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
-    let service = GeminiAccountService::new(paths.clone(), Box::new(fake_runner("gemini@example.com", "sub-123")));
+    let paths =
+        GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let service = GeminiAccountService::new(
+        paths.clone(),
+        Box::new(fake_runner("gemini@example.com", "sub-123")),
+    );
     let saved = service.start_login().expect("save account");
     fs::create_dir_all(&paths.system_gemini_dir).expect("system dir");
     fs::write(paths.system_gemini_dir.join("history.txt"), "keep-me").expect("history");
 
     service.switch_account(&saved.id).expect("switch");
 
-    let live_oauth = fs::read_to_string(paths.system_gemini_dir.join("oauth_creds.json")).expect("live oauth");
-    let live_settings = fs::read_to_string(paths.system_gemini_dir.join("settings.json")).expect("live settings");
+    let live_oauth =
+        fs::read_to_string(paths.system_gemini_dir.join("oauth_creds.json")).expect("live oauth");
+    let live_settings =
+        fs::read_to_string(paths.system_gemini_dir.join("settings.json")).expect("live settings");
     assert!(live_oauth.contains("refresh-token"));
     assert!(live_settings.contains("oauth-personal"));
     assert_eq!(
@@ -159,8 +174,12 @@ fn switch_account_overwrites_only_live_auth_files() {
 #[test]
 fn delete_account_removes_the_managed_home_directory() {
     let temp = TempDir::new("gemini-service-delete");
-    let paths = GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
-    let service = GeminiAccountService::new(paths.clone(), Box::new(fake_runner("gemini@example.com", "sub-123")));
+    let paths =
+        GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let service = GeminiAccountService::new(
+        paths.clone(),
+        Box::new(fake_runner("gemini@example.com", "sub-123")),
+    );
     let saved = service.start_login().expect("save account");
 
     service.delete_account(&saved.id).expect("delete");
@@ -172,9 +191,12 @@ fn delete_account_removes_the_managed_home_directory() {
 #[test]
 fn start_login_clears_stale_relogin_state_for_matching_account() {
     let temp = TempDir::new("gemini-service-clear-relogin");
-    let paths = GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
-    let first_service =
-        GeminiAccountService::new(paths.clone(), Box::new(fake_runner("gemini@example.com", "sub-123")));
+    let paths =
+        GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let first_service = GeminiAccountService::new(
+        paths.clone(),
+        Box::new(fake_runner("gemini@example.com", "sub-123")),
+    );
     let saved = first_service.start_login().expect("initial save");
 
     save_usage_snapshots(
@@ -186,14 +208,18 @@ fn start_login_clears_stale_relogin_state_for_matching_account() {
             flash: None,
             flash_lite: None,
             last_synced_at: Some("1800000001".into()),
-            last_sync_error: Some("Gemini OAuth token expired or invalid. Run `gemini` again.".into()),
+            last_sync_error: Some(
+                "Gemini OAuth token expired or invalid. Run `gemini` again.".into(),
+            ),
             needs_relogin: true,
         }],
     )
     .expect("seed usage snapshot");
 
-    let second_service =
-        GeminiAccountService::new(paths.clone(), Box::new(fake_runner("gemini@example.com", "sub-123")));
+    let second_service = GeminiAccountService::new(
+        paths.clone(),
+        Box::new(fake_runner("gemini@example.com", "sub-123")),
+    );
     let saved_again = second_service.start_login().expect("re-login");
 
     assert_eq!(saved_again.id, saved.id);

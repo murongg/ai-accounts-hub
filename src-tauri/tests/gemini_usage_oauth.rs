@@ -26,13 +26,31 @@ fn normalizes_paid_plan_and_maps_pro_and_flash_quotas() {
         ]),
     };
 
-    let normalized = normalize_usage_response(response, Some(GeminiTierId::Standard), None)
-        .expect("normalized");
+    let normalized =
+        normalize_usage_response(response, Some(GeminiTierId::Standard), None).expect("normalized");
 
     assert_eq!(normalized.plan.as_deref(), Some("Paid"));
-    assert_eq!(normalized.pro.as_ref().map(|window| window.remaining_percent), Some(82));
-    assert_eq!(normalized.flash.as_ref().map(|window| window.remaining_percent), Some(65));
-    assert_eq!(normalized.pro.as_ref().map(|window| window.reset_at.as_str()), Some("2026-04-09T02:30:00Z"));
+    assert_eq!(
+        normalized
+            .pro
+            .as_ref()
+            .map(|window| window.remaining_percent),
+        Some(82)
+    );
+    assert_eq!(
+        normalized
+            .flash
+            .as_ref()
+            .map(|window| window.remaining_percent),
+        Some(65)
+    );
+    assert_eq!(
+        normalized
+            .pro
+            .as_ref()
+            .map(|window| window.reset_at.as_str()),
+        Some("2026-04-09T02:30:00Z")
+    );
 }
 
 #[test]
@@ -55,14 +73,26 @@ fn maps_free_workspace_accounts_when_hosted_domain_exists() {
     .expect("normalized");
 
     assert_eq!(normalized.plan.as_deref(), Some("Workspace"));
-    assert_eq!(normalized.pro.as_ref().map(|window| window.remaining_percent), Some(91));
+    assert_eq!(
+        normalized
+            .pro
+            .as_ref()
+            .map(|window| window.remaining_percent),
+        Some(91)
+    );
     assert!(normalized.flash.is_none());
 }
 
 #[test]
 fn rejects_quota_payloads_without_buckets() {
-    let error = normalize_usage_response(GeminiUsageApiResponse { buckets: Some(vec![]) }, None, None)
-        .expect_err("empty buckets should fail");
+    let error = normalize_usage_response(
+        GeminiUsageApiResponse {
+            buckets: Some(vec![]),
+        },
+        None,
+        None,
+    )
+    .expect_err("empty buckets should fail");
 
     assert!(error.contains("buckets"));
 }
@@ -82,7 +112,13 @@ fn falls_back_to_no_plan_when_tier_detection_is_unavailable() {
     let normalized = normalize_usage_response(response, None, None).expect("normalized");
 
     assert_eq!(normalized.plan, None);
-    assert_eq!(normalized.flash.as_ref().map(|window| window.remaining_percent), Some(73));
+    assert_eq!(
+        normalized
+            .flash
+            .as_ref()
+            .map(|window| window.remaining_percent),
+        Some(73)
+    );
 }
 
 #[test]
@@ -97,11 +133,14 @@ fn maps_flash_lite_quota_into_tertiary_window() {
         }]),
     };
 
-    let normalized = normalize_usage_response(response, Some(GeminiTierId::Standard), None)
-        .expect("normalized");
+    let normalized =
+        normalize_usage_response(response, Some(GeminiTierId::Standard), None).expect("normalized");
 
     assert_eq!(
-        normalized.flash_lite.as_ref().map(|window| window.remaining_percent),
+        normalized
+            .flash_lite
+            .as_ref()
+            .map(|window| window.remaining_percent),
         Some(58)
     );
 }

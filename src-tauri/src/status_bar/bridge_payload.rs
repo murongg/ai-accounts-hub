@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use crate::codex_accounts::models::CodexAccountListItem;
 use crate::claude_accounts::models::ClaudeAccountListItem;
+use crate::codex_accounts::models::CodexAccountListItem;
 use crate::gemini_accounts::models::GeminiAccountListItem;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -58,17 +58,26 @@ pub fn build_bridge_payload(
     let sections = match selected_tab {
         StatusBarTab::Overview => {
             let mut overview = Vec::new();
-            if let Some(active_codex) = codex_sections.iter().find(|section| section.is_active).cloned()
+            if let Some(active_codex) = codex_sections
+                .iter()
+                .find(|section| section.is_active)
+                .cloned()
                 .or_else(|| codex_sections.first().cloned())
             {
                 overview.push(active_codex);
             }
-            if let Some(active_claude) = claude_sections.iter().find(|section| section.is_active).cloned()
+            if let Some(active_claude) = claude_sections
+                .iter()
+                .find(|section| section.is_active)
+                .cloned()
                 .or_else(|| claude_sections.first().cloned())
             {
                 overview.push(active_claude);
             }
-            if let Some(active_gemini) = gemini_sections.iter().find(|section| section.is_active).cloned()
+            if let Some(active_gemini) = gemini_sections
+                .iter()
+                .find(|section| section.is_active)
+                .cloned()
                 .or_else(|| gemini_sections.first().cloned())
             {
                 overview.push(active_gemini);
@@ -95,7 +104,10 @@ pub fn build_bridge_payload(
     }
 }
 
-fn build_codex_sections(accounts: Vec<CodexAccountListItem>, now_ms: i64) -> Vec<BridgeProviderPayload> {
+fn build_codex_sections(
+    accounts: Vec<CodexAccountListItem>,
+    now_ms: i64,
+) -> Vec<BridgeProviderPayload> {
     accounts
         .into_iter()
         .map(|account| {
@@ -104,18 +116,28 @@ fn build_codex_sections(accounts: Vec<CodexAccountListItem>, now_ms: i64) -> Vec
                 Vec::new()
             } else {
                 [
-                    account.five_hour_remaining_percent.map(|percent| BridgeMetricPayload {
-                        title: "Session".to_string(),
-                        percent,
-                        left_text: format!("{percent}% left"),
-                        reset_text: format!("Resets in {}", format_countdown(account.five_hour_refresh_at.as_deref(), now_ms)),
-                    }),
-                    account.weekly_remaining_percent.map(|percent| BridgeMetricPayload {
-                        title: "Weekly".to_string(),
-                        percent,
-                        left_text: format!("{percent}% left"),
-                        reset_text: format!("Resets in {}", format_countdown(account.weekly_refresh_at.as_deref(), now_ms)),
-                    }),
+                    account
+                        .five_hour_remaining_percent
+                        .map(|percent| BridgeMetricPayload {
+                            title: "Session".to_string(),
+                            percent,
+                            left_text: format!("{percent}% left"),
+                            reset_text: format!(
+                                "Resets in {}",
+                                format_countdown(account.five_hour_refresh_at.as_deref(), now_ms)
+                            ),
+                        }),
+                    account
+                        .weekly_remaining_percent
+                        .map(|percent| BridgeMetricPayload {
+                            title: "Weekly".to_string(),
+                            percent,
+                            left_text: format!("{percent}% left"),
+                            reset_text: format!(
+                                "Resets in {}",
+                                format_countdown(account.weekly_refresh_at.as_deref(), now_ms)
+                            ),
+                        }),
                 ]
                 .into_iter()
                 .flatten()
@@ -127,7 +149,11 @@ fn build_codex_sections(accounts: Vec<CodexAccountListItem>, now_ms: i64) -> Vec
                 provider_id: "codex".to_string(),
                 provider_title: "Codex".to_string(),
                 email: account.email,
-                subtitle: section_subtitle(needs_relogin, account.last_synced_at.as_deref(), now_ms),
+                subtitle: section_subtitle(
+                    needs_relogin,
+                    account.last_synced_at.as_deref(),
+                    now_ms,
+                ),
                 plan: account.plan,
                 is_active: account.is_active,
                 needs_relogin,
@@ -138,7 +164,10 @@ fn build_codex_sections(accounts: Vec<CodexAccountListItem>, now_ms: i64) -> Vec
         .collect()
 }
 
-fn build_gemini_sections(accounts: Vec<GeminiAccountListItem>, now_ms: i64) -> Vec<BridgeProviderPayload> {
+fn build_gemini_sections(
+    accounts: Vec<GeminiAccountListItem>,
+    now_ms: i64,
+) -> Vec<BridgeProviderPayload> {
     accounts
         .into_iter()
         .map(|account| {
@@ -147,27 +176,39 @@ fn build_gemini_sections(accounts: Vec<GeminiAccountListItem>, now_ms: i64) -> V
                 Vec::new()
             } else {
                 [
-                    account.pro_remaining_percent.map(|percent| BridgeMetricPayload {
-                        title: "Pro".to_string(),
-                        percent,
-                        left_text: format!("{percent}% left"),
-                        reset_text: format!("Resets in {}", format_countdown(account.pro_refresh_at.as_deref(), now_ms)),
-                    }),
-                    account.flash_remaining_percent.map(|percent| BridgeMetricPayload {
-                        title: "Flash".to_string(),
-                        percent,
-                        left_text: format!("{percent}% left"),
-                        reset_text: format!("Resets in {}", format_countdown(account.flash_refresh_at.as_deref(), now_ms)),
-                    }),
-                    account.flash_lite_remaining_percent.map(|percent| BridgeMetricPayload {
-                        title: "Flash Lite".to_string(),
-                        percent,
-                        left_text: format!("{percent}% left"),
-                        reset_text: format!(
-                            "Resets in {}",
-                            format_countdown(account.flash_lite_refresh_at.as_deref(), now_ms)
-                        ),
-                    }),
+                    account
+                        .pro_remaining_percent
+                        .map(|percent| BridgeMetricPayload {
+                            title: "Pro".to_string(),
+                            percent,
+                            left_text: format!("{percent}% left"),
+                            reset_text: format!(
+                                "Resets in {}",
+                                format_countdown(account.pro_refresh_at.as_deref(), now_ms)
+                            ),
+                        }),
+                    account
+                        .flash_remaining_percent
+                        .map(|percent| BridgeMetricPayload {
+                            title: "Flash".to_string(),
+                            percent,
+                            left_text: format!("{percent}% left"),
+                            reset_text: format!(
+                                "Resets in {}",
+                                format_countdown(account.flash_refresh_at.as_deref(), now_ms)
+                            ),
+                        }),
+                    account
+                        .flash_lite_remaining_percent
+                        .map(|percent| BridgeMetricPayload {
+                            title: "Flash Lite".to_string(),
+                            percent,
+                            left_text: format!("{percent}% left"),
+                            reset_text: format!(
+                                "Resets in {}",
+                                format_countdown(account.flash_lite_refresh_at.as_deref(), now_ms)
+                            ),
+                        }),
                 ]
                 .into_iter()
                 .flatten()
@@ -179,7 +220,11 @@ fn build_gemini_sections(accounts: Vec<GeminiAccountListItem>, now_ms: i64) -> V
                 provider_id: "gemini".to_string(),
                 provider_title: "Gemini".to_string(),
                 email: account.email,
-                subtitle: section_subtitle(needs_relogin, account.last_synced_at.as_deref(), now_ms),
+                subtitle: section_subtitle(
+                    needs_relogin,
+                    account.last_synced_at.as_deref(),
+                    now_ms,
+                ),
                 plan: account.plan,
                 is_active: account.is_active,
                 needs_relogin,
@@ -190,7 +235,10 @@ fn build_gemini_sections(accounts: Vec<GeminiAccountListItem>, now_ms: i64) -> V
         .collect()
 }
 
-fn build_claude_sections(accounts: Vec<ClaudeAccountListItem>, now_ms: i64) -> Vec<BridgeProviderPayload> {
+fn build_claude_sections(
+    accounts: Vec<ClaudeAccountListItem>,
+    now_ms: i64,
+) -> Vec<BridgeProviderPayload> {
     accounts
         .into_iter()
         .map(|account| {
@@ -199,24 +247,28 @@ fn build_claude_sections(accounts: Vec<ClaudeAccountListItem>, now_ms: i64) -> V
                 Vec::new()
             } else {
                 [
-                    account.session_remaining_percent.map(|percent| BridgeMetricPayload {
-                        title: "Session".to_string(),
-                        percent,
-                        left_text: format!("{percent}% left"),
-                        reset_text: format!(
-                            "Resets in {}",
-                            format_countdown(account.session_refresh_at.as_deref(), now_ms)
-                        ),
-                    }),
-                    account.weekly_remaining_percent.map(|percent| BridgeMetricPayload {
-                        title: "Weekly".to_string(),
-                        percent,
-                        left_text: format!("{percent}% left"),
-                        reset_text: format!(
-                            "Resets in {}",
-                            format_countdown(account.weekly_refresh_at.as_deref(), now_ms)
-                        ),
-                    }),
+                    account
+                        .session_remaining_percent
+                        .map(|percent| BridgeMetricPayload {
+                            title: "Session".to_string(),
+                            percent,
+                            left_text: format!("{percent}% left"),
+                            reset_text: format!(
+                                "Resets in {}",
+                                format_countdown(account.session_refresh_at.as_deref(), now_ms)
+                            ),
+                        }),
+                    account
+                        .weekly_remaining_percent
+                        .map(|percent| BridgeMetricPayload {
+                            title: "Weekly".to_string(),
+                            percent,
+                            left_text: format!("{percent}% left"),
+                            reset_text: format!(
+                                "Resets in {}",
+                                format_countdown(account.weekly_refresh_at.as_deref(), now_ms)
+                            ),
+                        }),
                     account
                         .model_weekly_remaining_percent
                         .zip(account.model_weekly_label.clone())
@@ -226,7 +278,10 @@ fn build_claude_sections(accounts: Vec<ClaudeAccountListItem>, now_ms: i64) -> V
                             left_text: format!("{percent}% left"),
                             reset_text: format!(
                                 "Resets in {}",
-                                format_countdown(account.model_weekly_refresh_at.as_deref(), now_ms)
+                                format_countdown(
+                                    account.model_weekly_refresh_at.as_deref(),
+                                    now_ms
+                                )
                             ),
                         }),
                 ]
@@ -240,7 +295,11 @@ fn build_claude_sections(accounts: Vec<ClaudeAccountListItem>, now_ms: i64) -> V
                 provider_id: "claude".to_string(),
                 provider_title: "Claude".to_string(),
                 email: account.email,
-                subtitle: section_subtitle(needs_relogin, account.last_synced_at.as_deref(), now_ms),
+                subtitle: section_subtitle(
+                    needs_relogin,
+                    account.last_synced_at.as_deref(),
+                    now_ms,
+                ),
                 plan: account.plan,
                 is_active: account.is_active,
                 needs_relogin,
@@ -338,6 +397,7 @@ fn resolve_refresh_at_ms(raw: Option<&str>) -> Option<i64> {
 }
 
 fn chrono_like_parse(raw: &str) -> Option<i64> {
-    let parsed = time::OffsetDateTime::parse(raw, &time::format_description::well_known::Rfc3339).ok()?;
+    let parsed =
+        time::OffsetDateTime::parse(raw, &time::format_description::well_known::Rfc3339).ok()?;
     Some(parsed.unix_timestamp() * 1000)
 }

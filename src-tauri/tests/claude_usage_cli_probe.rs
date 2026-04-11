@@ -1,6 +1,4 @@
-use ai_accounts_hub_lib::claude_usage::cli_probe::{
-    parse_usage_output, ClaudeCliUsageProbeError,
-};
+use ai_accounts_hub_lib::claude_usage::cli_probe::{parse_usage_output, ClaudeCliUsageProbeError};
 
 #[test]
 fn parses_session_weekly_and_opus_from_cli_output() {
@@ -22,7 +20,10 @@ Resets in 6d 22h
     .expect("usage");
 
     assert_eq!(
-        usage.session.as_ref().map(|window| window.remaining_percent),
+        usage
+            .session
+            .as_ref()
+            .map(|window| window.remaining_percent),
         Some(82)
     );
     assert_eq!(
@@ -31,7 +32,10 @@ Resets in 6d 22h
     );
     assert_eq!(usage.model_weekly_label.as_deref(), Some("Opus Weekly"));
     assert_eq!(
-        usage.model_weekly.as_ref().map(|window| window.remaining_percent),
+        usage
+            .model_weekly
+            .as_ref()
+            .map(|window| window.remaining_percent),
         Some(61)
     );
 }
@@ -57,7 +61,10 @@ Resets in 4d 3h
 
     assert_eq!(usage.model_weekly_label.as_deref(), Some("Sonnet Weekly"));
     assert_eq!(
-        usage.model_weekly.as_ref().map(|window| window.remaining_percent),
+        usage
+            .model_weekly
+            .as_ref()
+            .map(|window| window.remaining_percent),
         Some(89)
     );
 }
@@ -67,5 +74,8 @@ fn relogin_messages_are_classified() {
     let error = parse_usage_output("Authentication required. Please run claude login again.")
         .expect_err("should fail");
 
-    assert!(matches!(error, ClaudeCliUsageProbeError::ReloginRequired(_)));
+    assert!(matches!(
+        error,
+        ClaudeCliUsageProbeError::ReloginRequired(_)
+    ));
 }

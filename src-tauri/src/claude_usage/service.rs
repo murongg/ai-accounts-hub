@@ -5,7 +5,8 @@ use crate::claude_accounts::store::ClaudeAccountStore;
 
 use super::cli_probe::{ClaudeCliUsageProbe, ProcessClaudeCliUsageProbe};
 use super::oauth::{
-    ClaudeUsageFetcher, ClaudeUsageFetchError, OAuthClaudeUsageFetcher, ProcessClaudeOAuthHttpClient,
+    ClaudeUsageFetchError, ClaudeUsageFetcher, OAuthClaudeUsageFetcher,
+    ProcessClaudeOAuthHttpClient,
 };
 use super::store::ClaudeUsageStore;
 

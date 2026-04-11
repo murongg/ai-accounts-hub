@@ -4,7 +4,9 @@ use crate::gemini_accounts::paths::{atomic_write, GeminiAccountPaths};
 
 use super::models::{FetchedGeminiUsage, GeminiUsageSnapshot, GeminiUsageSnapshotIndex};
 
-pub fn load_usage_snapshots(paths: &GeminiAccountPaths) -> Result<Vec<GeminiUsageSnapshot>, String> {
+pub fn load_usage_snapshots(
+    paths: &GeminiAccountPaths,
+) -> Result<Vec<GeminiUsageSnapshot>, String> {
     paths.ensure_dirs()?;
     match std::fs::read_to_string(&paths.usage_snapshot_path) {
         Ok(text) => serde_json::from_str::<GeminiUsageSnapshotIndex>(&text)
@@ -108,8 +110,11 @@ impl GeminiUsageStore {
     }
 
     pub fn retain_only(&mut self, managed_account_ids: &[String]) {
-        self.snapshots
-            .retain(|snapshot| managed_account_ids.iter().any(|id| id == &snapshot.managed_account_id));
+        self.snapshots.retain(|snapshot| {
+            managed_account_ids
+                .iter()
+                .any(|id| id == &snapshot.managed_account_id)
+        });
     }
 
     pub fn persist(&self, paths: &GeminiAccountPaths) -> Result<(), String> {

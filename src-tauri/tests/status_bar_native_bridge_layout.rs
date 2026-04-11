@@ -40,13 +40,15 @@ fn native_bridge_panel_height_matches_content_height() {
 #[cfg(target_os = "macos")]
 #[test]
 fn native_bridge_panel_height_uses_natural_height_when_screen_has_space() {
-    let height = unsafe { aah_status_bar_bridge_panel_height_clamped_to_available_height(300.0, 600.0) };
+    let height =
+        unsafe { aah_status_bar_bridge_panel_height_clamped_to_available_height(300.0, 600.0) };
     assert_eq!(height, 300.0);
 }
 
 #[cfg(target_os = "macos")]
 #[test]
 fn native_bridge_panel_height_clamps_to_available_height_when_needed() {
-    let height = unsafe { aah_status_bar_bridge_panel_height_clamped_to_available_height(600.0, 420.0) };
+    let height =
+        unsafe { aah_status_bar_bridge_panel_height_clamped_to_available_height(600.0, 420.0) };
     assert_eq!(height, 420.0);
 }

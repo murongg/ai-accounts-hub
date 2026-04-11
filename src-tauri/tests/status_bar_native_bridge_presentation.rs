@@ -24,7 +24,8 @@ unsafe extern "C" {}
 #[link(name = "aah_status_bar_bridge", kind = "static")]
 unsafe extern "C" {
     fn aah_status_bar_bridge_debug_visible_tab_count() -> c_int;
-    fn aah_status_bar_bridge_debug_active_section_index_from_json(payload_json: *const i8) -> c_int;
+    fn aah_status_bar_bridge_debug_active_section_index_from_json(payload_json: *const i8)
+        -> c_int;
     fn aah_status_bar_bridge_debug_total_metric_count_from_json(payload_json: *const i8) -> c_int;
     fn aah_status_bar_bridge_debug_footer_action_count() -> c_int;
     fn aah_status_bar_bridge_debug_selected_tab_after_action_from_json(
@@ -34,12 +35,18 @@ unsafe extern "C" {
     fn aah_status_bar_bridge_debug_action_keeps_menu_open(action_json: *const i8) -> c_int;
     fn aah_status_bar_bridge_debug_action_is_handled_locally(action_json: *const i8) -> c_int;
     fn aah_status_bar_bridge_debug_shows_account_chips_from_json(payload_json: *const i8) -> c_int;
-    fn aah_status_bar_bridge_debug_visible_detail_section_count_from_json(payload_json: *const i8) -> c_int;
-    fn aah_status_bar_bridge_debug_pinned_detail_section_count_from_json(payload_json: *const i8) -> c_int;
+    fn aah_status_bar_bridge_debug_visible_detail_section_count_from_json(
+        payload_json: *const i8,
+    ) -> c_int;
+    fn aah_status_bar_bridge_debug_pinned_detail_section_count_from_json(
+        payload_json: *const i8,
+    ) -> c_int;
     fn aah_status_bar_bridge_debug_scrollable_detail_section_count_from_json(
         payload_json: *const i8,
     ) -> c_int;
-    fn aah_status_bar_bridge_debug_account_chip_layout_axis_from_json(payload_json: *const i8) -> c_int;
+    fn aah_status_bar_bridge_debug_account_chip_layout_axis_from_json(
+        payload_json: *const i8,
+    ) -> c_int;
     fn aah_status_bar_bridge_debug_hosting_view_allows_vibrancy() -> c_int;
     fn aah_status_bar_bridge_debug_hosting_view_accepts_first_mouse() -> c_int;
     fn aah_status_bar_bridge_debug_uses_outer_panel_chrome() -> c_int;
@@ -73,7 +80,8 @@ fn native_bridge_presentation_keeps_tabs_actions_and_active_section_order() {
     let tab_count = unsafe { aah_status_bar_bridge_debug_visible_tab_count() };
     let active_index =
         unsafe { aah_status_bar_bridge_debug_active_section_index_from_json(payload.as_ptr()) };
-    let metric_count = unsafe { aah_status_bar_bridge_debug_total_metric_count_from_json(payload.as_ptr()) };
+    let metric_count =
+        unsafe { aah_status_bar_bridge_debug_total_metric_count_from_json(payload.as_ptr()) };
     let footer_count = unsafe { aah_status_bar_bridge_debug_footer_action_count() };
 
     assert_eq!(tab_count, 3);
@@ -91,8 +99,12 @@ fn native_bridge_select_tab_action_updates_visible_tab_immediately() {
     .unwrap();
     let action = CString::new(r#"{"type":"select_tab","tab":"gemini"}"#).unwrap();
 
-    let selected_tab =
-        unsafe { aah_status_bar_bridge_debug_selected_tab_after_action_from_json(payload.as_ptr(), action.as_ptr()) };
+    let selected_tab = unsafe {
+        aah_status_bar_bridge_debug_selected_tab_after_action_from_json(
+            payload.as_ptr(),
+            action.as_ptr(),
+        )
+    };
 
     assert_eq!(selected_tab, 3);
 }
@@ -132,9 +144,11 @@ fn native_bridge_stacks_provider_accounts_as_vertical_detail_sections() {
 
     let shows_account_chips =
         unsafe { aah_status_bar_bridge_debug_shows_account_chips_from_json(payload.as_ptr()) };
-    let visible_detail_sections =
-        unsafe { aah_status_bar_bridge_debug_visible_detail_section_count_from_json(payload.as_ptr()) };
-    let axis = unsafe { aah_status_bar_bridge_debug_account_chip_layout_axis_from_json(payload.as_ptr()) };
+    let visible_detail_sections = unsafe {
+        aah_status_bar_bridge_debug_visible_detail_section_count_from_json(payload.as_ptr())
+    };
+    let axis =
+        unsafe { aah_status_bar_bridge_debug_account_chip_layout_axis_from_json(payload.as_ptr()) };
 
     assert_eq!(shows_account_chips, 0);
     assert_eq!(visible_detail_sections, 2);
@@ -149,12 +163,15 @@ fn native_bridge_keeps_current_account_pinned_and_scrolls_remaining_accounts() {
     )
     .unwrap();
 
-    let pinned_sections =
-        unsafe { aah_status_bar_bridge_debug_pinned_detail_section_count_from_json(payload.as_ptr()) };
-    let scrollable_sections =
-        unsafe { aah_status_bar_bridge_debug_scrollable_detail_section_count_from_json(payload.as_ptr()) };
-    let visible_detail_sections =
-        unsafe { aah_status_bar_bridge_debug_visible_detail_section_count_from_json(payload.as_ptr()) };
+    let pinned_sections = unsafe {
+        aah_status_bar_bridge_debug_pinned_detail_section_count_from_json(payload.as_ptr())
+    };
+    let scrollable_sections = unsafe {
+        aah_status_bar_bridge_debug_scrollable_detail_section_count_from_json(payload.as_ptr())
+    };
+    let visible_detail_sections = unsafe {
+        aah_status_bar_bridge_debug_visible_detail_section_count_from_json(payload.as_ptr())
+    };
 
     assert_eq!(pinned_sections, 1);
     assert_eq!(scrollable_sections, 2);
@@ -172,7 +189,8 @@ fn native_bridge_hosting_view_enables_menu_vibrancy() {
 #[cfg(target_os = "macos")]
 #[test]
 fn native_bridge_hosting_view_accepts_first_mouse_for_immediate_menu_clicks() {
-    let accepts_first_mouse = unsafe { aah_status_bar_bridge_debug_hosting_view_accepts_first_mouse() };
+    let accepts_first_mouse =
+        unsafe { aah_status_bar_bridge_debug_hosting_view_accepts_first_mouse() };
 
     assert_eq!(accepts_first_mouse, 1);
 }
@@ -231,8 +249,10 @@ fn native_bridge_presentation_exposes_compact_utility_panel_tokens() {
 #[test]
 fn native_bridge_presentation_exposes_consistent_padding_tokens() {
     let panel_padding = unsafe { aah_status_bar_bridge_debug_panel_content_padding() };
-    let row_horizontal_padding = unsafe { aah_status_bar_bridge_debug_interactive_row_horizontal_padding() };
-    let row_vertical_padding = unsafe { aah_status_bar_bridge_debug_interactive_row_vertical_padding() };
+    let row_horizontal_padding =
+        unsafe { aah_status_bar_bridge_debug_interactive_row_horizontal_padding() };
+    let row_vertical_padding =
+        unsafe { aah_status_bar_bridge_debug_interactive_row_vertical_padding() };
     let section_hover_horizontal_padding =
         unsafe { aah_status_bar_bridge_debug_account_section_hover_horizontal_padding() };
     let section_hover_vertical_padding =
@@ -261,7 +281,8 @@ fn native_bridge_maps_remaining_quota_to_severity_tones() {
 #[test]
 fn native_bridge_hides_progress_fill_when_remaining_quota_is_zero() {
     let empty_width = unsafe { aah_status_bar_bridge_debug_progress_fill_width(200.0, 0) };
-    let minimal_visible_width = unsafe { aah_status_bar_bridge_debug_progress_fill_width(200.0, 1) };
+    let minimal_visible_width =
+        unsafe { aah_status_bar_bridge_debug_progress_fill_width(200.0, 1) };
 
     assert_eq!(empty_width, 0.0);
     assert_eq!(minimal_visible_width, 8.0);

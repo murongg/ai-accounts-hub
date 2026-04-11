@@ -9,7 +9,10 @@ fn next_refresh_at_returns_the_next_future_boundary() {
 
     assert_eq!(next_refresh_at(base, window, base), base + window);
     assert_eq!(next_refresh_at(base, window, base + 60), base + window);
-    assert_eq!(next_refresh_at(base, window, base + window), base + (window * 2));
+    assert_eq!(
+        next_refresh_at(base, window, base + window),
+        base + (window * 2)
+    );
 }
 
 #[test]

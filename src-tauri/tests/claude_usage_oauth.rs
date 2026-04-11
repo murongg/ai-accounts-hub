@@ -33,7 +33,10 @@ fn normalizes_session_weekly_and_prefers_opus_weekly() {
     let usage = normalize_usage_response(response).expect("normalized");
 
     assert_eq!(
-        usage.session.as_ref().map(|window| window.remaining_percent),
+        usage
+            .session
+            .as_ref()
+            .map(|window| window.remaining_percent),
         Some(82)
     );
     assert_eq!(
@@ -42,7 +45,10 @@ fn normalizes_session_weekly_and_prefers_opus_weekly() {
     );
     assert_eq!(usage.model_weekly_label.as_deref(), Some("Opus Weekly"));
     assert_eq!(
-        usage.model_weekly.as_ref().map(|window| window.remaining_percent),
+        usage
+            .model_weekly
+            .as_ref()
+            .map(|window| window.remaining_percent),
         Some(61)
     );
 }
@@ -69,7 +75,10 @@ fn falls_back_to_sonnet_weekly_when_opus_is_missing() {
 
     assert_eq!(usage.model_weekly_label.as_deref(), Some("Sonnet Weekly"));
     assert_eq!(
-        usage.model_weekly.as_ref().map(|window| window.remaining_percent),
+        usage
+            .model_weekly
+            .as_ref()
+            .map(|window| window.remaining_percent),
         Some(89)
     );
 }
@@ -95,7 +104,10 @@ fn normalizes_percentage_style_utilization_values_without_multiplying_again() {
         Some(2)
     );
     assert_eq!(
-        usage.session.as_ref().map(|window| window.remaining_percent),
+        usage
+            .session
+            .as_ref()
+            .map(|window| window.remaining_percent),
         Some(98)
     );
     assert_eq!(
@@ -145,7 +157,10 @@ struct FakeClaudeOAuthHttpClient {
 }
 
 impl ClaudeOAuthHttpClient for FakeClaudeOAuthHttpClient {
-    fn get_usage(&self, access_token: &str) -> Result<ClaudeUsageApiResponse, ClaudeUsageFetchError> {
+    fn get_usage(
+        &self,
+        access_token: &str,
+    ) -> Result<ClaudeUsageApiResponse, ClaudeUsageFetchError> {
         self.usage_calls
             .lock()
             .expect("usage lock")
@@ -196,7 +211,10 @@ fn fetcher_refreshes_token_once_after_401() {
     let usage = fetcher.fetch_usage(&snapshot).expect("usage");
 
     assert_eq!(
-        usage.session.as_ref().map(|window| window.remaining_percent),
+        usage
+            .session
+            .as_ref()
+            .map(|window| window.remaining_percent),
         Some(60)
     );
     assert_eq!(

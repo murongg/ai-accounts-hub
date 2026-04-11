@@ -51,7 +51,9 @@ impl CodexAccountPaths {
 }
 
 pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    let parent = path.parent().ok_or_else(|| "invalid file path".to_string())?;
+    let parent = path
+        .parent()
+        .ok_or_else(|| "invalid file path".to_string())?;
     fs::create_dir_all(parent).map_err(|error| format!("failed to create parent dir: {error}"))?;
 
     let file_name = path

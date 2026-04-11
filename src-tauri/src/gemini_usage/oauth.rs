@@ -5,15 +5,17 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use reqwest::blocking::Client;
-use reqwest::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue, USER_AGENT};
 use reqwest::blocking::RequestBuilder;
+use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, CONTENT_TYPE, USER_AGENT};
 use serde_json::{json, Value};
 
 use crate::codex_usage::models::RateWindowSnapshot;
 use crate::gemini_accounts::cli::resolve_gemini_binary;
 use crate::gemini_accounts::paths::{atomic_write, gemini_dir_for_home};
 
-use super::models::{FetchedGeminiUsage, GeminiTierId, GeminiUsageApiBucket, GeminiUsageApiResponse};
+use super::models::{
+    FetchedGeminiUsage, GeminiTierId, GeminiUsageApiBucket, GeminiUsageApiResponse,
+};
 
 const LOAD_CODE_ASSIST_URL: &str = "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist";
 const QUOTA_URL: &str = "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuota";
@@ -21,7 +23,8 @@ const PROJECTS_URL: &str = "https://cloudresourcemanager.googleapis.com/v1/proje
 const TOKEN_REFRESH_URL: &str = "https://oauth2.googleapis.com/token";
 
 pub trait GeminiUsageFetcher: Send + Sync {
-    fn fetch_usage(&self, managed_home: &Path) -> Result<FetchedGeminiUsage, GeminiUsageFetchError>;
+    fn fetch_usage(&self, managed_home: &Path)
+        -> Result<FetchedGeminiUsage, GeminiUsageFetchError>;
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -53,7 +56,10 @@ impl Display for GeminiUsageFetchError {
                 )
             }
             Self::UnsupportedAuthType(auth_type) => {
-                write!(f, "Gemini {auth_type} auth is not supported. Sign in with Google instead.")
+                write!(
+                    f,
+                    "Gemini {auth_type} auth is not supported. Sign in with Google instead."
+                )
             }
             Self::MissingCredentials(message)
             | Self::InvalidResponse(message)
@@ -65,7 +71,10 @@ impl Display for GeminiUsageFetchError {
 pub struct ProcessGeminiUsageFetcher;
 
 impl GeminiUsageFetcher for ProcessGeminiUsageFetcher {
-    fn fetch_usage(&self, managed_home: &Path) -> Result<FetchedGeminiUsage, GeminiUsageFetchError> {
+    fn fetch_usage(
+        &self,
+        managed_home: &Path,
+    ) -> Result<FetchedGeminiUsage, GeminiUsageFetchError> {
         let gemini_dir = gemini_dir_for_home(managed_home);
         let settings = read_optional_json_value(&gemini_dir.join("settings.json"))
             .map_err(GeminiUsageFetchError::MissingCredentials)?;
@@ -91,26 +100,32 @@ impl GeminiUsageFetcher for ProcessGeminiUsageFetcher {
                 .and_then(Value::as_str)
                 .map(str::trim)
                 .filter(|value| !value.is_empty())
-                .ok_or_else(|| GeminiUsageFetchError::unauthorized("access token expired and refresh_token is missing"))?;
+                .ok_or_else(|| {
+                    GeminiUsageFetchError::unauthorized(
+                        "access token expired and refresh_token is missing",
+                    )
+                })?;
             let refreshed = refresh_access_token(refresh_token, &gemini_dir)?;
-            update_stored_credentials(&gemini_dir.join("oauth_creds.json"), &mut oauth_creds, &refreshed)
-                .map_err(GeminiUsageFetchError::RequestFailed)?;
+            update_stored_credentials(
+                &gemini_dir.join("oauth_creds.json"),
+                &mut oauth_creds,
+                &refreshed,
+            )
+            .map_err(GeminiUsageFetchError::RequestFailed)?;
             access_token = refreshed.access_token.clone();
             if let Some(id_token) = refreshed.id_token {
                 oauth_creds["id_token"] = Value::String(id_token);
             }
         }
 
-        let claims = extract_claims_from_token(
-            oauth_creds
-                .get("id_token")
-                .and_then(Value::as_str),
-        );
+        let claims = extract_claims_from_token(oauth_creds.get("id_token").and_then(Value::as_str));
         let client = build_http_client()?;
         let code_assist = load_code_assist_status(&client, &access_token)?;
-        let project_id = code_assist
-            .project_id
-            .or_else(|| discover_gemini_project_id(&client, &access_token).ok().flatten());
+        let project_id = code_assist.project_id.or_else(|| {
+            discover_gemini_project_id(&client, &access_token)
+                .ok()
+                .flatten()
+        });
 
         let response = quota_request(&client, &access_token, project_id.as_deref())
             .send()
@@ -176,20 +191,28 @@ pub fn normalize_usage_response(
         if model_id.contains("flash-lite") {
             if lower_fraction_than(
                 bucket.remaining_fraction,
-                flash_lite_bucket.as_ref().and_then(|b| b.remaining_fraction),
+                flash_lite_bucket
+                    .as_ref()
+                    .and_then(|b| b.remaining_fraction),
             ) {
                 flash_lite_bucket = Some(bucket.clone());
             }
             continue;
         }
         if model_id.contains("pro") {
-            if lower_fraction_than(bucket.remaining_fraction, pro_bucket.as_ref().and_then(|b| b.remaining_fraction)) {
+            if lower_fraction_than(
+                bucket.remaining_fraction,
+                pro_bucket.as_ref().and_then(|b| b.remaining_fraction),
+            ) {
                 pro_bucket = Some(bucket.clone());
             }
             continue;
         }
         if model_id.contains("flash") {
-            if lower_fraction_than(bucket.remaining_fraction, flash_bucket.as_ref().and_then(|b| b.remaining_fraction)) {
+            if lower_fraction_than(
+                bucket.remaining_fraction,
+                flash_bucket.as_ref().and_then(|b| b.remaining_fraction),
+            ) {
                 flash_bucket = Some(bucket.clone());
             }
         }
@@ -241,8 +264,12 @@ fn validate_auth_type(settings: Option<&Value>) -> Result<(), GeminiUsageFetchEr
         .filter(|value| !value.is_empty());
 
     match auth_type {
-        Some("api-key") => Err(GeminiUsageFetchError::UnsupportedAuthType("API key".to_string())),
-        Some("vertex-ai") => Err(GeminiUsageFetchError::UnsupportedAuthType("Vertex AI".to_string())),
+        Some("api-key") => Err(GeminiUsageFetchError::UnsupportedAuthType(
+            "API key".to_string(),
+        )),
+        Some("vertex-ai") => Err(GeminiUsageFetchError::UnsupportedAuthType(
+            "Vertex AI".to_string(),
+        )),
         _ => Ok(()),
     }
 }
@@ -305,7 +332,12 @@ fn load_code_assist_status(
                 .as_str()
                 .map(str::to_string)
                 .or_else(|| value.get("id").and_then(Value::as_str).map(str::to_string))
-                .or_else(|| value.get("projectId").and_then(Value::as_str).map(str::to_string))
+                .or_else(|| {
+                    value
+                        .get("projectId")
+                        .and_then(Value::as_str)
+                        .map(str::to_string)
+                })
         })
         .map(|value| value.trim().to_string())
         .filter(|value| !value.is_empty());
@@ -375,7 +407,10 @@ struct RefreshedTokens {
     id_token: Option<String>,
 }
 
-fn refresh_access_token(refresh_token: &str, gemini_dir: &Path) -> Result<RefreshedTokens, GeminiUsageFetchError> {
+fn refresh_access_token(
+    refresh_token: &str,
+    gemini_dir: &Path,
+) -> Result<RefreshedTokens, GeminiUsageFetchError> {
     let credentials = extract_oauth_client_credentials()?;
     let client = Client::builder()
         .timeout(Duration::from_secs(30))
@@ -414,10 +449,15 @@ fn refresh_access_token(refresh_token: &str, gemini_dir: &Path) -> Result<Refres
         .and_then(Value::as_str)
         .map(str::trim)
         .filter(|value| !value.is_empty())
-        .ok_or_else(|| GeminiUsageFetchError::InvalidResponse("missing refresh access token".into()))?
+        .ok_or_else(|| {
+            GeminiUsageFetchError::InvalidResponse("missing refresh access token".into())
+        })?
         .to_string();
     let expires_in_seconds = json.get("expires_in").and_then(Value::as_u64);
-    let id_token = json.get("id_token").and_then(Value::as_str).map(str::to_string);
+    let id_token = json
+        .get("id_token")
+        .and_then(Value::as_str)
+        .map(str::to_string);
 
     let _ = gemini_dir;
     Ok(RefreshedTokens {
@@ -437,12 +477,12 @@ fn extract_oauth_client_credentials() -> Result<OAuthClientCredentials, GeminiUs
         GeminiUsageFetchError::RequestFailed("failed to resolve gemini binary".to_string())
     })?;
     let resolved_binary = fs::canonicalize(&binary).unwrap_or(binary);
-    let bin_dir = resolved_binary
-        .parent()
-        .ok_or_else(|| GeminiUsageFetchError::RequestFailed("invalid gemini binary path".to_string()))?;
-    let base_dir = bin_dir
-        .parent()
-        .ok_or_else(|| GeminiUsageFetchError::RequestFailed("invalid gemini base path".to_string()))?;
+    let bin_dir = resolved_binary.parent().ok_or_else(|| {
+        GeminiUsageFetchError::RequestFailed("invalid gemini binary path".to_string())
+    })?;
+    let base_dir = bin_dir.parent().ok_or_else(|| {
+        GeminiUsageFetchError::RequestFailed("invalid gemini base path".to_string())
+    })?;
     let possible_paths = [
         base_dir.join("libexec/lib/node_modules/@google/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/code_assist/oauth2.js"),
         base_dir.join("lib/node_modules/@google/gemini-cli/node_modules/@google/gemini-cli-core/dist/src/code_assist/oauth2.js"),
@@ -538,17 +578,25 @@ struct TokenClaims {
 
 fn extract_claims_from_token(id_token: Option<&str>) -> TokenClaims {
     let Some(token) = id_token else {
-        return TokenClaims { hosted_domain: None };
+        return TokenClaims {
+            hosted_domain: None,
+        };
     };
     let Some(payload) = token.split('.').nth(1) else {
-        return TokenClaims { hosted_domain: None };
+        return TokenClaims {
+            hosted_domain: None,
+        };
     };
     let decoded = URL_SAFE_NO_PAD.decode(payload);
     let Ok(decoded) = decoded else {
-        return TokenClaims { hosted_domain: None };
+        return TokenClaims {
+            hosted_domain: None,
+        };
     };
     let Ok(json) = serde_json::from_slice::<Value>(&decoded) else {
-        return TokenClaims { hosted_domain: None };
+        return TokenClaims {
+            hosted_domain: None,
+        };
     };
     TokenClaims {
         hosted_domain: json
@@ -561,8 +609,10 @@ fn extract_claims_from_token(id_token: Option<&str>) -> TokenClaims {
 }
 
 fn read_json_value(path: &Path) -> Result<Value, String> {
-    let bytes = fs::read(path).map_err(|error| format!("failed to read {}: {error}", path.display()))?;
-    serde_json::from_slice(&bytes).map_err(|error| format!("failed to parse {}: {error}", path.display()))
+    let bytes =
+        fs::read(path).map_err(|error| format!("failed to read {}: {error}", path.display()))?;
+    serde_json::from_slice(&bytes)
+        .map_err(|error| format!("failed to parse {}: {error}", path.display()))
 }
 
 fn read_optional_json_value(path: &Path) -> Result<Option<Value>, String> {
@@ -589,7 +639,10 @@ mod tests {
             .expect("request");
 
         assert_eq!(
-            request.headers().get(AUTHORIZATION).and_then(|value| value.to_str().ok()),
+            request
+                .headers()
+                .get(AUTHORIZATION)
+                .and_then(|value| value.to_str().ok()),
             Some("Bearer access-token")
         );
     }

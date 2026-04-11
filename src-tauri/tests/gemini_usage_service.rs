@@ -83,7 +83,10 @@ struct FakeUsageFetcher {
 }
 
 impl GeminiUsageFetcher for FakeUsageFetcher {
-    fn fetch_usage(&self, _managed_home: &Path) -> Result<FetchedGeminiUsage, GeminiUsageFetchError> {
+    fn fetch_usage(
+        &self,
+        _managed_home: &Path,
+    ) -> Result<FetchedGeminiUsage, GeminiUsageFetchError> {
         self.result.clone()
     }
 }
@@ -96,7 +99,8 @@ fn create_account(paths: &GeminiAccountPaths) -> String {
 #[test]
 fn refresh_all_writes_real_gemini_snapshot_fields_into_list_results() {
     let temp = TempDir::new("gemini-usage-service-success");
-    let paths = GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let paths =
+        GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
     let account_id = create_account(&paths);
     let usage_service = GeminiUsageService::new(
         paths.clone(),
@@ -126,7 +130,10 @@ fn refresh_all_writes_real_gemini_snapshot_fields_into_list_results() {
 
     let account_service = GeminiAccountService::new(paths.clone(), Box::new(FakeLoginRunner));
     let accounts = account_service.list_accounts().expect("list");
-    let account = accounts.iter().find(|item| item.id == account_id).expect("account");
+    let account = accounts
+        .iter()
+        .find(|item| item.id == account_id)
+        .expect("account");
 
     assert_eq!(account.plan.as_deref(), Some("Workspace"));
     assert_eq!(account.pro_remaining_percent, Some(91));
@@ -139,7 +146,8 @@ fn refresh_all_writes_real_gemini_snapshot_fields_into_list_results() {
 #[test]
 fn refresh_failure_keeps_previous_snapshot_and_marks_error() {
     let temp = TempDir::new("gemini-usage-service-error");
-    let paths = GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let paths =
+        GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
     let account_id = create_account(&paths);
 
     let success_service = GeminiUsageService::new(
@@ -162,14 +170,19 @@ fn refresh_failure_keeps_previous_snapshot_and_marks_error() {
     let failing_service = GeminiUsageService::new(
         paths.clone(),
         Box::new(FakeUsageFetcher {
-            result: Err(GeminiUsageFetchError::unauthorized("quota endpoint returned 401")),
+            result: Err(GeminiUsageFetchError::unauthorized(
+                "quota endpoint returned 401",
+            )),
         }),
     );
     failing_service.refresh_all().expect("refresh with error");
 
     let account_service = GeminiAccountService::new(paths.clone(), Box::new(FakeLoginRunner));
     let accounts = account_service.list_accounts().expect("list");
-    let account = accounts.iter().find(|item| item.id == account_id).expect("account");
+    let account = accounts
+        .iter()
+        .find(|item| item.id == account_id)
+        .expect("account");
 
     assert_eq!(account.pro_remaining_percent, Some(88));
     assert_eq!(

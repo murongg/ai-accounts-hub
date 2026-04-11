@@ -54,7 +54,10 @@ pub struct CodexUsageSchedulerState {
 
 impl CodexUsageSchedulerState {
     pub fn initialize(&self, app: AppHandle, paths: CodexAccountPaths) -> Result<(), String> {
-        let mut sender = self.sender.lock().map_err(|_| "scheduler lock poisoned".to_string())?;
+        let mut sender = self
+            .sender
+            .lock()
+            .map_err(|_| "scheduler lock poisoned".to_string())?;
         if sender.is_some() {
             return Ok(());
         }
@@ -105,7 +108,10 @@ impl CodexUsageSchedulerState {
             .ok_or_else(|| "scheduler not initialized".to_string())?;
         let (tx, rx) = oneshot::channel();
         sender
-            .send(SchedulerCommand::Refresh { target, respond_to: tx })
+            .send(SchedulerCommand::Refresh {
+                target,
+                respond_to: tx,
+            })
             .map_err(|_| "scheduler task is no longer running".to_string())?;
         rx.await
             .map_err(|_| "scheduler response channel closed".to_string())?
@@ -146,12 +152,14 @@ async fn run_scheduler_loop(
         } else {
             match receiver.recv().await {
                 Some(SchedulerCommand::Refresh { target, respond_to }) => {
-                    let _ = respond_to.send(run_refresh_cycle(app.clone(), paths.clone(), target).await);
+                    let _ = respond_to
+                        .send(run_refresh_cycle(app.clone(), paths.clone(), target).await);
                 }
                 Some(SchedulerCommand::UpdateSettings(next)) => {
                     settings = next;
                     if settings.enabled {
-                        let _ = run_refresh_cycle(app.clone(), paths.clone(), RefreshTarget::All).await;
+                        let _ =
+                            run_refresh_cycle(app.clone(), paths.clone(), RefreshTarget::All).await;
                     }
                 }
                 None => break,
@@ -172,7 +180,8 @@ async fn run_refresh_cycle(
         .to_path_buf();
 
     let outcome = tauri::async_runtime::spawn_blocking(move || {
-        let claude_paths = ClaudeAccountPaths::from_roots(paths.app_data_dir.clone(), home_dir.clone());
+        let claude_paths =
+            ClaudeAccountPaths::from_roots(paths.app_data_dir.clone(), home_dir.clone());
         let gemini_paths = GeminiAccountPaths::from_roots(paths.app_data_dir.clone(), home_dir);
 
         run_refresh_actions(

@@ -1,5 +1,5 @@
-use ai_accounts_hub_lib::codex_accounts::models::CodexAccountListItem;
 use ai_accounts_hub_lib::claude_accounts::models::ClaudeAccountListItem;
+use ai_accounts_hub_lib::codex_accounts::models::CodexAccountListItem;
 use ai_accounts_hub_lib::gemini_accounts::models::GeminiAccountListItem;
 use ai_accounts_hub_lib::status_bar::bridge_payload::{
     build_bridge_payload, BridgeMetricPayload, BridgeProviderPayload, StatusBarTab,
@@ -97,12 +97,42 @@ fn overview_payload_uses_active_accounts_from_both_providers() {
             codex_account("active", "active@example.com", true, Some(82), Some(64)),
         ],
         vec![
-            claude_account("idle-c", "idle-c@example.com", false, None, None, None, None),
-            claude_account("active-c", "active-c@example.com", true, None, None, None, None),
+            claude_account(
+                "idle-c",
+                "idle-c@example.com",
+                false,
+                None,
+                None,
+                None,
+                None,
+            ),
+            claude_account(
+                "active-c",
+                "active-c@example.com",
+                true,
+                None,
+                None,
+                None,
+                None,
+            ),
         ],
         vec![
-            gemini_account("idle-g", "idle-g@example.com", false, Some(88), Some(70), Some(52)),
-            gemini_account("active-g", "active-g@example.com", true, Some(100), Some(90), Some(75)),
+            gemini_account(
+                "idle-g",
+                "idle-g@example.com",
+                false,
+                Some(88),
+                Some(70),
+                Some(52),
+            ),
+            gemini_account(
+                "active-g",
+                "active-g@example.com",
+                true,
+                Some(100),
+                Some(90),
+                Some(75),
+            ),
         ],
         1_775_643_000_000,
     );
@@ -121,7 +151,13 @@ fn overview_payload_uses_active_accounts_from_both_providers() {
 fn codex_payload_includes_session_and_weekly_metrics() {
     let payload = build_bridge_payload(
         StatusBarTab::Codex,
-        vec![codex_account("active", "active@example.com", true, Some(82), Some(64))],
+        vec![codex_account(
+            "active",
+            "active@example.com",
+            true,
+            Some(82),
+            Some(64),
+        )],
         Vec::new(),
         Vec::new(),
         1_775_640_000_000,
@@ -162,13 +198,26 @@ fn codex_payload_keeps_reset_countdown_at_minute_precision() {
     );
 
     assert_eq!(payload.sections.len(), 1);
-    assert_eq!(payload.sections[0].metrics[0].reset_text, "Resets in 1h 30m");
-    assert_eq!(payload.sections[0].metrics[1].reset_text, "Resets in 7d 1h 15m");
+    assert_eq!(
+        payload.sections[0].metrics[0].reset_text,
+        "Resets in 1h 30m"
+    );
+    assert_eq!(
+        payload.sections[0].metrics[1].reset_text,
+        "Resets in 7d 1h 15m"
+    );
 }
 
 #[test]
 fn relogin_payload_clears_metrics_and_marks_status() {
-    let mut broken = gemini_account("bad", "broken@example.com", false, Some(100), Some(90), Some(75));
+    let mut broken = gemini_account(
+        "bad",
+        "broken@example.com",
+        false,
+        Some(100),
+        Some(90),
+        Some(75),
+    );
     broken.needs_relogin = Some(true);
 
     let payload = build_bridge_payload(

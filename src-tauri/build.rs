@@ -2,7 +2,9 @@ use std::path::PathBuf;
 use std::process::Command;
 
 fn run_checked(command: &mut Command) {
-    let status = command.status().expect("failed to run native build command");
+    let status = command
+        .status()
+        .expect("failed to run native build command");
     if !status.success() {
         panic!("native build command failed: {:?}", command);
     }

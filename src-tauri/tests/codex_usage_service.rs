@@ -159,6 +159,9 @@ fn refresh_failure_keeps_previous_snapshot_and_marks_error() {
         .expect("account");
 
     assert_eq!(account.five_hour_remaining_percent, Some(77));
-    assert_eq!(account.last_sync_error.as_deref(), Some("Codex OAuth token expired or invalid. Run `codex login` again."));
+    assert_eq!(
+        account.last_sync_error.as_deref(),
+        Some("Codex OAuth token expired or invalid. Run `codex login` again.")
+    );
     assert_eq!(account.needs_relogin, Some(true));
 }

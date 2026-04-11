@@ -49,7 +49,8 @@ pub fn read_account_identity_from_path(path: &Path) -> Result<CodexAccountIdenti
 }
 
 pub fn read_auth_value(path: &Path) -> Result<Value, String> {
-    let bytes = fs::read(path).map_err(|error| format!("failed to read {}: {error}", path.display()))?;
+    let bytes =
+        fs::read(path).map_err(|error| format!("failed to read {}: {error}", path.display()))?;
     serde_json::from_slice(&bytes)
         .map_err(|error| format!("failed to parse {}: {error}", path.display()))
 }

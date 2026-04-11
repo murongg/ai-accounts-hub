@@ -21,15 +21,20 @@ fn paths_from_app(app: &AppHandle) -> Result<CodexAccountPaths, String> {
     Ok(CodexAccountPaths::from_roots(app_data_dir, user_home))
 }
 
-pub fn initialize_scheduler(app: &AppHandle, scheduler: &CodexUsageSchedulerState) -> Result<(), String> {
+pub fn initialize_scheduler(
+    app: &AppHandle,
+    scheduler: &CodexUsageSchedulerState,
+) -> Result<(), String> {
     scheduler.initialize(app.clone(), paths_from_app(app)?)
 }
 
 #[tauri::command]
 pub async fn get_codex_refresh_settings(app: AppHandle) -> Result<CodexRefreshSettings, String> {
-    tauri::async_runtime::spawn_blocking(move || store::load_refresh_settings(&paths_from_app(&app)?))
-        .await
-        .map_err(|error| error.to_string())?
+    tauri::async_runtime::spawn_blocking(move || {
+        store::load_refresh_settings(&paths_from_app(&app)?)
+    })
+    .await
+    .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]

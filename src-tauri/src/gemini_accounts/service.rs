@@ -19,7 +19,10 @@ pub struct GeminiAccountService {
 
 impl GeminiAccountService {
     pub fn new(paths: GeminiAccountPaths, login_runner: Box<dyn GeminiLoginRunner>) -> Self {
-        Self { paths, login_runner }
+        Self {
+            paths,
+            login_runner,
+        }
     }
 
     pub fn with_process_runner(paths: GeminiAccountPaths) -> Self {
@@ -86,18 +89,36 @@ impl GeminiAccountService {
                     plan: usage.and_then(|snapshot| snapshot.plan.clone()),
                     is_active: active_id.as_deref() == Some(account.id.as_str()),
                     last_authenticated_at: account.last_authenticated_at.clone(),
-                    pro_remaining_percent: usage
-                        .and_then(|snapshot| snapshot.pro.as_ref().map(|window| window.remaining_percent)),
-                    flash_remaining_percent: usage
-                        .and_then(|snapshot| snapshot.flash.as_ref().map(|window| window.remaining_percent)),
-                    flash_lite_remaining_percent: usage
-                        .and_then(|snapshot| snapshot.flash_lite.as_ref().map(|window| window.remaining_percent)),
-                    pro_refresh_at: usage
-                        .and_then(|snapshot| snapshot.pro.as_ref().map(|window| window.reset_at.clone())),
-                    flash_refresh_at: usage
-                        .and_then(|snapshot| snapshot.flash.as_ref().map(|window| window.reset_at.clone())),
-                    flash_lite_refresh_at: usage
-                        .and_then(|snapshot| snapshot.flash_lite.as_ref().map(|window| window.reset_at.clone())),
+                    pro_remaining_percent: usage.and_then(|snapshot| {
+                        snapshot.pro.as_ref().map(|window| window.remaining_percent)
+                    }),
+                    flash_remaining_percent: usage.and_then(|snapshot| {
+                        snapshot
+                            .flash
+                            .as_ref()
+                            .map(|window| window.remaining_percent)
+                    }),
+                    flash_lite_remaining_percent: usage.and_then(|snapshot| {
+                        snapshot
+                            .flash_lite
+                            .as_ref()
+                            .map(|window| window.remaining_percent)
+                    }),
+                    pro_refresh_at: usage.and_then(|snapshot| {
+                        snapshot.pro.as_ref().map(|window| window.reset_at.clone())
+                    }),
+                    flash_refresh_at: usage.and_then(|snapshot| {
+                        snapshot
+                            .flash
+                            .as_ref()
+                            .map(|window| window.reset_at.clone())
+                    }),
+                    flash_lite_refresh_at: usage.and_then(|snapshot| {
+                        snapshot
+                            .flash_lite
+                            .as_ref()
+                            .map(|window| window.reset_at.clone())
+                    }),
                     last_synced_at: usage.and_then(|snapshot| snapshot.last_synced_at.clone()),
                     last_sync_error: usage.and_then(|snapshot| snapshot.last_sync_error.clone()),
                     needs_relogin: usage.map(|snapshot| snapshot.needs_relogin),
@@ -151,9 +172,10 @@ impl GeminiAccountService {
         match fs::read(source) {
             Ok(bytes) => atomic_write(target, &bytes),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound && !required => Ok(()),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-                Err(format!("missing managed Gemini file {}: {error}", source.display()))
-            }
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => Err(format!(
+                "missing managed Gemini file {}: {error}",
+                source.display()
+            )),
             Err(error) => Err(format!("failed to read {}: {error}", source.display())),
         }
     }

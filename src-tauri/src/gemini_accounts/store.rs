@@ -17,10 +17,12 @@ impl GeminiAccountStore {
         let index = match std::fs::read_to_string(&paths.account_index_path) {
             Ok(text) => serde_json::from_str(&text)
                 .map_err(|error| format!("failed to parse Gemini account index: {error}"))?,
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound => StoredGeminiAccountIndex {
-                version: 1,
-                accounts: Vec::new(),
-            },
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                StoredGeminiAccountIndex {
+                    version: 1,
+                    accounts: Vec::new(),
+                }
+            }
             Err(error) => return Err(format!("failed to read Gemini account index: {error}")),
         };
 
@@ -31,7 +33,10 @@ impl GeminiAccountStore {
         &self.index.accounts
     }
 
-    pub fn find_matching_account(&self, identity: &GeminiAccountIdentity) -> Option<&StoredGeminiAccount> {
+    pub fn find_matching_account(
+        &self,
+        identity: &GeminiAccountIdentity,
+    ) -> Option<&StoredGeminiAccount> {
         self.index.accounts.iter().find(|account| {
             account.email.eq_ignore_ascii_case(&identity.email)
                 || (identity.subject.is_some() && account.subject == identity.subject)
@@ -86,12 +91,17 @@ impl GeminiAccountStore {
     }
 
     pub fn delete(&mut self, paths: &GeminiAccountPaths, account_id: &str) -> Result<(), String> {
-        self.index.accounts.retain(|account| account.id != account_id);
+        self.index
+            .accounts
+            .retain(|account| account.id != account_id);
         self.persist(paths)
     }
 
     pub fn find_by_id(&self, account_id: &str) -> Option<&StoredGeminiAccount> {
-        self.index.accounts.iter().find(|account| account.id == account_id)
+        self.index
+            .accounts
+            .iter()
+            .find(|account| account.id == account_id)
     }
 
     fn persist(&self, paths: &GeminiAccountPaths) -> Result<(), String> {

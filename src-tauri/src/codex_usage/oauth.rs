@@ -1,10 +1,10 @@
 use std::fmt::{Display, Formatter};
 use std::path::Path;
 
-use reqwest::blocking::Client;
-use reqwest::header::{ACCEPT, AUTHORIZATION, HeaderMap, HeaderValue, USER_AGENT};
 use crate::codex_accounts::auth::{format_plan, read_auth_value};
 use crate::codex_accounts::store::auth_path_for_home;
+use reqwest::blocking::Client;
+use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, USER_AGENT};
 
 use super::models::{
     CodexUsageApiResponse, CodexUsageApiWindow, CodexUsageRateLimit, FetchedCodexUsage,
@@ -33,7 +33,10 @@ impl Display for CodexUsageFetchError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Unauthorized => {
-                write!(f, "Codex OAuth token expired or invalid. Run `codex login` again.")
+                write!(
+                    f,
+                    "Codex OAuth token expired or invalid. Run `codex login` again."
+                )
             }
             Self::MissingCredentials(message)
             | Self::InvalidResponse(message)
@@ -51,14 +54,18 @@ impl CodexUsageFetcher for ProcessCodexUsageFetcher {
         let tokens = auth
             .get("tokens")
             .and_then(|value| value.as_object())
-            .ok_or_else(|| CodexUsageFetchError::MissingCredentials("auth.json is missing tokens".into()))?;
+            .ok_or_else(|| {
+                CodexUsageFetchError::MissingCredentials("auth.json is missing tokens".into())
+            })?;
         let access_token = tokens
             .get("access_token")
             .and_then(|value| value.as_str())
             .map(str::trim)
             .filter(|value| !value.is_empty())
             .ok_or_else(|| {
-                CodexUsageFetchError::MissingCredentials("auth.json is missing tokens.access_token".into())
+                CodexUsageFetchError::MissingCredentials(
+                    "auth.json is missing tokens.access_token".into(),
+                )
             })?;
         let account_id = tokens
             .get("account_id")
@@ -222,7 +229,12 @@ fn parse_chatgpt_base_url(contents: &str) -> Option<String> {
         if key != "chatgpt_base_url" {
             continue;
         }
-        let value = parts.next()?.trim().trim_matches('"').trim_matches('\'').trim();
+        let value = parts
+            .next()?
+            .trim()
+            .trim_matches('"')
+            .trim_matches('\'')
+            .trim();
         if !value.is_empty() {
             return Some(value.to_string());
         }
@@ -235,7 +247,8 @@ fn normalize_chatgpt_base_url(base: &str) -> String {
     if normalized.is_empty() {
         normalized = "https://chatgpt.com/backend-api".into();
     }
-    if (normalized.starts_with("https://chatgpt.com") || normalized.starts_with("https://chat.openai.com"))
+    if (normalized.starts_with("https://chatgpt.com")
+        || normalized.starts_with("https://chat.openai.com"))
         && !normalized.contains("/backend-api")
     {
         normalized.push_str("/backend-api");

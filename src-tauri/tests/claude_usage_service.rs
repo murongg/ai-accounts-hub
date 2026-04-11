@@ -139,9 +139,13 @@ impl ClaudeCliUsageProbe for SuccessCliProbe {
 #[test]
 fn refresh_all_merges_usage_into_claude_account_list_items() {
     let temp = TempDir::new("claude-usage-service-success");
-    let paths = ClaudeAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let paths =
+        ClaudeAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
     let bundle_store = InMemoryClaudeKeychainStore::default();
-    let live_store = InMemoryClaudeLiveCredentialStore::new(live_snapshot("access-token", Some("refresh-token")));
+    let live_store = InMemoryClaudeLiveCredentialStore::new(live_snapshot(
+        "access-token",
+        Some("refresh-token"),
+    ));
     let mut account_service = ClaudeAccountService::new(
         paths.clone(),
         Box::new(FakeLoginRunner),
@@ -159,7 +163,10 @@ fn refresh_all_merges_usage_into_claude_account_list_items() {
     usage_service.refresh_all().expect("refresh");
 
     let accounts = account_service.list_accounts().expect("list");
-    let account = accounts.iter().find(|item| item.id == account.id).expect("account");
+    let account = accounts
+        .iter()
+        .find(|item| item.id == account.id)
+        .expect("account");
 
     assert_eq!(account.session_remaining_percent, Some(82));
     assert_eq!(account.weekly_remaining_percent, Some(74));
@@ -172,9 +179,13 @@ fn refresh_all_merges_usage_into_claude_account_list_items() {
 #[test]
 fn oauth_failure_falls_back_to_cli_and_does_not_mark_relogin() {
     let temp = TempDir::new("claude-usage-service-cli-fallback");
-    let paths = ClaudeAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let paths =
+        ClaudeAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
     let bundle_store = InMemoryClaudeKeychainStore::default();
-    let live_store = InMemoryClaudeLiveCredentialStore::new(live_snapshot("expired-token", Some("refresh-token")));
+    let live_store = InMemoryClaudeLiveCredentialStore::new(live_snapshot(
+        "expired-token",
+        Some("refresh-token"),
+    ));
     let mut account_service = ClaudeAccountService::new(
         paths.clone(),
         Box::new(FakeLoginRunner),
@@ -192,7 +203,10 @@ fn oauth_failure_falls_back_to_cli_and_does_not_mark_relogin() {
     usage_service.refresh_all().expect("refresh");
 
     let accounts = account_service.list_accounts().expect("list");
-    let account = accounts.iter().find(|item| item.id == account.id).expect("account");
+    let account = accounts
+        .iter()
+        .find(|item| item.id == account.id)
+        .expect("account");
 
     assert_eq!(account.session_remaining_percent, Some(63));
     assert_eq!(account.model_weekly_label.as_deref(), Some("Sonnet Weekly"));

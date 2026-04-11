@@ -26,8 +26,7 @@ pub fn refresh_windows_from_last_authenticated_at(
     Some(RefreshWindows {
         five_hour_refresh_at: next_refresh_at(base_secs, FIVE_HOUR_WINDOW_SECS, now_secs)
             .to_string(),
-        weekly_refresh_at: next_refresh_at(base_secs, WEEKLY_WINDOW_SECS, now_secs)
-            .to_string(),
+        weekly_refresh_at: next_refresh_at(base_secs, WEEKLY_WINDOW_SECS, now_secs).to_string(),
     })
 }
 

@@ -31,7 +31,10 @@ impl CodexAccountStore {
         &self.index.accounts
     }
 
-    pub fn find_matching_account(&self, identity: &CodexAccountIdentity) -> Option<&StoredCodexAccount> {
+    pub fn find_matching_account(
+        &self,
+        identity: &CodexAccountIdentity,
+    ) -> Option<&StoredCodexAccount> {
         self.index.accounts.iter().find(|account| {
             account.email.eq_ignore_ascii_case(&identity.email)
                 || (identity.account_id.is_some() && account.account_id == identity.account_id)
@@ -86,12 +89,17 @@ impl CodexAccountStore {
     }
 
     pub fn delete(&mut self, paths: &CodexAccountPaths, account_id: &str) -> Result<(), String> {
-        self.index.accounts.retain(|account| account.id != account_id);
+        self.index
+            .accounts
+            .retain(|account| account.id != account_id);
         self.persist(paths)
     }
 
     pub fn find_by_id(&self, account_id: &str) -> Option<&StoredCodexAccount> {
-        self.index.accounts.iter().find(|account| account.id == account_id)
+        self.index
+            .accounts
+            .iter()
+            .find(|account| account.id == account_id)
     }
 
     fn persist(&self, paths: &CodexAccountPaths) -> Result<(), String> {

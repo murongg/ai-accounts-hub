@@ -34,7 +34,8 @@ impl Drop for TempDir {
 #[test]
 fn upsert_creates_a_new_gemini_account_index_entry() {
     let temp = TempDir::new("gemini-store-create");
-    let paths = GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let paths =
+        GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
     let mut store = GeminiAccountStore::load(&paths).expect("load store");
 
     let saved = store
@@ -56,7 +57,8 @@ fn upsert_creates_a_new_gemini_account_index_entry() {
 #[test]
 fn upsert_dedupes_by_subject_and_replaces_managed_home() {
     let temp = TempDir::new("gemini-store-dedupe");
-    let paths = GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let paths =
+        GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
     let mut store = GeminiAccountStore::load(&paths).expect("load store");
 
     let first = store
@@ -90,7 +92,8 @@ fn upsert_dedupes_by_subject_and_replaces_managed_home() {
 #[test]
 fn delete_removes_the_gemini_account_from_the_index() {
     let temp = TempDir::new("gemini-store-delete");
-    let paths = GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let paths =
+        GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
     let mut store = GeminiAccountStore::load(&paths).expect("load store");
     let saved = store
         .upsert_identity(

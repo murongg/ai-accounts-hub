@@ -30,8 +30,20 @@ fn normalizes_primary_and_weekly_windows_into_remaining_snapshots() {
     let normalized = normalize_usage_response(response);
 
     assert_eq!(normalized.plan.as_deref(), Some("Pro"));
-    assert_eq!(normalized.five_hour.as_ref().map(|window| window.remaining_percent), Some(82));
-    assert_eq!(normalized.weekly.as_ref().map(|window| window.remaining_percent), Some(88));
+    assert_eq!(
+        normalized
+            .five_hour
+            .as_ref()
+            .map(|window| window.remaining_percent),
+        Some(82)
+    );
+    assert_eq!(
+        normalized
+            .weekly
+            .as_ref()
+            .map(|window| window.remaining_percent),
+        Some(88)
+    );
     assert_eq!(normalized.credits_balance, Some(42.5));
 }
 
@@ -53,7 +65,13 @@ fn recognizes_weekly_only_payloads() {
     let normalized = normalize_usage_response(response);
 
     assert!(normalized.five_hour.is_none());
-    assert_eq!(normalized.weekly.as_ref().map(|window| window.remaining_percent), Some(65));
+    assert_eq!(
+        normalized
+            .weekly
+            .as_ref()
+            .map(|window| window.remaining_percent),
+        Some(65)
+    );
 }
 
 #[test]
@@ -85,7 +103,19 @@ fn parses_string_credit_balances_from_live_usage_payloads() {
     let normalized = normalize_usage_response(response);
 
     assert_eq!(normalized.plan.as_deref(), Some("Plus"));
-    assert_eq!(normalized.five_hour.as_ref().map(|window| window.remaining_percent), Some(100));
-    assert_eq!(normalized.weekly.as_ref().map(|window| window.remaining_percent), Some(29));
+    assert_eq!(
+        normalized
+            .five_hour
+            .as_ref()
+            .map(|window| window.remaining_percent),
+        Some(100)
+    );
+    assert_eq!(
+        normalized
+            .weekly
+            .as_ref()
+            .map(|window| window.remaining_percent),
+        Some(29)
+    );
     assert_eq!(normalized.credits_balance, Some(0.0));
 }

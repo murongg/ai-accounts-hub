@@ -32,10 +32,14 @@ fn native_bridge_treats_null_optional_strings_as_empty() {
     let plan = CString::new("plan").unwrap();
     let switch_account_id = CString::new("switchAccountId").unwrap();
 
-    let plan_length =
-        unsafe { aah_status_bar_bridge_optional_string_length_from_json(payload.as_ptr(), plan.as_ptr()) };
+    let plan_length = unsafe {
+        aah_status_bar_bridge_optional_string_length_from_json(payload.as_ptr(), plan.as_ptr())
+    };
     let switch_length = unsafe {
-        aah_status_bar_bridge_optional_string_length_from_json(payload.as_ptr(), switch_account_id.as_ptr())
+        aah_status_bar_bridge_optional_string_length_from_json(
+            payload.as_ptr(),
+            switch_account_id.as_ptr(),
+        )
     };
 
     assert_eq!(plan_length, 0);
@@ -50,10 +54,14 @@ fn native_bridge_preserves_non_null_optional_strings() {
     let plan = CString::new("plan").unwrap();
     let switch_account_id = CString::new("switchAccountId").unwrap();
 
-    let plan_length =
-        unsafe { aah_status_bar_bridge_optional_string_length_from_json(payload.as_ptr(), plan.as_ptr()) };
+    let plan_length = unsafe {
+        aah_status_bar_bridge_optional_string_length_from_json(payload.as_ptr(), plan.as_ptr())
+    };
     let switch_length = unsafe {
-        aah_status_bar_bridge_optional_string_length_from_json(payload.as_ptr(), switch_account_id.as_ptr())
+        aah_status_bar_bridge_optional_string_length_from_json(
+            payload.as_ptr(),
+            switch_account_id.as_ptr(),
+        )
     };
 
     assert_eq!(plan_length, 4);

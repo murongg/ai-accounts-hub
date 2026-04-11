@@ -35,7 +35,8 @@ impl Drop for TempDir {
 #[test]
 fn gemini_usage_snapshots_round_trip_through_disk() {
     let temp = TempDir::new("gemini-usage-snapshots");
-    let paths = GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let paths =
+        GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
 
     let snapshots = vec![GeminiUsageSnapshot {
         managed_account_id: "managed-1".into(),

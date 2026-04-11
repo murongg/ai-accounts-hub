@@ -12,7 +12,9 @@ pub fn load_refresh_settings(paths: &CodexAccountPaths) -> Result<CodexRefreshSe
         Ok(text) => serde_json::from_str::<CodexRefreshSettings>(&text)
             .map(|settings| settings.sanitized())
             .map_err(|error| format!("failed to parse refresh settings: {error}")),
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(CodexRefreshSettings::default()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+            Ok(CodexRefreshSettings::default())
+        }
         Err(error) => Err(format!("failed to read refresh settings: {error}")),
     }
 }
@@ -120,8 +122,11 @@ impl CodexUsageStore {
     }
 
     pub fn retain_only(&mut self, managed_account_ids: &[String]) {
-        self.snapshots
-            .retain(|snapshot| managed_account_ids.iter().any(|id| id == &snapshot.managed_account_id));
+        self.snapshots.retain(|snapshot| {
+            managed_account_ids
+                .iter()
+                .any(|id| id == &snapshot.managed_account_id)
+        });
     }
 
     pub fn persist(&self, paths: &CodexAccountPaths) -> Result<(), String> {

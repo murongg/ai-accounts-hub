@@ -251,17 +251,26 @@ fn parse_relative_duration_seconds(raw: &str) -> Option<i64> {
 
     while index < tokens.len() {
         let token = tokens[index];
-        if let Some(value) = token.strip_suffix('d').and_then(|value| value.parse::<i64>().ok()) {
+        if let Some(value) = token
+            .strip_suffix('d')
+            .and_then(|value| value.parse::<i64>().ok())
+        {
             total += value * 24 * 60 * 60;
             index += 1;
             continue;
         }
-        if let Some(value) = token.strip_suffix('h').and_then(|value| value.parse::<i64>().ok()) {
+        if let Some(value) = token
+            .strip_suffix('h')
+            .and_then(|value| value.parse::<i64>().ok())
+        {
             total += value * 60 * 60;
             index += 1;
             continue;
         }
-        if let Some(value) = token.strip_suffix('m').and_then(|value| value.parse::<i64>().ok()) {
+        if let Some(value) = token
+            .strip_suffix('m')
+            .and_then(|value| value.parse::<i64>().ok())
+        {
             total += value * 60;
             index += 1;
             continue;
@@ -310,7 +319,8 @@ fn write_snapshot_to_temp_dir(
     root: &Path,
     snapshot: &ClaudeLiveCredentialSnapshot,
 ) -> Result<(), ClaudeCliUsageProbeError> {
-    fs::create_dir_all(root).map_err(|error| ClaudeCliUsageProbeError::CommandFailed(error.to_string()))?;
+    fs::create_dir_all(root)
+        .map_err(|error| ClaudeCliUsageProbeError::CommandFailed(error.to_string()))?;
     atomic_write(&root.join(".credentials.json"), &snapshot.credentials_json)
         .map_err(ClaudeCliUsageProbeError::CommandFailed)?;
 
@@ -357,6 +367,7 @@ fn temp_config_dir() -> Result<TempConfigDir, ClaudeCliUsageProbeError> {
         .map_err(|error| ClaudeCliUsageProbeError::CommandFailed(error.to_string()))?
         .as_nanos();
     let path = std::env::temp_dir().join(format!("aihub-claude-usage-{unique}"));
-    fs::create_dir_all(&path).map_err(|error| ClaudeCliUsageProbeError::CommandFailed(error.to_string()))?;
+    fs::create_dir_all(&path)
+        .map_err(|error| ClaudeCliUsageProbeError::CommandFailed(error.to_string()))?;
     Ok(TempConfigDir { path })
 }

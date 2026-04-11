@@ -94,7 +94,8 @@ impl<K: ClaudeCredentialBundleStore, L: ClaudeLiveCredentialStore> ClaudeAccount
                     weekly_refresh_at: usage
                         .and_then(|snapshot| snapshot.weekly.as_ref())
                         .map(|window| window.reset_at.clone()),
-                    model_weekly_label: usage.and_then(|snapshot| snapshot.model_weekly_label.clone()),
+                    model_weekly_label: usage
+                        .and_then(|snapshot| snapshot.model_weekly_label.clone()),
                     model_weekly_remaining_percent: usage
                         .and_then(|snapshot| snapshot.model_weekly.as_ref())
                         .map(|window| window.remaining_percent),

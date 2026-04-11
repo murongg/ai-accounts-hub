@@ -74,7 +74,9 @@ fn start_login_saves_a_managed_account() {
     let saved = service.start_login().expect("managed login");
 
     assert_eq!(saved.email, "work@example.com");
-    assert!(Path::new(&saved.managed_home_path).join("auth.json").exists());
+    assert!(Path::new(&saved.managed_home_path)
+        .join("auth.json")
+        .exists());
 }
 
 #[test]

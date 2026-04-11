@@ -1,7 +1,6 @@
 #[cfg(target_os = "macos")]
 use std::{
-    env,
-    fs,
+    env, fs,
     path::{Path, PathBuf},
     time::{SystemTime, UNIX_EPOCH},
 };
@@ -32,7 +31,9 @@ unsafe extern "C" {
     ) -> c_int;
     fn aah_status_bar_bridge_debug_app_icon_is_template() -> c_int;
     fn aah_status_bar_bridge_debug_provider_icon_ready_for_tab(tab_value: c_int) -> c_int;
-    fn aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab(tab_value: c_int) -> c_int;
+    fn aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab(
+        tab_value: c_int,
+    ) -> c_int;
     fn aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab_and_paths(
         tab_value: c_int,
         bundle_resource_path: *const i8,
@@ -62,7 +63,8 @@ impl TempIconLayout {
         let empty_workdir = root.join("empty-workdir");
 
         fs::create_dir_all(resources.join("_up_/public")).expect("should create public asset dir");
-        fs::create_dir_all(resources.join("_up_/src/assets")).expect("should create vector asset dir");
+        fs::create_dir_all(resources.join("_up_/src/assets"))
+            .expect("should create vector asset dir");
         fs::create_dir_all(resources.join("native/macos/provider-icons"))
             .expect("should create raster asset dir");
         fs::create_dir_all(&empty_workdir).expect("should create empty workdir");
@@ -133,7 +135,7 @@ fn native_bridge_uses_a_template_menubar_icon() {
 
 #[cfg(target_os = "macos")]
 #[test]
- fn native_bridge_builds_provider_icons_for_all_supported_providers() {
+fn native_bridge_builds_provider_icons_for_all_supported_providers() {
     let codex_ready = unsafe { aah_status_bar_bridge_debug_provider_icon_ready_for_tab(1) };
     let claude_ready = unsafe { aah_status_bar_bridge_debug_provider_icon_ready_for_tab(2) };
     let gemini_ready = unsafe { aah_status_bar_bridge_debug_provider_icon_ready_for_tab(3) };
@@ -146,9 +148,12 @@ fn native_bridge_uses_a_template_menubar_icon() {
 #[cfg(target_os = "macos")]
 #[test]
 fn native_bridge_uses_vector_codex_and_claude_icons_and_raster_gemini_icon() {
-    let codex_variant = unsafe { aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab(1) };
-    let claude_variant = unsafe { aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab(2) };
-    let gemini_variant = unsafe { aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab(3) };
+    let codex_variant =
+        unsafe { aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab(1) };
+    let claude_variant =
+        unsafe { aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab(2) };
+    let gemini_variant =
+        unsafe { aah_status_bar_bridge_debug_provider_icon_resource_variant_for_tab(3) };
 
     assert_eq!(codex_variant, 1);
     assert_eq!(claude_variant, 1);
@@ -159,10 +164,12 @@ fn native_bridge_uses_vector_codex_and_claude_icons_and_raster_gemini_icon() {
 #[test]
 fn native_bridge_resolves_release_bundle_icon_paths() {
     let layout = TempIconLayout::new();
-    let bundle_resource_path = std::ffi::CString::new(layout.resources.to_string_lossy().into_owned())
-        .expect("resources path should not contain null bytes");
-    let empty_workdir_path = std::ffi::CString::new(layout.empty_workdir.to_string_lossy().into_owned())
-        .expect("workdir path should not contain null bytes");
+    let bundle_resource_path =
+        std::ffi::CString::new(layout.resources.to_string_lossy().into_owned())
+            .expect("resources path should not contain null bytes");
+    let empty_workdir_path =
+        std::ffi::CString::new(layout.empty_workdir.to_string_lossy().into_owned())
+            .expect("workdir path should not contain null bytes");
 
     let app_icon_variant = unsafe {
         aah_status_bar_bridge_debug_app_icon_source_variant_for_paths(

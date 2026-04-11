@@ -103,10 +103,9 @@ where
             if trimmed.is_empty() {
                 Ok(None)
             } else {
-                trimmed
-                    .parse::<f64>()
-                    .map(Some)
-                    .map_err(|error| serde::de::Error::custom(format!("invalid string credits balance: {error}")))
+                trimmed.parse::<f64>().map(Some).map_err(|error| {
+                    serde::de::Error::custom(format!("invalid string credits balance: {error}"))
+                })
             }
         }
         Some(other) => Err(serde::de::Error::custom(format!(

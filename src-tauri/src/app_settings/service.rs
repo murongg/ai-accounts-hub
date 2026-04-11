@@ -7,7 +7,9 @@ use crate::codex_usage::store::save_refresh_settings;
 use super::models::{AppDataDirectoryInfo, AppSettings, ClearAllDataResult};
 use super::store::save_app_settings;
 
-pub fn current_data_directory_info(paths: &CodexAccountPaths) -> Result<AppDataDirectoryInfo, String> {
+pub fn current_data_directory_info(
+    paths: &CodexAccountPaths,
+) -> Result<AppDataDirectoryInfo, String> {
     paths.ensure_dirs()?;
     Ok(AppDataDirectoryInfo {
         current_dir: paths.codex_data_dir.display().to_string(),
@@ -16,7 +18,9 @@ pub fn current_data_directory_info(paths: &CodexAccountPaths) -> Result<AppDataD
     })
 }
 
-pub fn reset_data_directory_to_default(paths: &CodexAccountPaths) -> Result<AppDataDirectoryInfo, String> {
+pub fn reset_data_directory_to_default(
+    paths: &CodexAccountPaths,
+) -> Result<AppDataDirectoryInfo, String> {
     current_data_directory_info(paths)
 }
 

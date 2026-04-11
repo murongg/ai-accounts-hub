@@ -80,10 +80,18 @@ pub(crate) fn resolve_proxy_env_updates(
             continue;
         };
 
-        if current_value.is_none() || current.get(upper).is_none_or(|value| value.trim().is_empty()) {
+        if current_value.is_none()
+            || current
+                .get(upper)
+                .is_none_or(|value| value.trim().is_empty())
+        {
             updates.insert(upper.to_string(), resolved_value.clone());
         }
-        if current_value.is_none() || current.get(lower).is_none_or(|value| value.trim().is_empty()) {
+        if current_value.is_none()
+            || current
+                .get(lower)
+                .is_none_or(|value| value.trim().is_empty())
+        {
             updates.insert(lower.to_string(), resolved_value);
         }
     }
@@ -181,7 +189,11 @@ printf '%s\\n' '{END_MARKER}'"
     )
 }
 
-fn family_value<'a>(proxy_env: &'a BTreeMap<String, String>, upper: &str, lower: &str) -> Option<&'a str> {
+fn family_value<'a>(
+    proxy_env: &'a BTreeMap<String, String>,
+    upper: &str,
+    lower: &str,
+) -> Option<&'a str> {
     proxy_env
         .get(upper)
         .map(String::as_str)
