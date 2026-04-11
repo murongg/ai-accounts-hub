@@ -8,6 +8,7 @@ use std::time::{Duration, Instant};
 #[cfg(target_os = "macos")]
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::cli_binary_resolver::{resolve_binary, CliBinaryResolver};
 #[cfg(target_os = "macos")]
 use crate::proxy_env::build_proxy_export_block_from_current_env;
 
@@ -16,6 +17,14 @@ pub trait ClaudeLoginRunner: Send + Sync {
 }
 
 pub struct ProcessClaudeLoginRunner;
+
+const CLAUDE_BINARY_RESOLVER: CliBinaryResolver<'static> = CliBinaryResolver {
+    binary_name: "claude",
+    home_relative_paths: &[".local/bin/claude"],
+    fixed_locations: &["/opt/homebrew/bin/claude", "/usr/local/bin/claude"],
+    include_nvm_bin_env: true,
+    include_nvm_scan: true,
+};
 
 impl ClaudeLoginRunner for ProcessClaudeLoginRunner {
     fn run_login(&self, managed_config_dir: &Path) -> Result<(), String> {
@@ -140,30 +149,7 @@ fn wait_for_terminal_markers(
 }
 
 pub fn resolve_claude_binary() -> Option<PathBuf> {
-    which_in_path("claude")
-        .or_else(|| {
-            dirs::home_dir()
-                .map(|home| home.join(".local/bin/claude"))
-                .filter(|path| path.exists())
-        })
-        .or_else(|| {
-            ["/opt/homebrew/bin/claude", "/usr/local/bin/claude"]
-                .into_iter()
-                .map(PathBuf::from)
-                .find(|path| path.exists())
-        })
-}
-
-fn which_in_path(binary: &str) -> Option<PathBuf> {
-    std::env::var_os("PATH").and_then(|path_var| {
-        std::env::split_paths(&path_var)
-            .map(|dir| dir.join(binary))
-            .find(|candidate| candidate.exists() && is_executable(candidate))
-    })
-}
-
-fn is_executable(path: &Path) -> bool {
-    path.is_file()
+    resolve_binary(&CLAUDE_BINARY_RESOLVER)
 }
 
 #[cfg(target_os = "macos")]

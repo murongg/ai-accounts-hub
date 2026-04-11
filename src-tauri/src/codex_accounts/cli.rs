@@ -1,11 +1,22 @@
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+
+use crate::cli_binary_resolver::{resolve_binary, resolve_binary_from, CliBinaryResolver};
 
 pub trait CodexLoginRunner: Send + Sync {
     fn run_login(&self, managed_home: &Path) -> Result<(), String>;
 }
 
 pub struct ProcessCodexLoginRunner;
+
+const CODEX_BINARY_RESOLVER: CliBinaryResolver<'static> = CliBinaryResolver {
+    binary_name: "codex",
+    home_relative_paths: &[".local/bin/codex"],
+    fixed_locations: &["/opt/homebrew/bin/codex", "/usr/local/bin/codex"],
+    include_nvm_bin_env: true,
+    include_nvm_scan: true,
+};
 
 impl CodexLoginRunner for ProcessCodexLoginRunner {
     fn run_login(&self, managed_home: &Path) -> Result<(), String> {
@@ -30,23 +41,67 @@ impl CodexLoginRunner for ProcessCodexLoginRunner {
 }
 
 fn resolve_codex_binary() -> Option<PathBuf> {
-    which_in_path("codex").or_else(|| {
-        dirs::home_dir()
-            .map(|home| home.join(".local/bin/codex"))
-            .filter(|path| path.exists())
-    })
-    .or_else(|| {
-        ["/opt/homebrew/bin/codex", "/usr/local/bin/codex"]
-            .into_iter()
-            .map(PathBuf::from)
-            .find(|path| path.exists())
-    })
+    resolve_binary(&CODEX_BINARY_RESOLVER)
 }
 
-fn which_in_path(binary: &str) -> Option<PathBuf> {
-    std::env::var_os("PATH").and_then(|path_var| {
-        std::env::split_paths(&path_var)
-            .map(|dir| dir.join(binary))
-            .find(|candidate| candidate.exists())
-    })
+fn resolve_codex_binary_from(
+    path_var: Option<std::ffi::OsString>,
+    home_dir: Option<PathBuf>,
+    nvm_bin: Option<PathBuf>,
+) -> Option<PathBuf> {
+    resolve_binary_from(&CODEX_BINARY_RESOLVER, path_var, home_dir, nvm_bin)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    #[test]
+    fn resolves_codex_from_nvm_bin_env_before_fixed_locations() {
+        let home = temp_test_dir("codex-nvm-bin-home");
+        let nvm_bin = home.join(".nvm/versions/node/v22.21.1/bin");
+        let codex_path = nvm_bin.join("codex");
+        fs::create_dir_all(&nvm_bin).unwrap();
+        fs::write(&codex_path, "").unwrap();
+
+        let resolved = resolve_codex_binary_from(
+            Some(std::ffi::OsString::from("/usr/bin:/bin")),
+            Some(home),
+            Some(nvm_bin),
+        );
+
+        assert_eq!(resolved, Some(codex_path));
+    }
+
+    #[test]
+    fn resolves_codex_from_latest_nvm_install_when_path_is_missing() {
+        let home = temp_test_dir("codex-nvm-scan-home");
+        let older_bin = home.join(".nvm/versions/node/v20.10.0/bin");
+        let newer_bin = home.join(".nvm/versions/node/v22.21.1/bin");
+        let older_codex = older_bin.join("codex");
+        let newer_codex = newer_bin.join("codex");
+        fs::create_dir_all(&older_bin).unwrap();
+        fs::create_dir_all(&newer_bin).unwrap();
+        fs::write(&older_codex, "").unwrap();
+        fs::write(&newer_codex, "").unwrap();
+
+        let resolved = resolve_codex_binary_from(
+            Some(std::ffi::OsString::from("/usr/bin:/bin")),
+            Some(home),
+            None,
+        );
+
+        assert_eq!(resolved, Some(newer_codex));
+    }
+
+    fn temp_test_dir(prefix: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("aihub-{prefix}-{unique}"));
+        fs::create_dir_all(&path).unwrap();
+        path
+    }
 }

@@ -3,6 +3,7 @@ use tauri::Manager;
 pub mod app_settings;
 pub mod claude_accounts;
 pub mod claude_usage;
+pub mod cli_binary_resolver;
 pub mod codex_accounts;
 pub mod codex_usage;
 pub mod gemini_accounts;

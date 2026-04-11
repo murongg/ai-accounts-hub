@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 #[cfg(target_os = "macos")]
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::cli_binary_resolver::{resolve_binary, CliBinaryResolver};
 #[cfg(target_os = "macos")]
 use crate::proxy_env::build_proxy_export_block_from_current_env;
 
@@ -16,6 +17,14 @@ pub trait GeminiLoginRunner: Send + Sync {
 }
 
 pub struct ProcessGeminiLoginRunner;
+
+const GEMINI_BINARY_RESOLVER: CliBinaryResolver<'static> = CliBinaryResolver {
+    binary_name: "gemini",
+    home_relative_paths: &[".local/bin/gemini", ".bun/bin/gemini"],
+    fixed_locations: &["/opt/homebrew/bin/gemini", "/usr/local/bin/gemini"],
+    include_nvm_bin_env: true,
+    include_nvm_scan: true,
+};
 
 impl GeminiLoginRunner for ProcessGeminiLoginRunner {
     fn run_login(&self, managed_home: &Path) -> Result<(), String> {
@@ -81,7 +90,11 @@ fn run_login_via_terminal(binary: &Path, managed_home: &Path) -> Result<(), Stri
 }
 
 #[cfg(target_os = "macos")]
-fn build_terminal_login_script(binary: &Path, managed_home: &Path, proxy_export_block: &str) -> String {
+fn build_terminal_login_script(
+    binary: &Path,
+    managed_home: &Path,
+    proxy_export_block: &str,
+) -> String {
     let escaped_binary = shell_escape(binary);
     let escaped_home = shell_escape(managed_home);
 
@@ -104,44 +117,7 @@ fn wait_for_credentials(managed_home: &Path, timeout: Duration) -> Result<(), St
 }
 
 pub fn resolve_gemini_binary() -> Option<PathBuf> {
-    which_in_path("gemini")
-        .or_else(|| {
-            dirs::home_dir()
-                .map(|home| home.join(".local/bin/gemini"))
-                .filter(|path| path.exists())
-        })
-        .or_else(|| {
-            dirs::home_dir()
-                .map(|home| home.join(".bun/bin/gemini"))
-                .filter(|path| path.exists())
-        })
-        .or_else(resolve_nvm_gemini_binary)
-        .or_else(|| {
-            ["/opt/homebrew/bin/gemini", "/usr/local/bin/gemini"]
-                .into_iter()
-                .map(PathBuf::from)
-                .find(|path| path.exists())
-        })
-}
-
-fn resolve_nvm_gemini_binary() -> Option<PathBuf> {
-    let versions_dir = dirs::home_dir()?.join(".nvm/versions/node");
-    let mut candidates = fs::read_dir(versions_dir)
-        .ok()?
-        .filter_map(Result::ok)
-        .map(|entry| entry.path().join("bin/gemini"))
-        .filter(|path| path.exists())
-        .collect::<Vec<_>>();
-    candidates.sort();
-    candidates.pop()
-}
-
-fn which_in_path(binary: &str) -> Option<PathBuf> {
-    std::env::var_os("PATH").and_then(|path_var| {
-        std::env::split_paths(&path_var)
-            .map(|dir| dir.join(binary))
-            .find(|candidate| candidate.exists())
-    })
+    resolve_binary(&GEMINI_BINARY_RESOLVER)
 }
 
 #[cfg(target_os = "macos")]
