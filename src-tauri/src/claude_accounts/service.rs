@@ -38,21 +38,29 @@ impl<K: ClaudeCredentialBundleStore, L: ClaudeLiveCredentialStore> ClaudeAccount
         self.paths.ensure_dirs()?;
         self.login_runner.run_login(&self.paths.login_claude_dir)?;
 
-        let live = self.live_store.capture()?;
+        let live = self.live_store.capture_login_session()?;
         let identity = identity_from_snapshot(&live)?;
-        let mut store = ClaudeAccountStore::load(&self.paths)?;
-        let bundle_key = store
-            .find_matching_account(&identity)
-            .map(|account| account.credential_bundle_key.clone())
-            .unwrap_or_else(|| format!("claude-bundle-{}", uuid::Uuid::new_v4()));
-        let bundle = ClaudeCredentialBundle::from_live_snapshot(
-            &identity.email,
-            identity.account_hint.as_deref(),
-            &live,
-        );
+        self.save_snapshot(identity, live)
+    }
 
-        self.bundle_store.save(&bundle_key, &bundle)?;
-        store.upsert_identity(&self.paths, identity, bundle_key)
+    pub fn import_current_account_if_missing(
+        &mut self,
+    ) -> Result<Option<StoredClaudeAccount>, String> {
+        self.paths.ensure_dirs()?;
+
+        let live = match self.live_store.capture() {
+            Ok(snapshot) => snapshot,
+            Err(error) if is_missing_live_credentials(&error) => return Ok(None),
+            Err(error) => return Err(error),
+        };
+        let identity = identity_from_snapshot(&live)?;
+        let store = ClaudeAccountStore::load(&self.paths)?;
+        if store.find_matching_account(&identity).is_some() {
+            return Ok(None);
+        }
+        drop(store);
+
+        self.save_snapshot(identity, live).map(Some)
     }
 
     pub fn list_accounts(&self) -> Result<Vec<ClaudeAccountListItem>, String> {
@@ -141,6 +149,26 @@ impl<K: ClaudeCredentialBundleStore, L: ClaudeLiveCredentialStore> ClaudeAccount
         }
         store.delete(&self.paths, account_id)
     }
+
+    fn save_snapshot(
+        &mut self,
+        identity: super::models::ClaudeAccountIdentity,
+        live: super::live_credentials::ClaudeLiveCredentialSnapshot,
+    ) -> Result<StoredClaudeAccount, String> {
+        let mut store = ClaudeAccountStore::load(&self.paths)?;
+        let bundle_key = store
+            .find_matching_account(&identity)
+            .map(|account| account.credential_bundle_key.clone())
+            .unwrap_or_else(|| format!("claude-bundle-{}", uuid::Uuid::new_v4()));
+        let bundle = ClaudeCredentialBundle::from_live_snapshot(
+            &identity.email,
+            identity.account_hint.as_deref(),
+            &live,
+        );
+
+        self.bundle_store.save(&bundle_key, &bundle)?;
+        store.upsert_identity(&self.paths, identity, bundle_key)
+    }
 }
 
 impl ClaudeAccountService<ManagedClaudeKeychainStore, FileSystemClaudeLiveCredentialStore> {
@@ -170,4 +198,8 @@ fn identity_from_snapshot(
         .transpose()?;
 
     extract_account_identity(&credentials, oauth_account.as_ref())
+}
+
+fn is_missing_live_credentials(error: &str) -> bool {
+    error.contains("Claude secure storage is unavailable")
 }

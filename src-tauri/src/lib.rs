@@ -11,6 +11,7 @@ pub mod fs_utils;
 pub mod gemini_accounts;
 pub mod gemini_usage;
 pub mod proxy_env;
+pub mod startup_account_import;
 pub mod status_bar;
 pub mod time_utils;
 
@@ -29,6 +30,17 @@ pub fn run() {
         .on_window_event(|window, event| status_bar::handle_window_event(window, event))
         .setup(|app| {
             proxy_env::import_shell_proxy_env_if_missing();
+            let app_data_dir = app
+                .path()
+                .app_data_dir()
+                .map_err(|error| format!("failed to resolve app data dir: {error}"))?;
+            let user_home =
+                dirs::home_dir().ok_or_else(|| "failed to resolve user home dir".to_string())?;
+            let import_outcome =
+                startup_account_import::import_logged_in_accounts(app_data_dir, user_home);
+            for error in import_outcome.errors {
+                eprintln!("{error}");
+            }
             let scheduler = app.state::<codex_usage::scheduler::CodexUsageSchedulerState>();
             codex_usage::initialize_scheduler(&app.handle(), &scheduler)?;
             status_bar::setup_status_bar(app)?;

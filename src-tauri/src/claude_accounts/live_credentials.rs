@@ -22,6 +22,9 @@ pub struct ClaudeLiveCredentialState {
 
 pub trait ClaudeLiveCredentialStore: Send {
     fn capture(&self) -> Result<ClaudeLiveCredentialSnapshot, String>;
+    fn capture_login_session(&self) -> Result<ClaudeLiveCredentialSnapshot, String> {
+        self.capture()
+    }
     fn restore(&mut self, bundle: &ClaudeCredentialBundle) -> Result<(), String>;
 }
 
@@ -105,6 +108,19 @@ impl ClaudeLiveCredentialState {
 
 impl ClaudeLiveCredentialStore for FileSystemClaudeLiveCredentialStore {
     fn capture(&self) -> Result<ClaudeLiveCredentialSnapshot, String> {
+        let credentials_json = read_live_secure_storage(
+            &self.paths.system_claude_dir,
+            &self.paths.system_credentials_path,
+            false,
+        )?;
+
+        Ok(ClaudeLiveCredentialSnapshot {
+            credentials_json,
+            oauth_account_json: read_live_oauth_account(&self.paths.system_global_config_path)?,
+        })
+    }
+
+    fn capture_login_session(&self) -> Result<ClaudeLiveCredentialSnapshot, String> {
         let credentials_json = read_live_secure_storage(
             &self.paths.login_claude_dir,
             &self.paths.login_credentials_path,
@@ -306,4 +322,81 @@ fn current_username() -> String {
         .ok()
         .filter(|value| !value.trim().is_empty())
         .unwrap_or_else(|| "claude-code-user".to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::FileSystemClaudeLiveCredentialStore;
+    use crate::claude_accounts::live_credentials::ClaudeLiveCredentialStore;
+    use crate::claude_accounts::paths::ClaudeAccountPaths;
+    use std::fs;
+    use std::path::{Path, PathBuf};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    struct TempDir {
+        path: PathBuf,
+    }
+
+    impl TempDir {
+        fn new(prefix: &str) -> Self {
+            let unique = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("time")
+                .as_nanos();
+            let path = std::env::temp_dir().join(format!("aihub-{prefix}-{unique}"));
+            fs::create_dir_all(&path).expect("temp dir");
+            Self { path }
+        }
+
+        fn path(&self) -> &Path {
+            &self.path
+        }
+    }
+
+    impl Drop for TempDir {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.path);
+        }
+    }
+
+    #[test]
+    fn capture_reads_the_system_claude_credentials() {
+        let temp = TempDir::new("claude-live-system");
+        let paths =
+            ClaudeAccountPaths::from_roots(temp.path().join("app-data"), temp.path().join("home"));
+
+        fs::create_dir_all(&paths.login_claude_dir).expect("login dir");
+        fs::write(
+            &paths.login_credentials_path,
+            br#"{"email":"login@example.com"}"#,
+        )
+        .expect("login credentials");
+        fs::write(
+            &paths.login_global_config_path,
+            br#"{"oauthAccount":{"emailAddress":"login@example.com"}}"#,
+        )
+        .expect("login config");
+
+        fs::create_dir_all(&paths.system_claude_dir).expect("system dir");
+        fs::write(
+            &paths.system_credentials_path,
+            br#"{"email":"system@example.com"}"#,
+        )
+        .expect("system credentials");
+        fs::write(
+            &paths.system_global_config_path,
+            br#"{"oauthAccount":{"emailAddress":"system@example.com"}}"#,
+        )
+        .expect("system config");
+
+        let store = FileSystemClaudeLiveCredentialStore::new(paths);
+        let snapshot = store.capture().expect("capture system snapshot");
+
+        let credentials_json = String::from_utf8(snapshot.credentials_json).expect("utf8 json");
+        let oauth_json = String::from_utf8(snapshot.oauth_account_json.expect("oauth json"))
+            .expect("utf8 oauth json");
+        assert!(!credentials_json.contains("login@example.com"));
+        assert!(oauth_json.contains("system@example.com"));
+        assert!(!oauth_json.contains("login@example.com"));
+    }
 }

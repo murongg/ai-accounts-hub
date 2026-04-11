@@ -172,6 +172,87 @@ fn switch_account_overwrites_only_live_auth_files() {
 }
 
 #[test]
+fn import_current_account_adds_the_live_system_gemini_account() {
+    let temp = TempDir::new("gemini-service-import-live");
+    let paths =
+        GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let service = GeminiAccountService::new(
+        paths.clone(),
+        Box::new(fake_runner("gemini@example.com", "sub-123")),
+    );
+
+    fs::create_dir_all(&paths.system_gemini_dir).expect("system dir");
+    fs::write(
+        paths.system_gemini_dir.join("oauth_creds.json"),
+        serde_json::to_vec_pretty(&json!({
+            "access_token": "access-token",
+            "refresh_token": "refresh-token",
+            "id_token": id_token(json!({
+                "email": "gemini@example.com",
+                "sub": "sub-123"
+            })),
+        }))
+        .expect("oauth json"),
+    )
+    .expect("live oauth");
+    fs::write(
+        paths.system_gemini_dir.join("settings.json"),
+        serde_json::to_vec_pretty(&json!({
+            "security": {
+                "auth": {
+                    "selectedType": "oauth-personal"
+                }
+            }
+        }))
+        .expect("settings json"),
+    )
+    .expect("live settings");
+
+    let imported = service
+        .import_current_account_if_missing()
+        .expect("import current account")
+        .expect("imported account");
+
+    assert_eq!(imported.email, "gemini@example.com");
+    assert!(Path::new(&imported.managed_home_path)
+        .join(".gemini")
+        .join("oauth_creds.json")
+        .exists());
+    assert_eq!(service.list_accounts().expect("list").len(), 1);
+}
+
+#[test]
+fn import_current_account_skips_existing_gemini_account() {
+    let temp = TempDir::new("gemini-service-import-existing");
+    let paths =
+        GeminiAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let service = GeminiAccountService::new(
+        paths.clone(),
+        Box::new(fake_runner("gemini@example.com", "sub-123")),
+    );
+    let saved = service.start_login().expect("save account");
+    let managed_gemini_dir = Path::new(&saved.managed_home_path).join(".gemini");
+    fs::create_dir_all(&paths.system_gemini_dir).expect("system dir");
+    fs::write(
+        paths.system_gemini_dir.join("oauth_creds.json"),
+        fs::read(managed_gemini_dir.join("oauth_creds.json")).expect("managed oauth"),
+    )
+    .expect("live oauth");
+    fs::write(
+        paths.system_gemini_dir.join("settings.json"),
+        fs::read(managed_gemini_dir.join("settings.json")).expect("managed settings"),
+    )
+    .expect("live settings");
+
+    let imported = service
+        .import_current_account_if_missing()
+        .expect("import current account");
+
+    assert!(imported.is_none());
+    assert_eq!(service.list_accounts().expect("list").len(), 1);
+}
+
+#[test]
 fn delete_account_removes_the_managed_home_directory() {
     let temp = TempDir::new("gemini-service-delete");
     let paths =

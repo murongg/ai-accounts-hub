@@ -169,6 +169,82 @@ fn switch_account_overwrites_the_live_auth_file() {
 }
 
 #[test]
+fn import_current_account_adds_the_live_system_codex_account() {
+    let temp = TempDir::new("service-import-live");
+    let paths = CodexAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let service = CodexAccountService::new(
+        paths.clone(),
+        Box::new(FakeLoginRunner {
+            auth_json: json!({
+                "tokens": {
+                    "account_id": "acct_123",
+                    "id_token": id_token(WORK_PAYLOAD),
+                    "access_token": "access-token"
+                }
+            }),
+        }),
+    );
+
+    fs::create_dir_all(&paths.system_codex_dir).expect("system dir");
+    fs::write(
+        &paths.system_auth_path,
+        serde_json::to_vec_pretty(&json!({
+            "tokens": {
+                "account_id": "acct_123",
+                "id_token": id_token(WORK_PAYLOAD),
+                "access_token": "access-token"
+            }
+        }))
+        .expect("auth json"),
+    )
+    .expect("live auth");
+
+    let imported = service
+        .import_current_account_if_missing()
+        .expect("import current account")
+        .expect("imported account");
+
+    assert_eq!(imported.email, "work@example.com");
+    assert!(Path::new(&imported.managed_home_path)
+        .join("auth.json")
+        .exists());
+    assert_eq!(service.list_accounts().expect("list").len(), 1);
+}
+
+#[test]
+fn import_current_account_skips_existing_codex_account() {
+    let temp = TempDir::new("service-import-existing");
+    let paths = CodexAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let service = CodexAccountService::new(
+        paths.clone(),
+        Box::new(FakeLoginRunner {
+            auth_json: json!({
+                "tokens": {
+                    "account_id": "acct_123",
+                    "id_token": id_token(WORK_PAYLOAD),
+                    "access_token": "access-token"
+                }
+            }),
+        }),
+    );
+
+    let saved = service.start_login().expect("save account");
+    fs::create_dir_all(&paths.system_codex_dir).expect("system dir");
+    fs::write(
+        &paths.system_auth_path,
+        fs::read(Path::new(&saved.managed_home_path).join("auth.json")).expect("managed auth"),
+    )
+    .expect("live auth");
+
+    let imported = service
+        .import_current_account_if_missing()
+        .expect("import current account");
+
+    assert!(imported.is_none());
+    assert_eq!(service.list_accounts().expect("list").len(), 1);
+}
+
+#[test]
 fn delete_account_removes_the_managed_home_directory() {
     let temp = TempDir::new("service-delete");
     let paths = CodexAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));

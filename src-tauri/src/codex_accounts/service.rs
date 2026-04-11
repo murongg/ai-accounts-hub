@@ -62,6 +62,46 @@ impl CodexAccountService {
         result
     }
 
+    pub fn import_current_account_if_missing(&self) -> Result<Option<StoredCodexAccount>, String> {
+        self.paths.ensure_dirs()?;
+
+        let live_bytes = match fs::read(&self.paths.system_auth_path) {
+            Ok(bytes) => bytes,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => {
+                return Err(format!(
+                    "failed to read live auth.json from {}: {error}",
+                    self.paths.system_auth_path.display()
+                ))
+            }
+        };
+        let identity = read_account_identity_from_path(&self.paths.system_auth_path)?;
+        let mut store = CodexAccountStore::load(&self.paths)?;
+        if store.find_matching_account(&identity).is_some() {
+            return Ok(None);
+        }
+
+        let managed_home = self
+            .paths
+            .managed_homes_dir
+            .join(uuid::Uuid::new_v4().to_string());
+        let managed_auth_path = auth_path_for_home(&managed_home);
+        let result = (|| {
+            fs::create_dir_all(&managed_home)
+                .map_err(|error| format!("failed to create managed Codex home: {error}"))?;
+            atomic_write(&managed_auth_path, &live_bytes)?;
+            store
+                .upsert_identity(&self.paths, identity, managed_home.clone())
+                .map(Some)
+        })();
+
+        if result.is_err() {
+            let _ = fs::remove_dir_all(&managed_home);
+        }
+
+        result
+    }
+
     pub fn list_accounts(&self) -> Result<Vec<CodexAccountListItem>, String> {
         let store = CodexAccountStore::load(&self.paths)?;
         let usage_store = CodexUsageStore::load(&self.paths)?;

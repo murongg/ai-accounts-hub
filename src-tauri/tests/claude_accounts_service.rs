@@ -146,6 +146,56 @@ fn switch_account_restores_live_claude_credentials_and_verifies_identity() {
 }
 
 #[test]
+fn import_current_account_adds_the_live_system_claude_account() {
+    let temp = TempDir::new("claude-service-import-live");
+    let paths =
+        ClaudeAccountPaths::from_roots(temp.path().join("app-data"), temp.path().join("home"));
+    let bundle_store = InMemoryClaudeKeychainStore::default();
+    let live_store = InMemoryClaudeLiveCredentialStore::new(live_snapshot(
+        "murong@example.com",
+        "Murong",
+        "Pro",
+        "owner-a",
+    ));
+    let mut service =
+        ClaudeAccountService::new(paths, Box::new(FakeLoginRunner), bundle_store, live_store);
+
+    let imported = service
+        .import_current_account_if_missing()
+        .expect("import current account")
+        .expect("imported account");
+
+    assert_eq!(imported.email, "murong@example.com");
+    assert_eq!(service.list_accounts().expect("list accounts").len(), 1);
+}
+
+#[test]
+fn import_current_account_skips_existing_claude_account() {
+    let temp = TempDir::new("claude-service-import-existing");
+    let paths =
+        ClaudeAccountPaths::from_roots(temp.path().join("app-data"), temp.path().join("home"));
+    let bundle_store = InMemoryClaudeKeychainStore::default();
+    let live_store = InMemoryClaudeLiveCredentialStore::new(live_snapshot(
+        "murong@example.com",
+        "Murong",
+        "Pro",
+        "owner-a",
+    ));
+    let mut service =
+        ClaudeAccountService::new(paths, Box::new(FakeLoginRunner), bundle_store, live_store);
+    let saved = service.start_login().expect("save account");
+
+    let imported = service
+        .import_current_account_if_missing()
+        .expect("import current account");
+
+    assert!(imported.is_none());
+    let accounts = service.list_accounts().expect("list accounts");
+    assert_eq!(accounts.len(), 1);
+    assert_eq!(accounts[0].id, saved.id);
+}
+
+#[test]
 fn delete_account_removes_the_managed_claude_account_and_bundle() {
     let temp = TempDir::new("claude-service-delete");
     let paths =

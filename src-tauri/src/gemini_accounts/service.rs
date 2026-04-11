@@ -66,6 +66,62 @@ impl GeminiAccountService {
         result
     }
 
+    pub fn import_current_account_if_missing(&self) -> Result<Option<StoredGeminiAccount>, String> {
+        self.paths.ensure_dirs()?;
+
+        let live_oauth_path = self.paths.system_gemini_dir.join("oauth_creds.json");
+        match fs::metadata(&live_oauth_path) {
+            Ok(_) => {}
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+            Err(error) => {
+                return Err(format!(
+                    "failed to inspect live Gemini auth file {}: {error}",
+                    live_oauth_path.display()
+                ))
+            }
+        }
+
+        let identity = read_account_identity_from_dir(&self.paths.system_gemini_dir)?;
+        let mut store = GeminiAccountStore::load(&self.paths)?;
+        if store.find_matching_account(&identity).is_some() {
+            return Ok(None);
+        }
+
+        let managed_home = self
+            .paths
+            .managed_homes_dir
+            .join(uuid::Uuid::new_v4().to_string());
+        let managed_gemini_dir = gemini_dir_for_home(&managed_home);
+        let result = (|| {
+            fs::create_dir_all(&managed_gemini_dir)
+                .map_err(|error| format!("failed to create managed Gemini home: {error}"))?;
+            self.copy_auth_file(
+                &live_oauth_path,
+                &oauth_creds_path_for_home(&managed_home),
+                true,
+            )?;
+            self.copy_auth_file(
+                &self.paths.system_gemini_dir.join("google_accounts.json"),
+                &google_accounts_path_for_home(&managed_home),
+                false,
+            )?;
+            self.copy_auth_file(
+                &self.paths.system_gemini_dir.join("settings.json"),
+                &settings_path_for_home(&managed_home),
+                false,
+            )?;
+            store
+                .upsert_identity(&self.paths, identity, managed_home.clone())
+                .map(Some)
+        })();
+
+        if result.is_err() {
+            let _ = fs::remove_dir_all(&managed_home);
+        }
+
+        result
+    }
+
     pub fn list_accounts(&self) -> Result<Vec<GeminiAccountListItem>, String> {
         let store = GeminiAccountStore::load(&self.paths)?;
         let usage_store = GeminiUsageStore::load(&self.paths)?;
