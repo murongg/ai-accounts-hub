@@ -1,5 +1,7 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+
+pub use crate::fs_utils::atomic_write;
 
 #[derive(Debug, Clone)]
 pub struct ClaudeAccountPaths {
@@ -59,25 +61,4 @@ impl ClaudeAccountPaths {
             .map_err(|error| format!("failed to create live Claude dir: {error}"))?;
         Ok(())
     }
-}
-
-pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    let parent = path
-        .parent()
-        .ok_or_else(|| "invalid file path".to_string())?;
-    fs::create_dir_all(parent).map_err(|error| format!("failed to create parent dir: {error}"))?;
-
-    let file_name = path
-        .file_name()
-        .and_then(|value| value.to_str())
-        .ok_or_else(|| "invalid file name".to_string())?;
-    let temp_path = parent.join(format!(".{file_name}.tmp"));
-
-    fs::write(&temp_path, bytes).map_err(|error| format!("failed to write temp file: {error}"))?;
-    if path.exists() {
-        fs::remove_file(path).map_err(|error| format!("failed to remove old file: {error}"))?;
-    }
-    fs::rename(&temp_path, path).map_err(|error| format!("failed to replace file: {error}"))?;
-
-    Ok(())
 }

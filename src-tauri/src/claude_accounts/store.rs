@@ -1,9 +1,8 @@
-use std::time::{SystemTime, UNIX_EPOCH};
-
 use uuid::Uuid;
 
 use super::models::{ClaudeAccountIdentity, StoredClaudeAccount, StoredClaudeAccountIndex};
 use super::paths::{atomic_write, ClaudeAccountPaths};
+use crate::time_utils::timestamp_string;
 
 pub struct ClaudeAccountStore {
     index: StoredClaudeAccountIndex,
@@ -114,11 +113,4 @@ impl ClaudeAccountStore {
             .map_err(|error| format!("failed to serialize Claude account index: {error}"))?;
         atomic_write(&paths.metadata_index_path, &bytes)
     }
-}
-
-fn timestamp_string() -> String {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_secs().to_string())
-        .unwrap_or_else(|_| "0".to_string())
 }

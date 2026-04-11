@@ -1,6 +1,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
+pub use crate::fs_utils::atomic_write;
+
 #[derive(Debug, Clone)]
 pub struct GeminiAccountPaths {
     pub gemini_data_dir: PathBuf,
@@ -56,25 +58,4 @@ pub fn google_accounts_path_for_home(managed_home_path: &Path) -> PathBuf {
 
 pub fn settings_path_for_home(managed_home_path: &Path) -> PathBuf {
     gemini_dir_for_home(managed_home_path).join("settings.json")
-}
-
-pub fn atomic_write(path: &Path, bytes: &[u8]) -> Result<(), String> {
-    let parent = path
-        .parent()
-        .ok_or_else(|| "invalid file path".to_string())?;
-    fs::create_dir_all(parent).map_err(|error| format!("failed to create parent dir: {error}"))?;
-
-    let file_name = path
-        .file_name()
-        .and_then(|value| value.to_str())
-        .ok_or_else(|| "invalid file name".to_string())?;
-    let temp_path = parent.join(format!(".{file_name}.tmp"));
-
-    fs::write(&temp_path, bytes).map_err(|error| format!("failed to write temp file: {error}"))?;
-    if path.exists() {
-        fs::remove_file(path).map_err(|error| format!("failed to remove old file: {error}"))?;
-    }
-    fs::rename(&temp_path, path).map_err(|error| format!("failed to replace file: {error}"))?;
-
-    Ok(())
 }

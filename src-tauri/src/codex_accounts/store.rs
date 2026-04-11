@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use uuid::Uuid;
 
 use super::models::{CodexAccountIdentity, StoredCodexAccount, StoredCodexAccountIndex};
 use super::paths::{atomic_write, CodexAccountPaths};
+use crate::time_utils::timestamp_string;
 
 pub struct CodexAccountStore {
     index: StoredCodexAccountIndex,
@@ -111,11 +111,4 @@ impl CodexAccountStore {
 
 pub fn auth_path_for_home(managed_home_path: &Path) -> PathBuf {
     managed_home_path.join("auth.json")
-}
-
-fn timestamp_string() -> String {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_secs().to_string())
-        .unwrap_or_else(|_| "0".to_string())
 }

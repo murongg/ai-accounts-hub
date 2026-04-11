@@ -1,10 +1,10 @@
 use std::path::PathBuf;
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use uuid::Uuid;
 
 use super::models::{GeminiAccountIdentity, StoredGeminiAccount, StoredGeminiAccountIndex};
 use super::paths::{atomic_write, GeminiAccountPaths};
+use crate::time_utils::timestamp_string;
 
 pub struct GeminiAccountStore {
     index: StoredGeminiAccountIndex,
@@ -109,11 +109,4 @@ impl GeminiAccountStore {
             .map_err(|error| format!("failed to serialize Gemini account index: {error}"))?;
         atomic_write(&paths.account_index_path, &bytes)
     }
-}
-
-fn timestamp_string() -> String {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_secs().to_string())
-        .unwrap_or_else(|_| "0".to_string())
 }
