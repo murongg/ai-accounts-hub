@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::cli_binary_resolver::{resolve_binary, CliBinaryResolver};
 #[cfg(test)]
 use crate::cli_binary_resolver::resolve_binary_from;
+use crate::cli_binary_resolver::{resolve_binary, CliBinaryResolver};
 
 pub trait CodexLoginRunner: Send + Sync {
     fn run_login(&self, managed_home: &Path) -> Result<(), String>;
