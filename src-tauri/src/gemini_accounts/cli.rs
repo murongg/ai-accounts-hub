@@ -3,10 +3,10 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::thread;
 use std::time::{Duration, Instant};
-#[cfg(target_os = "macos")]
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::cli_binary_resolver::{resolve_binary, CliBinaryResolver};
+#[cfg(target_os = "macos")]
+use crate::cli_process_utils::{shell_escape_path, unique_suffix};
 #[cfg(target_os = "macos")]
 use crate::proxy_env::build_proxy_export_block_from_current_env;
 
@@ -95,8 +95,8 @@ fn build_terminal_login_script(
     managed_home: &Path,
     proxy_export_block: &str,
 ) -> String {
-    let escaped_binary = shell_escape(binary);
-    let escaped_home = shell_escape(managed_home);
+    let escaped_binary = shell_escape_path(binary);
+    let escaped_home = shell_escape_path(managed_home);
 
     format!("#!/bin/bash\nexport GEMINI_CLI_HOME={escaped_home}\n{proxy_export_block}cd ~\n{escaped_binary}\n")
 }
@@ -118,20 +118,6 @@ fn wait_for_credentials(managed_home: &Path, timeout: Duration) -> Result<(), St
 
 pub fn resolve_gemini_binary() -> Option<PathBuf> {
     resolve_binary(&GEMINI_BINARY_RESOLVER)
-}
-
-#[cfg(target_os = "macos")]
-fn shell_escape(path: &Path) -> String {
-    let raw = path.to_string_lossy();
-    format!("'{}'", raw.replace('\'', "'\\''"))
-}
-
-#[cfg(target_os = "macos")]
-fn unique_suffix() -> String {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_nanos().to_string())
-        .unwrap_or_else(|_| "0".to_string())
 }
 
 #[cfg(test)]

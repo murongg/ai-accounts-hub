@@ -5,10 +5,10 @@ use std::process::Command;
 use std::thread;
 #[cfg(target_os = "macos")]
 use std::time::{Duration, Instant};
-#[cfg(target_os = "macos")]
-use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::cli_binary_resolver::{resolve_binary, CliBinaryResolver};
+#[cfg(target_os = "macos")]
+use crate::cli_process_utils::{shell_escape_path, unique_suffix};
 #[cfg(target_os = "macos")]
 use crate::proxy_env::build_proxy_export_block_from_current_env;
 
@@ -117,10 +117,10 @@ fn build_terminal_login_script(
     failure_marker: &Path,
     proxy_export_block: &str,
 ) -> String {
-    let escaped_binary = shell_escape(binary);
-    let escaped_config_dir = shell_escape(managed_config_dir);
-    let escaped_success_marker = shell_escape(success_marker);
-    let escaped_failure_marker = shell_escape(failure_marker);
+    let escaped_binary = shell_escape_path(binary);
+    let escaped_config_dir = shell_escape_path(managed_config_dir);
+    let escaped_success_marker = shell_escape_path(success_marker);
+    let escaped_failure_marker = shell_escape_path(failure_marker);
 
     format!(
         "#!/bin/bash\nexport CLAUDE_CONFIG_DIR={escaped_config_dir}\n{proxy_export_block}mkdir -p {escaped_config_dir}\ncd ~\nif {escaped_binary} auth login; then\n  touch {escaped_success_marker}\nelse\n  touch {escaped_failure_marker}\n  exit 1\nfi\n"
@@ -150,20 +150,6 @@ fn wait_for_terminal_markers(
 
 pub fn resolve_claude_binary() -> Option<PathBuf> {
     resolve_binary(&CLAUDE_BINARY_RESOLVER)
-}
-
-#[cfg(target_os = "macos")]
-fn shell_escape(path: &Path) -> String {
-    let raw = path.to_string_lossy();
-    format!("'{}'", raw.replace('\'', "'\\''"))
-}
-
-#[cfg(target_os = "macos")]
-fn unique_suffix() -> String {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_nanos().to_string())
-        .unwrap_or_else(|_| "0".to_string())
 }
 
 #[cfg(test)]

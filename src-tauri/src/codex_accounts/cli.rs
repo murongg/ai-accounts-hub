@@ -1,8 +1,9 @@
-use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-use crate::cli_binary_resolver::{resolve_binary, resolve_binary_from, CliBinaryResolver};
+use crate::cli_binary_resolver::{resolve_binary, CliBinaryResolver};
+#[cfg(test)]
+use crate::cli_binary_resolver::resolve_binary_from;
 
 pub trait CodexLoginRunner: Send + Sync {
     fn run_login(&self, managed_home: &Path) -> Result<(), String>;
@@ -44,6 +45,7 @@ fn resolve_codex_binary() -> Option<PathBuf> {
     resolve_binary(&CODEX_BINARY_RESOLVER)
 }
 
+#[cfg(test)]
 fn resolve_codex_binary_from(
     path_var: Option<std::ffi::OsString>,
     home_dir: Option<PathBuf>,
@@ -55,6 +57,7 @@ fn resolve_codex_binary_from(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
 
     #[test]
