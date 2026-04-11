@@ -5,6 +5,7 @@ export interface I18nMessages {
     subtitle: string;
     searchPlaceholder: string;
     platformSwitcherLabel: string;
+    openGithubAria: string;
     openSettingsAria: string;
     backToAccountsAria: string;
   };
@@ -176,6 +177,7 @@ function createChineseCopy(): I18nMessages {
       subtitle: "账号控制中心",
       searchPlaceholder: "搜索账号或邮箱...",
       platformSwitcherLabel: "切换平台",
+      openGithubAria: "打开 GitHub 仓库",
       openSettingsAria: "打开设置",
       backToAccountsAria: "返回账号池",
     },
@@ -319,6 +321,7 @@ function createEnglishCopy(): I18nMessages {
       subtitle: "Accounts control center",
       searchPlaceholder: "Search accounts or email...",
       platformSwitcherLabel: "Switch platform",
+      openGithubAria: "Open GitHub repository",
       openSettingsAria: "Open settings",
       backToAccountsAria: "Back to accounts",
     },

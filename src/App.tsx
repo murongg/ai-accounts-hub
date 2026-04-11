@@ -6,6 +6,7 @@ import { AccountsWorkspace } from "./containers/accounts-workspace";
 import { SettingsWorkspace } from "./containers/settings-workspace";
 import { getAppSettings } from "./lib/app-settings";
 import { resolveDaisyTheme } from "./lib/app-theme";
+import { openRepositoryHome } from "./lib/external-links";
 import type { AppSettings } from "./types/settings";
 
 type ActivePage = "accounts" | "settings";
@@ -106,6 +107,14 @@ export default function App() {
     setActivePage((current) => (current === "settings" ? "accounts" : "settings"));
   }, []);
 
+  const handleOpenGithub = useCallback(async () => {
+    try {
+      await openRepositoryHome();
+    } catch (error) {
+      pushToast("error", errorMessage(error));
+    }
+  }, [pushToast]);
+
   return (
     <div
       data-theme={resolvedTheme}
@@ -119,6 +128,7 @@ export default function App() {
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         onPlatformChange={setActivePlatform}
+        onOpenGithub={handleOpenGithub}
         onTogglePage={handleTogglePage}
       />
 

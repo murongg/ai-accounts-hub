@@ -1,5 +1,6 @@
 import { memo } from "react";
 import { Search, Settings } from "lucide-react";
+import { FaGithub } from "react-icons/fa";
 
 import claudeLogo from "../assets/claude-color.svg";
 import geminiLogo from "../assets/gemini-color.svg";
@@ -15,6 +16,7 @@ export interface AppHeaderProps {
   searchQuery: string;
   onSearchChange: (query: string) => void;
   onPlatformChange: (platform: string) => void;
+  onOpenGithub: () => void;
   onTogglePage: () => void;
 }
 
@@ -31,6 +33,7 @@ function AppHeaderComponent({
   searchQuery,
   onSearchChange,
   onPlatformChange,
+  onOpenGithub,
   onTogglePage,
 }: AppHeaderProps) {
   const copy = getI18n(language);
@@ -94,6 +97,15 @@ function AppHeaderComponent({
               );
             })}
           </div>
+
+          <button
+            type="button"
+            onClick={onOpenGithub}
+            className="btn btn-square btn-sm h-10 w-10 rounded-2xl border border-base-300 bg-base-100 text-base-content/55 shadow-none hover:bg-base-200 hover:text-base-content"
+            aria-label={copy.header.openGithubAria}
+          >
+            <FaGithub size={17} />
+          </button>
 
           <button
             type="button"
