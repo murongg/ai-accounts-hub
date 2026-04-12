@@ -24,6 +24,7 @@ fn compile_macos_bridge() {
     println!("cargo:rerun-if-changed=native/macos/StatusBarMenuControls.swift");
     println!("cargo:rerun-if-changed=native/macos/StatusBarBridgeController.swift");
     println!("cargo:rerun-if-changed=native/macos/StatusBarBridgeExports.swift");
+    println!("cargo:rerun-if-changed=native/macos/StatusBarStatusItemIcon.swift");
     println!("cargo:rerun-if-changed=native/macos/StatusBarMenuView.swift");
 
     run_checked(
@@ -55,6 +56,7 @@ fn compile_macos_bridge() {
         .arg("native/macos/StatusBarMenuControls.swift")
         .arg("native/macos/StatusBarBridgeController.swift")
         .arg("native/macos/StatusBarBridgeExports.swift")
+        .arg("native/macos/StatusBarStatusItemIcon.swift")
         .arg("native/macos/StatusBarMenuView.swift");
     run_checked(&mut swiftc);
 

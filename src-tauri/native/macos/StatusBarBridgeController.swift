@@ -248,10 +248,7 @@ final class StatusBarBridgeController: NSObject, NSMenuDelegate {
                 return false
             }
 
-            button.image = StatusBarAppIconProvider.load()
-            button.image?.size = NSSize(width: 18, height: 18)
-            button.imagePosition = .imageOnly
-            button.imageScaling = .scaleProportionallyDown
+            applyStatusItemImage(staticStatusItemImage(), to: button)
             button.toolTip = "AI Accounts Hub"
             statusItem = item
         }
@@ -267,6 +264,7 @@ final class StatusBarBridgeController: NSObject, NSMenuDelegate {
         }
 
         session.apply(payload: decodedPayload)
+        updateStatusItemImage(using: decodedPayload)
         refreshLayout()
     }
 
@@ -303,6 +301,7 @@ final class StatusBarBridgeController: NSObject, NSMenuDelegate {
 
     private func refreshLayout() {
         ensureMenu()
+        updateStatusItemImage(using: session.displayedPayload)
         guard let hostingView, let panelItem else {
             return
         }
@@ -330,6 +329,32 @@ final class StatusBarBridgeController: NSObject, NSMenuDelegate {
 
         hostingView.frame = NSRect(x: 0, y: 0, width: StatusBarPanelTokens.panelWidth, height: finalPanelHeight)
         panelItem.view = hostingView
+    }
+
+    private func staticStatusItemImage() -> NSImage? {
+        let image = StatusBarAppIconProvider.load()
+        image?.size = NSSize(width: 18, height: 18)
+        return image
+    }
+
+    private func updateStatusItemImage(using payload: StatusBarBridgePayload) {
+        guard let button = statusItem?.button else {
+            return
+        }
+
+        let image =
+            StatusBarStatusItemIconRenderer.image(
+                for: payload.statusItemProgress,
+                effectiveAppearance: button.effectiveAppearance
+            ) ?? staticStatusItemImage()
+        applyStatusItemImage(image, to: button)
+    }
+
+    private func applyStatusItemImage(_ image: NSImage?, to button: NSStatusBarButton) {
+        button.image = image
+        button.image?.size = NSSize(width: 18, height: 18)
+        button.imagePosition = .imageOnly
+        button.imageScaling = .scaleProportionallyDown
     }
 
     private func measureContentHeight(

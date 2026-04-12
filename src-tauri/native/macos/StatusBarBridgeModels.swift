@@ -44,6 +44,12 @@ struct StatusBarBridgeMetric: Codable, Identifiable, Hashable {
     }
 }
 
+struct StatusBarBridgeStatusItemProgress: Codable, Hashable {
+    let providerId: String
+    let percent: UInt8
+    let needsRelogin: Bool
+}
+
 struct StatusBarBridgeSection: Codable, Identifiable, Hashable {
     let id: String
     let providerId: String
@@ -60,12 +66,18 @@ struct StatusBarBridgeSection: Codable, Identifiable, Hashable {
 struct StatusBarBridgePayload: Codable, Hashable {
     let selectedTab: StatusBarBridgeTab
     let sections: [StatusBarBridgeSection]
+    let statusItemProgress: StatusBarBridgeStatusItemProgress?
 
-    static let empty = StatusBarBridgePayload(selectedTab: .overview, sections: [])
+    static let empty = StatusBarBridgePayload(selectedTab: .overview, sections: [], statusItemProgress: nil)
 
-    init(selectedTab: StatusBarBridgeTab, sections: [StatusBarBridgeSection]) {
+    init(
+        selectedTab: StatusBarBridgeTab,
+        sections: [StatusBarBridgeSection],
+        statusItemProgress: StatusBarBridgeStatusItemProgress?
+    ) {
         self.selectedTab = selectedTab
         self.sections = sections
+        self.statusItemProgress = statusItemProgress
     }
 
     init(from decoder: Decoder) throws {
@@ -73,11 +85,14 @@ struct StatusBarBridgePayload: Codable, Hashable {
         let selectedTabRaw = (try? container.decode(String.self, forKey: .selectedTab)) ?? ""
         selectedTab = StatusBarBridgeTab(rawValue: selectedTabRaw) ?? .overview
         sections = (try? container.decode([StatusBarBridgeSection].self, forKey: .sections)) ?? []
+        statusItemProgress =
+            try? container.decodeIfPresent(StatusBarBridgeStatusItemProgress.self, forKey: .statusItemProgress)
     }
 
     private enum CodingKeys: String, CodingKey {
         case selectedTab
         case sections
+        case statusItemProgress
     }
 
     static func decode(json: UnsafePointer<CChar>?) -> StatusBarBridgePayload? {
@@ -97,7 +112,7 @@ struct StatusBarBridgePayload: Codable, Hashable {
     }
 
     func selectingTab(_ tab: StatusBarBridgeTab) -> StatusBarBridgePayload {
-        StatusBarBridgePayload(selectedTab: tab, sections: sections)
+        StatusBarBridgePayload(selectedTab: tab, sections: sections, statusItemProgress: statusItemProgress)
     }
 }
 

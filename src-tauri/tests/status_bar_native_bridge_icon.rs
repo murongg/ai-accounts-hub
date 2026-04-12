@@ -39,6 +39,20 @@ unsafe extern "C" {
         bundle_resource_path: *const i8,
         current_directory_path: *const i8,
     ) -> c_int;
+    fn aah_status_bar_bridge_debug_status_item_progress_percent_from_json(
+        payload_json: *const i8,
+    ) -> c_int;
+    fn aah_status_bar_bridge_debug_status_item_uses_dynamic_icon_from_json(
+        payload_json: *const i8,
+    ) -> c_int;
+    fn aah_status_bar_bridge_debug_status_item_accent_clip_width(
+        icon_width: f64,
+        percent: u8,
+    ) -> f64;
+    fn aah_status_bar_bridge_debug_status_item_fill_path_variant() -> c_int;
+    fn aah_status_bar_bridge_debug_status_item_fill_direction_variant() -> c_int;
+    fn aah_status_bar_bridge_debug_status_item_palette_is_monochrome(prefers_dark: c_int) -> c_int;
+    fn aah_status_bar_bridge_debug_status_item_opaque_pixel_count(percent: u8) -> c_int;
 }
 
 #[cfg(target_os = "macos")]
@@ -203,4 +217,97 @@ fn native_bridge_resolves_release_bundle_icon_paths() {
     assert_eq!(codex_variant, 1);
     assert_eq!(claude_variant, 1);
     assert_eq!(gemini_variant, 2);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn native_bridge_decodes_status_item_progress_from_payload_json() {
+    let payload = std::ffi::CString::new(
+        r#"{"selectedTab":"codex","sections":[],"statusItemProgress":{"providerId":"codex","percent":72,"needsRelogin":false}}"#,
+    )
+    .expect("payload should not contain null bytes");
+
+    let percent = unsafe {
+        aah_status_bar_bridge_debug_status_item_progress_percent_from_json(payload.as_ptr())
+    };
+
+    assert_eq!(percent, 72);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn native_bridge_uses_dynamic_status_item_icon_when_progress_is_available() {
+    let payload = std::ffi::CString::new(
+        r#"{"selectedTab":"codex","sections":[],"statusItemProgress":{"providerId":"codex","percent":72,"needsRelogin":false}}"#,
+    )
+    .expect("payload should not contain null bytes");
+
+    let uses_dynamic = unsafe {
+        aah_status_bar_bridge_debug_status_item_uses_dynamic_icon_from_json(payload.as_ptr())
+    };
+
+    assert_eq!(uses_dynamic, 1);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn native_bridge_falls_back_to_static_status_item_icon_when_progress_is_missing() {
+    let payload = std::ffi::CString::new(r#"{"selectedTab":"codex","sections":[]}"#)
+        .expect("payload should not contain null bytes");
+
+    let uses_dynamic = unsafe {
+        aah_status_bar_bridge_debug_status_item_uses_dynamic_icon_from_json(payload.as_ptr())
+    };
+
+    assert_eq!(uses_dynamic, 0);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn native_bridge_status_item_accent_clip_width_tracks_percent_bounds() {
+    let empty_width = unsafe { aah_status_bar_bridge_debug_status_item_accent_clip_width(18.0, 0) };
+    let partial_width =
+        unsafe { aah_status_bar_bridge_debug_status_item_accent_clip_width(18.0, 18) };
+    let full_width =
+        unsafe { aah_status_bar_bridge_debug_status_item_accent_clip_width(18.0, 100) };
+
+    assert_eq!(empty_width, 0.0);
+    assert!(partial_width > 0.0);
+    assert!(partial_width < full_width);
+    assert_eq!(full_width, 18.0);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn native_bridge_status_item_progress_uses_full_silhouette_fill_path() {
+    let variant = unsafe { aah_status_bar_bridge_debug_status_item_fill_path_variant() };
+
+    assert_eq!(variant, 1);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn native_bridge_status_item_progress_fills_along_the_icon_major_axis() {
+    let variant = unsafe { aah_status_bar_bridge_debug_status_item_fill_direction_variant() };
+
+    assert_eq!(variant, 1);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn native_bridge_status_item_palette_is_monochrome_in_light_and_dark_modes() {
+    let light_mode = unsafe { aah_status_bar_bridge_debug_status_item_palette_is_monochrome(0) };
+    let dark_mode = unsafe { aah_status_bar_bridge_debug_status_item_palette_is_monochrome(1) };
+
+    assert_eq!(light_mode, 1);
+    assert_eq!(dark_mode, 1);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn native_bridge_status_item_renders_more_filled_pixels_at_100_than_0_percent() {
+    let empty_pixels = unsafe { aah_status_bar_bridge_debug_status_item_opaque_pixel_count(0) };
+    let full_pixels = unsafe { aah_status_bar_bridge_debug_status_item_opaque_pixel_count(100) };
+
+    assert!(full_pixels > empty_pixels);
 }

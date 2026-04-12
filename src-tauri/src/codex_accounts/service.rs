@@ -2,6 +2,7 @@ use std::fs;
 use std::path::Path;
 
 use crate::codex_usage::store::CodexUsageStore;
+use crate::time_utils::timestamp_string;
 
 use super::auth::{match_active_identity, read_account_identity_from_path};
 pub use super::cli::CodexLoginRunner;
@@ -111,7 +112,7 @@ impl CodexAccountService {
             .and_then(|identity| match_active_identity(identity, store.accounts()))
             .map(|account| account.id.clone());
 
-        Ok(store
+        let mut accounts: Vec<CodexAccountListItem> = store
             .accounts()
             .iter()
             .map(|account| {
@@ -156,7 +157,15 @@ impl CodexAccountService {
                     needs_relogin: usage.map(|snapshot| snapshot.needs_relogin),
                 }
             })
-            .collect())
+            .collect();
+
+        apply_mock_active_percent(
+            &mut accounts,
+            mock_active_codex_percent_from_env(),
+            &timestamp_string(),
+        );
+
+        Ok(accounts)
     }
 
     pub fn switch_account(&self, account_id: &str) -> Result<(), String> {
@@ -186,5 +195,90 @@ impl CodexAccountService {
         }
 
         Ok(())
+    }
+}
+
+fn mock_active_codex_percent_from_env() -> Option<u8> {
+    std::env::var("AAH_MOCK_ACTIVE_CODEX_PERCENT")
+        .ok()
+        .as_deref()
+        .and_then(parse_mock_active_codex_percent)
+}
+
+fn parse_mock_active_codex_percent(raw: &str) -> Option<u8> {
+    let percent = raw.trim().parse::<u8>().ok()?;
+    (percent <= 100).then_some(percent)
+}
+
+fn apply_mock_active_percent(
+    accounts: &mut [CodexAccountListItem],
+    mock_percent: Option<u8>,
+    now_timestamp: &str,
+) {
+    let Some(mock_percent) = mock_percent else {
+        return;
+    };
+
+    let Some(account) = accounts.iter_mut().find(|account| account.is_active) else {
+        return;
+    };
+
+    account.five_hour_remaining_percent = Some(mock_percent);
+    account.last_synced_at = Some(now_timestamp.to_string());
+    account.last_sync_error = None;
+    account.needs_relogin = Some(false);
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn list_item(
+        id: &str,
+        is_active: bool,
+        five_hour_remaining_percent: Option<u8>,
+    ) -> CodexAccountListItem {
+        CodexAccountListItem {
+            id: id.to_string(),
+            email: format!("{id}@example.com"),
+            plan: Some("Plus".to_string()),
+            account_id: Some(format!("acct-{id}")),
+            is_active,
+            last_authenticated_at: "0".to_string(),
+            five_hour_remaining_percent,
+            weekly_remaining_percent: Some(61),
+            five_hour_refresh_at: Some("1776000000".to_string()),
+            weekly_refresh_at: Some("1776600000".to_string()),
+            last_synced_at: Some("1775900000".to_string()),
+            last_sync_error: Some("old error".to_string()),
+            credits_balance: Some(0.0),
+            needs_relogin: Some(true),
+        }
+    }
+
+    #[test]
+    fn apply_mock_active_percent_overrides_only_the_active_codex_account() {
+        let mut accounts = vec![
+            list_item("inactive", false, Some(17)),
+            list_item("active", true, Some(93)),
+        ];
+
+        apply_mock_active_percent(&mut accounts, Some(0), "1776001234");
+
+        assert_eq!(accounts[0].five_hour_remaining_percent, Some(17));
+        assert_eq!(accounts[0].last_synced_at.as_deref(), Some("1775900000"));
+        assert_eq!(accounts[1].five_hour_remaining_percent, Some(0));
+        assert_eq!(accounts[1].last_synced_at.as_deref(), Some("1776001234"));
+        assert_eq!(accounts[1].last_sync_error, None);
+        assert_eq!(accounts[1].needs_relogin, Some(false));
+    }
+
+    #[test]
+    fn parse_mock_active_codex_percent_rejects_invalid_values() {
+        assert_eq!(parse_mock_active_codex_percent("0"), Some(0));
+        assert_eq!(parse_mock_active_codex_percent("100"), Some(100));
+        assert_eq!(parse_mock_active_codex_percent("101"), None);
+        assert_eq!(parse_mock_active_codex_percent("-1"), None);
+        assert_eq!(parse_mock_active_codex_percent("abc"), None);
     }
 }

@@ -251,6 +251,54 @@ func aah_status_bar_bridge_swift_selected_tab_value_from_json(_ payloadJSON: Uns
     return selectedTab.debugValue
 }
 
+@_cdecl("aah_status_bar_bridge_debug_status_item_progress_percent_from_json")
+func aah_status_bar_bridge_debug_status_item_progress_percent_from_json(
+    _ payloadJSON: UnsafePointer<CChar>?
+) -> Int32 {
+    let payload = decodedPayload(from: payloadJSON)
+    return payload.statusItemProgress.map { Int32($0.percent) } ?? -1
+}
+
+@_cdecl("aah_status_bar_bridge_debug_status_item_uses_dynamic_icon_from_json")
+func aah_status_bar_bridge_debug_status_item_uses_dynamic_icon_from_json(
+    _ payloadJSON: UnsafePointer<CChar>?
+) -> Int32 {
+    let payload = decodedPayload(from: payloadJSON)
+    let usesDynamic = StatusBarStatusItemIconRenderer.image(
+        for: payload.statusItemProgress,
+        effectiveAppearance: nil
+    ) != nil
+    return usesDynamic ? 1 : 0
+}
+
+@_cdecl("aah_status_bar_bridge_debug_status_item_accent_clip_width")
+func aah_status_bar_bridge_debug_status_item_accent_clip_width(
+    _ iconWidth: Double,
+    _ percent: UInt8
+) -> Double {
+    StatusBarStatusItemIconRenderer.accentClipWidth(iconWidth: iconWidth, percent: percent)
+}
+
+@_cdecl("aah_status_bar_bridge_debug_status_item_fill_path_variant")
+func aah_status_bar_bridge_debug_status_item_fill_path_variant() -> Int32 {
+    StatusBarStatusItemIconRenderer.debugFillPathVariant().rawValue
+}
+
+@_cdecl("aah_status_bar_bridge_debug_status_item_fill_direction_variant")
+func aah_status_bar_bridge_debug_status_item_fill_direction_variant() -> Int32 {
+    StatusBarStatusItemIconRenderer.debugFillDirectionVariant().rawValue
+}
+
+@_cdecl("aah_status_bar_bridge_debug_status_item_palette_is_monochrome")
+func aah_status_bar_bridge_debug_status_item_palette_is_monochrome(_ prefersDark: Int32) -> Int32 {
+    StatusBarStatusItemIconRenderer.debugPaletteIsMonochrome(prefersDark: prefersDark != 0) ? 1 : 0
+}
+
+@_cdecl("aah_status_bar_bridge_debug_status_item_opaque_pixel_count")
+func aah_status_bar_bridge_debug_status_item_opaque_pixel_count(_ percent: UInt8) -> Int32 {
+    StatusBarStatusItemIconRenderer.debugOpaquePixelCount(percent: percent)
+}
+
 @_cdecl("aah_status_bar_bridge_debug_visible_tab_count")
 func aah_status_bar_bridge_debug_visible_tab_count() -> Int32 {
     Int32(StatusBarMenuPresentation.visibleTabs.count)

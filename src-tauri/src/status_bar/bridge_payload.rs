@@ -39,9 +39,18 @@ pub struct BridgeProviderPayload {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct BridgeStatusItemProgressPayload {
+    pub provider_id: String,
+    pub percent: u8,
+    pub needs_relogin: bool,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct BridgePayload {
     pub selected_tab: StatusBarTab,
     pub sections: Vec<BridgeProviderPayload>,
+    pub status_item_progress: Option<BridgeStatusItemProgressPayload>,
 }
 
 pub fn build_bridge_payload(
@@ -51,6 +60,12 @@ pub fn build_bridge_payload(
     gemini_accounts: Vec<GeminiAccountListItem>,
     now_ms: i64,
 ) -> BridgePayload {
+    let status_item_progress = build_status_item_progress(
+        selected_tab,
+        &codex_accounts,
+        &claude_accounts,
+        &gemini_accounts,
+    );
     let mut codex_sections = build_codex_sections(codex_accounts, now_ms);
     let mut claude_sections = build_claude_sections(claude_accounts, now_ms);
     let mut gemini_sections = build_gemini_sections(gemini_accounts, now_ms);
@@ -101,6 +116,217 @@ pub fn build_bridge_payload(
     BridgePayload {
         selected_tab,
         sections,
+        status_item_progress,
+    }
+}
+
+fn build_status_item_progress(
+    selected_tab: StatusBarTab,
+    codex_accounts: &[CodexAccountListItem],
+    claude_accounts: &[ClaudeAccountListItem],
+    gemini_accounts: &[GeminiAccountListItem],
+) -> Option<BridgeStatusItemProgressPayload> {
+    match selected_tab {
+        StatusBarTab::Overview => None,
+        StatusBarTab::Codex => codex_accounts
+            .iter()
+            .find(|account| account.is_active)
+            .and_then(|account| {
+                if account.needs_relogin.unwrap_or(false) {
+                    None
+                } else {
+                    account.five_hour_remaining_percent.map(|percent| {
+                        BridgeStatusItemProgressPayload {
+                            provider_id: "codex".to_string(),
+                            percent,
+                            needs_relogin: false,
+                        }
+                    })
+                }
+            }),
+        StatusBarTab::Claude => claude_accounts
+            .iter()
+            .find(|account| account.is_active)
+            .and_then(|account| {
+                if account.needs_relogin.unwrap_or(false) {
+                    None
+                } else {
+                    account.session_remaining_percent.map(|percent| {
+                        BridgeStatusItemProgressPayload {
+                            provider_id: "claude".to_string(),
+                            percent,
+                            needs_relogin: false,
+                        }
+                    })
+                }
+            }),
+        StatusBarTab::Gemini => gemini_accounts
+            .iter()
+            .find(|account| account.is_active)
+            .and_then(|account| {
+                if account.needs_relogin.unwrap_or(false) {
+                    None
+                } else {
+                    account
+                        .pro_remaining_percent
+                        .map(|percent| BridgeStatusItemProgressPayload {
+                            provider_id: "gemini".to_string(),
+                            percent,
+                            needs_relogin: false,
+                        })
+                }
+            }),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn codex_account(
+        id: &str,
+        is_active: bool,
+        five_hour_remaining_percent: Option<u8>,
+        needs_relogin: Option<bool>,
+    ) -> CodexAccountListItem {
+        CodexAccountListItem {
+            id: id.to_string(),
+            email: format!("{id}@example.com"),
+            plan: Some("Plus".to_string()),
+            account_id: Some(format!("acct-{id}")),
+            is_active,
+            last_authenticated_at: "0".to_string(),
+            five_hour_remaining_percent,
+            weekly_remaining_percent: Some(91),
+            five_hour_refresh_at: Some("1735689600000".to_string()),
+            weekly_refresh_at: Some("1736294400000".to_string()),
+            last_synced_at: Some("1735686000000".to_string()),
+            last_sync_error: None,
+            credits_balance: None,
+            needs_relogin,
+        }
+    }
+
+    fn claude_account(
+        id: &str,
+        is_active: bool,
+        session_remaining_percent: Option<u8>,
+        needs_relogin: Option<bool>,
+    ) -> ClaudeAccountListItem {
+        ClaudeAccountListItem {
+            id: id.to_string(),
+            email: format!("{id}@example.com"),
+            display_name: Some("Claude User".to_string()),
+            plan: Some("Pro".to_string()),
+            account_hint: Some(format!("hint-{id}")),
+            is_active,
+            last_authenticated_at: "0".to_string(),
+            session_remaining_percent,
+            session_refresh_at: Some("1735689600000".to_string()),
+            weekly_remaining_percent: Some(70),
+            weekly_refresh_at: Some("1736294400000".to_string()),
+            model_weekly_label: Some("Opus Weekly".to_string()),
+            model_weekly_remaining_percent: Some(54),
+            model_weekly_refresh_at: Some("1736294400000".to_string()),
+            last_synced_at: Some("1735686000000".to_string()),
+            last_sync_error: None,
+            needs_relogin,
+        }
+    }
+
+    fn gemini_account(
+        id: &str,
+        is_active: bool,
+        pro_remaining_percent: Option<u8>,
+        needs_relogin: Option<bool>,
+    ) -> GeminiAccountListItem {
+        GeminiAccountListItem {
+            id: id.to_string(),
+            email: format!("{id}@example.com"),
+            subject: Some(format!("subject-{id}")),
+            auth_type: Some("oauth-personal".to_string()),
+            plan: Some("Pro".to_string()),
+            is_active,
+            last_authenticated_at: "0".to_string(),
+            pro_remaining_percent,
+            flash_remaining_percent: Some(48),
+            flash_lite_remaining_percent: Some(37),
+            pro_refresh_at: Some("1735689600000".to_string()),
+            flash_refresh_at: Some("1735689600000".to_string()),
+            flash_lite_refresh_at: Some("1735689600000".to_string()),
+            last_synced_at: Some("1735686000000".to_string()),
+            last_sync_error: None,
+            needs_relogin,
+        }
+    }
+
+    #[test]
+    fn build_bridge_payload_uses_active_codex_session_quota_for_status_item_progress() {
+        let payload = build_bridge_payload(
+            StatusBarTab::Codex,
+            vec![
+                codex_account("inactive", false, Some(12), Some(false)),
+                codex_account("active", true, Some(72), Some(false)),
+            ],
+            vec![],
+            vec![],
+            0,
+        );
+
+        assert_eq!(
+            payload.status_item_progress,
+            Some(BridgeStatusItemProgressPayload {
+                provider_id: "codex".to_string(),
+                percent: 72,
+                needs_relogin: false,
+            })
+        );
+    }
+
+    #[test]
+    fn build_bridge_payload_returns_none_when_active_claude_account_requires_relogin() {
+        let payload = build_bridge_payload(
+            StatusBarTab::Claude,
+            vec![],
+            vec![claude_account("active", true, Some(82), Some(true))],
+            vec![],
+            0,
+        );
+
+        assert_eq!(payload.status_item_progress, None);
+    }
+
+    #[test]
+    fn build_bridge_payload_uses_gemini_pro_percent_for_status_item_progress() {
+        let payload = build_bridge_payload(
+            StatusBarTab::Gemini,
+            vec![],
+            vec![],
+            vec![gemini_account("active", true, Some(61), Some(false))],
+            0,
+        );
+
+        assert_eq!(
+            payload.status_item_progress,
+            Some(BridgeStatusItemProgressPayload {
+                provider_id: "gemini".to_string(),
+                percent: 61,
+                needs_relogin: false,
+            })
+        );
+    }
+
+    #[test]
+    fn build_bridge_payload_returns_none_when_visible_provider_has_no_active_account() {
+        let payload = build_bridge_payload(
+            StatusBarTab::Codex,
+            vec![codex_account("inactive", false, Some(33), Some(false))],
+            vec![],
+            vec![],
+            0,
+        );
+
+        assert_eq!(payload.status_item_progress, None);
     }
 }
 
