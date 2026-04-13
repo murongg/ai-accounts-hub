@@ -21,7 +21,7 @@ export interface AppHeaderProps {
 }
 
 const platformOptions = [
-  { id: "codex", label: "Codex", logo: openaiLogo, logoClassName: "rounded-[3px]" },
+  { id: "codex", label: "Codex", logo: openaiLogo, logoClassName: "provider-switcher-logo-codex rounded-[3px]" },
   { id: "claude", label: "Claude", logo: claudeLogo, logoClassName: "rounded-[3px]" },
   { id: "gemini", label: "Gemini", logo: geminiLogo, logoClassName: "" },
 ] as const;

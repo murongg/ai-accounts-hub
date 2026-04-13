@@ -19,3 +19,7 @@ body {
     "Helvetica Neue",
     sans-serif;
 }
+
+[data-theme="luxury"] .provider-switcher-logo-codex {
+  filter: invert(1) brightness(0.86);
+}
