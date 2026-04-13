@@ -2,6 +2,7 @@ import type { CodexRefreshSettings } from "./codex";
 
 export type AppLanguage = "zh-CN" | "en-US";
 export type AppTheme = "light" | "dark" | "system";
+export type AccountsViewMode = "cards" | "list";
 export type AppUpdaterStatus =
   | "idle"
   | "checking"
@@ -15,6 +16,7 @@ export interface AppSettings {
   language: AppLanguage;
   theme: AppTheme;
   auto_switch_enabled: boolean;
+  accounts_view_mode: AccountsViewMode;
 }
 
 export interface AppDataDirectoryInfo {

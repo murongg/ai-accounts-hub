@@ -2,7 +2,10 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import {
+  buildClaudeListQuotaRows,
   buildClaudeQuotaCards,
+  buildCodexListQuotaRows,
+  buildGeminiListQuotaRows,
   buildGeminiQuotaCards,
   formatRefreshCountdown,
   formatResetLabel,
@@ -248,6 +251,70 @@ test("buildClaudeQuotaCards returns placeholder quota cards before first sync", 
     { percent: null, label: "Session 剩余配额", time: "等待首次同步", is_placeholder: true },
     { percent: null, label: "Weekly 剩余配额", time: "等待首次同步", is_placeholder: true },
     { percent: null, label: "模型周额度", time: "等待首次同步", is_placeholder: true },
+  ]);
+});
+
+test("buildCodexListQuotaRows keeps credits outside the progress rows", () => {
+  const rows = buildCodexListQuotaRows(
+    codexAccount({
+      five_hour_remaining_percent: 62,
+      weekly_remaining_percent: 81,
+      credits_balance: 24.5,
+    }),
+    "en-US",
+  );
+
+  assert.deepEqual(rows, {
+    bars: [
+      { label: "5h", percent: 62 },
+      { label: "Weekly", percent: 81 },
+    ],
+    meta: "Credits 24.5",
+  });
+});
+
+test("buildCodexListQuotaRows hides empty credits", () => {
+  const rows = buildCodexListQuotaRows(
+    codexAccount({
+      credits_balance: 0,
+    }),
+    "en-US",
+  );
+
+  assert.equal(rows.meta, null);
+});
+
+test("buildClaudeListQuotaRows returns three horizontal bars", () => {
+  const rows = buildClaudeListQuotaRows(
+    claudeAccount({
+      session_remaining_percent: 72,
+      weekly_remaining_percent: 55,
+      model_weekly_label: "Opus Weekly",
+      model_weekly_remaining_percent: 31,
+    }),
+  );
+
+  assert.deepEqual(rows.map((row) => row.label), [
+    "Session",
+    "Weekly",
+    "Opus Weekly",
+  ]);
+});
+
+test("buildGeminiListQuotaRows returns three horizontal bars in provider order", () => {
+  const rows = buildGeminiListQuotaRows(
+    account({
+      pro_remaining_percent: 88,
+      flash_remaining_percent: 64,
+      flash_lite_remaining_percent: 41,
+    }),
+    "zh-CN",
+  );
+
+  assert.deepEqual(rows.map((row) => row.label), [
+    "Pro 剩余配额",
+    "Flash 剩余配额",
+    "Flash Lite 剩余配额",
   ]);
 });
 

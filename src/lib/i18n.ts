@@ -21,6 +21,11 @@ export interface I18nMessages {
       active: string;
       idle: string;
     };
+    viewMode: {
+      label: string;
+      cards: string;
+      list: string;
+    };
     actionFailedTitle: string;
     q1Label: string;
     q2Label: string;
@@ -198,6 +203,11 @@ function createChineseCopy(): I18nMessages {
         active: "使用中",
         idle: "待机中",
       },
+      viewMode: {
+        label: "展示方式",
+        cards: "卡片",
+        list: "列表",
+      },
       actionFailedTitle: "操作失败",
       q1Label: "5小时剩余配额",
       q2Label: "每周剩余配额",
@@ -346,6 +356,11 @@ function createEnglishCopy(): I18nMessages {
         all: "All",
         active: "Active",
         idle: "Idle",
+      },
+      viewMode: {
+        label: "View mode",
+        cards: "Cards",
+        list: "List",
       },
       actionFailedTitle: "Action failed",
       q1Label: "5-hour remaining quota",

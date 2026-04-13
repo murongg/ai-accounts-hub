@@ -4,10 +4,10 @@ import { AppHeader } from "./components/app-header";
 import { ToastStack, type ToastItem } from "./components/toast-stack";
 import { AccountsWorkspace } from "./containers/accounts-workspace";
 import { SettingsWorkspace } from "./containers/settings-workspace";
-import { getAppSettings } from "./lib/app-settings";
+import { getAppSettings, updateAppSettings } from "./lib/app-settings";
 import { resolveDaisyTheme } from "./lib/app-theme";
 import { openRepositoryHome } from "./lib/external-links";
-import type { AppSettings } from "./types/settings";
+import type { AccountsViewMode, AppSettings } from "./types/settings";
 
 type ActivePage = "accounts" | "settings";
 
@@ -15,6 +15,7 @@ const defaultAppSettings: AppSettings = {
   language: "zh-CN",
   theme: "light",
   auto_switch_enabled: true,
+  accounts_view_mode: "cards",
 };
 
 function getSystemPrefersDark() {
@@ -108,6 +109,21 @@ export default function App() {
     setActivePage((current) => (current === "settings" ? "accounts" : "settings"));
   }, []);
 
+  const handleAccountsViewModeChange = useCallback(
+    async (mode: AccountsViewMode) => {
+      try {
+        const saved = await updateAppSettings({
+          ...appSettings,
+          accounts_view_mode: mode,
+        });
+        setAppSettings(saved);
+      } catch (error) {
+        pushToast("error", errorMessage(error));
+      }
+    },
+    [appSettings, pushToast],
+  );
+
   const handleOpenGithub = useCallback(async () => {
     try {
       await openRepositoryHome();
@@ -141,7 +157,9 @@ export default function App() {
               activeTab={activeTab}
               searchQuery={searchQuery}
               language={appSettings.language}
+              viewMode={appSettings.accounts_view_mode}
               onTabChange={setActiveTab}
+              onViewModeChange={(mode) => void handleAccountsViewModeChange(mode)}
               onToast={pushToast}
             />
           ) : (

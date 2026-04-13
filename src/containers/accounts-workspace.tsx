@@ -28,14 +28,16 @@ import { createLatestRequestGate } from "../lib/accounts-workspace";
 import type { ClaudeAccountSummary } from "../types/claude";
 import type { CodexAccountSummary } from "../types/codex";
 import type { GeminiAccountSummary } from "../types/gemini";
-import type { AppLanguage } from "../types/settings";
+import type { AccountsViewMode, AppLanguage } from "../types/settings";
 
 interface AccountsWorkspaceProps {
   activePlatform: string;
   activeTab: string;
   searchQuery: string;
   language: AppLanguage;
+  viewMode: AccountsViewMode;
   onTabChange: (tab: string) => void;
+  onViewModeChange: (mode: AccountsViewMode) => void;
   onToast: (tone: "error" | "success" | "info", message: string) => void;
 }
 
@@ -48,7 +50,9 @@ function AccountsWorkspaceComponent({
   activeTab,
   searchQuery,
   language,
+  viewMode,
   onTabChange,
+  onViewModeChange,
   onToast,
 }: AccountsWorkspaceProps) {
   const [codexAccounts, setCodexAccounts] = useState<CodexAccountSummary[]>([]);
@@ -513,6 +517,7 @@ function AccountsWorkspaceComponent({
       activeCount={activeCount}
       totalCount={totalCount}
       idleCount={idleCount}
+      viewMode={viewMode}
       normalizedQuery={normalizedQuery}
       visibleAccounts={visibleAccounts}
       isLoadingAccounts={isLoadingAccounts}
@@ -523,6 +528,7 @@ function AccountsWorkspaceComponent({
       actionsDisabled={actionsDisabled}
       nowMs={nowMs}
       onTabChange={onTabChange}
+      onViewModeChange={onViewModeChange}
       onRefreshUsage={() => void handleRefreshUsage()}
       onAddAccount={() => void handleAddAccount()}
       onSwitchAccount={handleSwitchAccount}

@@ -13,6 +13,16 @@ export interface QuotaCardModel {
   is_placeholder?: boolean;
 }
 
+export interface AccountListQuotaRow {
+  label: string;
+  percent: number | null;
+}
+
+export interface CodexListQuotaRows {
+  bars: AccountListQuotaRow[];
+  meta: string | null;
+}
+
 export function getAccountCardPresentation(activePlatform: string): {
   gridClass: string;
   cardSize: AccountCardSize;
@@ -183,6 +193,39 @@ export function buildGeminiQuotaCards(
     }));
 }
 
+export function buildCodexListQuotaRows(
+  account: CodexAccountSummary,
+  language: AppLanguage = "en-US",
+): CodexListQuotaRows {
+  const labels = language === "en-US"
+    ? {
+        primary: "5h",
+        secondary: "Weekly",
+        credits: "Credits",
+      }
+    : {
+        primary: "5小时",
+        secondary: "每周",
+        credits: "Credits",
+      };
+
+  return {
+    bars: [
+      {
+        label: labels.primary,
+        percent: account.five_hour_remaining_percent,
+      },
+      {
+        label: labels.secondary,
+        percent: account.weekly_remaining_percent,
+      },
+    ],
+    meta: typeof account.credits_balance === "number" && account.credits_balance > 0
+      ? `${labels.credits} ${account.credits_balance}`
+      : null,
+  };
+}
+
 export function buildClaudeQuotaCards(
   account: ClaudeAccountSummary,
   nowMs: number,
@@ -230,6 +273,60 @@ export function buildClaudeQuotaCards(
           label: quota.label,
           time: formatRefreshCountdown(quota.refreshAt, nowMs, language),
         });
+}
+
+export function buildClaudeListQuotaRows(
+  account: ClaudeAccountSummary,
+  language: AppLanguage = "en-US",
+): AccountListQuotaRow[] {
+  const labels = language === "en-US"
+    ? {
+        session: "Session",
+        weekly: "Weekly",
+        fallbackModel: "Model Weekly",
+      }
+    : {
+        session: "Session",
+        weekly: "Weekly",
+        fallbackModel: "模型周额度",
+      };
+
+  return [
+    {
+      label: labels.session,
+      percent: account.session_remaining_percent,
+    },
+    {
+      label: labels.weekly,
+      percent: account.weekly_remaining_percent,
+    },
+    {
+      label: account.model_weekly_label ?? labels.fallbackModel,
+      percent: account.model_weekly_remaining_percent,
+    },
+  ];
+}
+
+export function buildGeminiListQuotaRows(
+  account: GeminiAccountSummary,
+  language: AppLanguage,
+): AccountListQuotaRow[] {
+  const copy = getI18n(language);
+
+  return [
+    {
+      label: copy.accounts.geminiProLabel,
+      percent: account.pro_remaining_percent,
+    },
+    {
+      label: copy.accounts.geminiFlashLabel,
+      percent: account.flash_remaining_percent,
+    },
+    {
+      label: copy.accounts.geminiFlashLiteLabel,
+      percent: account.flash_lite_remaining_percent,
+    },
+  ];
 }
 
 export function getPlatformAccountMetrics(

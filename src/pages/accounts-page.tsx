@@ -1,11 +1,19 @@
 import { memo } from "react";
-import { Plus, RefreshCw } from "lucide-react";
+import { LayoutGrid, LayoutList, Plus, RefreshCw } from "lucide-react";
 
 import { AccountCard } from "../components/account-card";
+import { AccountListItem } from "../components/account-list-item";
 import { EmptyStateCard } from "../components/empty-state-card";
 import { getI18n } from "../lib/i18n";
 import {
+  ACCOUNTS_VIEW_MODES,
+  getAccountsViewModeIconName,
+} from "../lib/accounts-view-mode";
+import {
+  buildClaudeListQuotaRows,
   buildClaudeQuotaCards,
+  buildCodexListQuotaRows,
+  buildGeminiListQuotaRows,
   buildGeminiQuotaCards,
   formatRefreshCountdown,
   formatTimestamp,
@@ -15,7 +23,7 @@ import { resolveAccountsPageState } from "../lib/accounts-workspace";
 import type { ClaudeAccountSummary } from "../types/claude";
 import type { CodexAccountSummary } from "../types/codex";
 import type { GeminiAccountSummary } from "../types/gemini";
-import type { AppLanguage } from "../types/settings";
+import type { AccountsViewMode, AppLanguage } from "../types/settings";
 
 export interface AccountsPageProps {
   activeTab: string;
@@ -24,6 +32,7 @@ export interface AccountsPageProps {
   activeCount: number;
   totalCount: number;
   idleCount: number;
+  viewMode: AccountsViewMode;
   normalizedQuery: string;
   visibleAccounts: Array<CodexAccountSummary | ClaudeAccountSummary | GeminiAccountSummary>;
   isLoadingAccounts: boolean;
@@ -34,6 +43,7 @@ export interface AccountsPageProps {
   actionsDisabled: boolean;
   nowMs: number;
   onTabChange: (tab: string) => void;
+  onViewModeChange: (mode: AccountsViewMode) => void;
   onRefreshUsage: () => void;
   onAddAccount: () => void;
   onSwitchAccount: (accountId: string) => void;
@@ -47,6 +57,7 @@ function AccountsPageComponent({
   activeCount,
   totalCount,
   idleCount,
+  viewMode,
   normalizedQuery,
   visibleAccounts,
   isLoadingAccounts,
@@ -57,6 +68,7 @@ function AccountsPageComponent({
   actionsDisabled,
   nowMs,
   onTabChange,
+  onViewModeChange,
   onRefreshUsage,
   onAddAccount,
   onSwitchAccount,
@@ -112,6 +124,22 @@ function AccountsPageComponent({
     );
   }
 
+  function getPrimaryLabel(account: CodexAccountSummary | ClaudeAccountSummary | GeminiAccountSummary) {
+    return account.is_active
+      ? copy.accounts.activePrimary
+      : switchingAccountId === account.id
+        ? copy.accounts.switchingPrimary
+        : copy.accounts.switchPrimary;
+  }
+
+  function getPrimaryDisabled(account: CodexAccountSummary | ClaudeAccountSummary | GeminiAccountSummary) {
+    return account.is_active || switchingAccountId === account.id || isAddingAccount;
+  }
+
+  function getSecondaryDisabled(account: CodexAccountSummary | ClaudeAccountSummary | GeminiAccountSummary) {
+    return deletingAccountId === account.id || isAddingAccount;
+  }
+
   return (
     <>
       <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
@@ -119,7 +147,39 @@ function AccountsPageComponent({
           <h1 className="text-[30px] font-semibold tracking-tight text-base-content">{copy.accounts.title}</h1>
           <p className="mt-1 text-sm text-base-content/55">{copy.accounts.subtitle}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 sm:justify-end">
+          <div
+            role="tablist"
+            aria-label={copy.accounts.viewMode.label}
+            className="tabs tabs-box rounded-2xl border border-base-300 bg-base-100 p-1 shadow-sm"
+          >
+            {ACCOUNTS_VIEW_MODES.map((mode) => {
+              const isActive = viewMode === mode;
+              const label = mode === "cards" ? copy.accounts.viewMode.cards : copy.accounts.viewMode.list;
+              const iconName = getAccountsViewModeIconName(mode);
+              const Icon = iconName === "layout-list" ? LayoutList : LayoutGrid;
+
+              return (
+                <button
+                  key={mode}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  aria-label={label}
+                  title={label}
+                  className={`tab h-11 min-h-0 w-11 rounded-xl border-0 px-0 transition-all ${
+                    isActive
+                      ? "tab-active bg-primary/10 text-primary"
+                      : "text-base-content/60 hover:text-base-content"
+                  }`}
+                  onClick={() => onViewModeChange(mode)}
+                >
+                  <Icon size={17} strokeWidth={2.25} aria-hidden="true" />
+                  <span className="sr-only">{label}</span>
+                </button>
+              );
+            })}
+          </div>
           <button
             type="button"
             onClick={onRefreshUsage}
@@ -173,6 +233,102 @@ function AccountsPageComponent({
 
       {stateCard ? (
         <EmptyStateCard title={stateCard.title} description={stateCard.description} />
+      ) : viewMode === "list" ? (
+        <div className="grid gap-3">
+          {visibleAccounts.map((account) => (
+            activePlatform === "gemini" ? (
+              (() => {
+                const geminiAccount = account as GeminiAccountSummary;
+                const usageAvailable = hasGeminiUsage(geminiAccount);
+
+                return (
+                  <AccountListItem
+                    key={account.id}
+                    accountId={account.id}
+                    language={language}
+                    email={account.email}
+                    plan={geminiAccount.plan ?? "Google"}
+                    isActive={account.is_active}
+                    isAlive={!(geminiAccount.needs_relogin ?? false)}
+                    quotaRows={buildGeminiListQuotaRows(geminiAccount, language)}
+                    activityLabel={usageAvailable ? copy.card.syncedPrefix : copy.accounts.authenticatedPrefix}
+                    activityValue={formatTimestamp(
+                      usageAvailable ? geminiAccount.last_synced_at : geminiAccount.last_authenticated_at,
+                      copy.accounts.waitingFirstSync,
+                      language,
+                    )}
+                    activityKind={usageAvailable ? "sync" : "auth"}
+                    primaryLabel={getPrimaryLabel(account)}
+                    primaryDisabled={getPrimaryDisabled(account)}
+                    secondaryDisabled={getSecondaryDisabled(account)}
+                    onPrimaryClick={onSwitchAccount}
+                    onSecondaryClick={onDeleteAccount}
+                  />
+                );
+              })()
+            ) : activePlatform === "claude" ? (
+              (() => {
+                const claudeAccount = account as ClaudeAccountSummary;
+                const usageAvailable = hasClaudeUsage(claudeAccount);
+
+                return (
+                  <AccountListItem
+                    key={account.id}
+                    accountId={account.id}
+                    language={language}
+                    email={account.email}
+                    plan={claudeAccount.plan ?? copy.accounts.planUnknown}
+                    isActive={account.is_active}
+                    isAlive={!(claudeAccount.needs_relogin ?? false)}
+                    quotaRows={buildClaudeListQuotaRows(claudeAccount, language)}
+                    activityLabel={usageAvailable ? copy.card.syncedPrefix : copy.accounts.authenticatedPrefix}
+                    activityValue={formatTimestamp(
+                      usageAvailable ? claudeAccount.last_synced_at : claudeAccount.last_authenticated_at,
+                      copy.accounts.waitingFirstSync,
+                      language,
+                    )}
+                    activityKind={usageAvailable ? "sync" : "auth"}
+                    primaryLabel={getPrimaryLabel(account)}
+                    primaryDisabled={getPrimaryDisabled(account)}
+                    secondaryDisabled={getSecondaryDisabled(account)}
+                    onPrimaryClick={onSwitchAccount}
+                    onSecondaryClick={onDeleteAccount}
+                  />
+                );
+              })()
+            ) : (
+              (() => {
+                const codexAccount = account as CodexAccountSummary;
+                const quotaRows = buildCodexListQuotaRows(codexAccount, language);
+
+                return (
+                  <AccountListItem
+                    key={account.id}
+                    accountId={account.id}
+                    language={language}
+                    email={account.email}
+                    plan={codexAccount.plan ?? copy.accounts.planUnknown}
+                    isActive={account.is_active}
+                    isAlive={!(codexAccount.needs_relogin ?? false)}
+                    quotaRows={quotaRows.bars}
+                    quotaMeta={quotaRows.meta}
+                    activityLabel={copy.card.syncedPrefix}
+                    activityValue={formatTimestamp(
+                      codexAccount.last_synced_at,
+                      copy.accounts.waitingFirstSync,
+                      language,
+                    )}
+                    primaryLabel={getPrimaryLabel(account)}
+                    primaryDisabled={getPrimaryDisabled(account)}
+                    secondaryDisabled={getSecondaryDisabled(account)}
+                    onPrimaryClick={onSwitchAccount}
+                    onSecondaryClick={onDeleteAccount}
+                  />
+                );
+              })()
+            )
+          ))}
+        </div>
       ) : (
         <div className={cardPresentation.gridClass}>
           {visibleAccounts.map((account) => (

@@ -28,6 +28,19 @@ impl Default for AppTheme {
     }
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum AppAccountsViewMode {
+    Cards,
+    List,
+}
+
+impl Default for AppAccountsViewMode {
+    fn default() -> Self {
+        Self::Cards
+    }
+}
+
 fn default_auto_switch_enabled() -> bool {
     true
 }
@@ -38,6 +51,8 @@ pub struct AppSettings {
     pub theme: AppTheme,
     #[serde(default = "default_auto_switch_enabled")]
     pub auto_switch_enabled: bool,
+    #[serde(default)]
+    pub accounts_view_mode: AppAccountsViewMode,
 }
 
 impl Default for AppSettings {
@@ -46,6 +61,7 @@ impl Default for AppSettings {
             language: AppLanguage::default(),
             theme: AppTheme::default(),
             auto_switch_enabled: default_auto_switch_enabled(),
+            accounts_view_mode: AppAccountsViewMode::default(),
         }
     }
 }

@@ -1,4 +1,6 @@
-use ai_accounts_hub_lib::app_settings::models::{AppLanguage, AppSettings, AppTheme};
+use ai_accounts_hub_lib::app_settings::models::{
+    AppAccountsViewMode, AppLanguage, AppSettings, AppTheme,
+};
 use ai_accounts_hub_lib::app_settings::store::{load_app_settings, save_app_settings};
 use ai_accounts_hub_lib::codex_accounts::paths::CodexAccountPaths;
 use std::fs;
@@ -41,6 +43,7 @@ fn app_settings_default_to_chinese_light_theme() {
     assert_eq!(settings.language, AppLanguage::ZhCn);
     assert_eq!(settings.theme, AppTheme::Light);
     assert!(settings.auto_switch_enabled);
+    assert_eq!(settings.accounts_view_mode, AppAccountsViewMode::Cards);
 }
 
 #[test]
@@ -54,6 +57,7 @@ fn app_settings_round_trip_through_disk() {
             language: AppLanguage::EnUs,
             theme: AppTheme::Dark,
             auto_switch_enabled: true,
+            accounts_view_mode: AppAccountsViewMode::List,
         },
     )
     .expect("save settings");
@@ -62,6 +66,7 @@ fn app_settings_round_trip_through_disk() {
     assert_eq!(loaded.language, AppLanguage::EnUs);
     assert_eq!(loaded.theme, AppTheme::Dark);
     assert!(loaded.auto_switch_enabled);
+    assert_eq!(loaded.accounts_view_mode, AppAccountsViewMode::List);
 }
 
 #[test]
@@ -75,6 +80,7 @@ fn app_settings_support_system_theme_round_trip() {
             language: AppLanguage::ZhCn,
             theme: AppTheme::System,
             auto_switch_enabled: false,
+            accounts_view_mode: AppAccountsViewMode::Cards,
         },
     )
     .expect("save settings");
@@ -99,4 +105,5 @@ fn app_settings_loads_legacy_files_with_auto_switch_disabled() {
     assert_eq!(loaded.language, AppLanguage::EnUs);
     assert_eq!(loaded.theme, AppTheme::Dark);
     assert!(loaded.auto_switch_enabled);
+    assert_eq!(loaded.accounts_view_mode, AppAccountsViewMode::Cards);
 }
