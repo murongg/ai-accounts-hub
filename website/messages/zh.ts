@@ -10,7 +10,7 @@ export const zh = {
     badge: 'macOS 原生应用 · v0.3.5',
     titleLine1: '所有 AI 账号',
     titleLine2: '一键掌控',
-    desc: '统一管理 Claude、Codex、Gemini 的多个账号，一键切换系统登录态，实时监控配额用量，原生 menubar 快速访问。',
+    desc: '统一管理 Claude、Codex、Gemini 的多个账号，一键切换系统登录态，卡片/列表双视图查看配额，原生 menubar 快速访问。',
     ctaGithub: '查看源码',
     statProviders: 'AI Providers',
     statAccounts: '账号数量',
@@ -24,15 +24,15 @@ export const zh = {
     items: [
       {
         title: '多账号统一管理',
-        desc: '为每个 AI provider 存储任意数量的账号。工作账号、个人账号、测试账号——全部集中管理，随时调用，彼此隔离互不干扰。',
+        desc: '为每个 AI provider 存储任意数量的账号。工作账号、个人账号、测试账号——全部集中管理，可在卡片和列表视图间快速切换。',
       },
       {
         title: '一键切换登录态',
         desc: '点击即切换。系统 CLI 凭证立即更新，无需手动登出再登入，秒级完成。',
       },
       {
-        title: '实时配额监控',
-        desc: '一眼看清 Session、Weekly、5h/周窗口等各维度配额余量，掌握用量趋势，不再因超限而措手不及。',
+        title: '配额监控与综合排序',
+        desc: '一眼看清 Session、Weekly、5h/周窗口等各维度配额余量，并按 provider 的多个配额维度综合排序，优先使用余量更充足的账号。',
       },
       {
         title: 'macOS Menubar 集成',
@@ -51,13 +51,14 @@ export const zh = {
   providers: {
     badge: '支持平台',
     title: '三大主流 AI Provider',
-    desc: '涵盖当前最常用的 AI CLI 工具，配额展示维度各有差异，按 provider 特性精准适配。',
+    desc: '涵盖当前最常用的 AI CLI 工具，配额展示维度各有差异，按 provider 特性精准适配，列表视图使用横向进度条便于快速比较。',
     claudeNote: '优先读取官方 OAuth usage 接口，无法获取时回退至 CLI',
     codexNote: '读取接入的 provider 配额接口，落地为本地快照，支持 5h 和周维度窗口',
     geminiNote: '读取官方 quota 接口，按 Pro / Flash / Flash Lite 三个模型维度分别展示',
     quotaLabels: {
       claudeSession: 'Session 配额',
       claudeWeekly: 'Weekly 配额',
+      claudeModelWeekly: '模型周额度',
       codex5h: '5h 窗口余量',
       codexWeekly: '周窗口余量',
       geminiPro: 'Pro 剩余',
@@ -77,6 +78,9 @@ export const zh = {
     title: '三步开始使用',
     mockupActive: '使用中',
     mockupSwitch: '切换',
+    mockupCards: '卡片',
+    mockupList: '列表',
+    mockupSorted: '综合排序',
     steps: [
       {
         title: '下载安装',

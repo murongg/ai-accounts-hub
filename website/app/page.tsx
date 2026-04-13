@@ -276,6 +276,7 @@ export default function HomePage() {
               quotas={[
                 { label: t.providers.quotaLabels.claudeSession, pct: 68, color: '#D97757' },
                 { label: t.providers.quotaLabels.claudeWeekly, pct: 42, color: '#D97757' },
+                { label: t.providers.quotaLabels.claudeModelWeekly, pct: 74, color: '#D97757' },
               ]}
               className="top-0 left-0 z-30" floatClass="animate-float-0"
             />
@@ -292,6 +293,7 @@ export default function HomePage() {
               quotas={[
                 { label: t.providers.quotaLabels.geminiPro, pct: 30, color: '#4285F4' },
                 { label: t.providers.quotaLabels.geminiFlash, pct: 77, color: '#4285F4' },
+                { label: t.providers.quotaLabels.geminiFlashLite, pct: 92, color: '#4285F4' },
               ]}
               className="bottom-0 left-10 z-10" floatClass="animate-float-2"
             />
@@ -462,7 +464,7 @@ export default function HomePage() {
                     <div className="w-3 h-3 rounded-full bg-warning/70" />
                     <div className="w-3 h-3 rounded-full bg-success/70" />
                   </div>
-                  <div className="flex-1 flex justify-center">
+                  <div className="flex-1 flex items-center justify-between gap-3">
                     <div className="flex gap-1">
                       {['Codex', 'Claude', 'Gemini'].map((tab, i) => (
                         <div key={tab} className={`text-xs px-3 py-1 rounded-lg ${i === 1 ? 'bg-primary text-primary-content font-medium' : 'opacity-40'}`}>
@@ -470,24 +472,83 @@ export default function HomePage() {
                         </div>
                       ))}
                     </div>
+                    <div className="hidden sm:flex items-center gap-1 rounded-xl bg-base-100 border border-base-200 p-1">
+                      <div className="flex h-6 w-6 items-center justify-center rounded-lg opacity-45" title={t.howto.mockupCards}>
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+                          <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                          <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                          <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                          <rect x="14" y="14" width="7" height="7" rx="1.5" />
+                        </svg>
+                      </div>
+                      <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary text-primary-content" title={t.howto.mockupList}>
+                        <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M8 6h13M8 12h13M8 18h13" />
+                          <path d="M3 6h.01M3 12h.01M3 18h.01" />
+                        </svg>
+                      </div>
+                    </div>
                   </div>
                 </div>
-                <div className="p-4 space-y-2">
+                <div className="px-4 pt-4">
+                  <div className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 text-[10px] font-medium text-primary">
+                    <svg viewBox="0 0 24 24" width="11" height="11" fill="none" stroke="currentColor" strokeWidth="2.4">
+                      <path d="M3 6h18M7 12h10M10 18h4" />
+                    </svg>
+                    {t.howto.mockupSorted}
+                  </div>
+                </div>
+                <div className="px-4 pb-4 space-y-2">
                   {[
-                    { account: 'work@company.com', active: true, pct: 68 },
-                    { account: 'personal@gmail.com', active: false, pct: 95 },
-                    { account: 'dev@project.io', active: false, pct: 20 },
-                  ].map(({ account, active, pct }, i) => (
-                    <div key={i} className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${active ? 'border-primary bg-primary/10' : 'border-base-200 bg-base-100'}`}>
-                      <ClaudeIcon size={32} />
-                      <div className="flex-1 min-w-0">
-                        <div className={`text-sm font-medium truncate ${active ? 'text-primary' : ''}`}>{account}</div>
-                        <div className="flex items-center gap-1.5 mt-1.5">
-                          <div className="h-1 w-16 bg-base-300 rounded-full overflow-hidden">
-                            <div className="h-full bg-[#D97757] rounded-full" style={{ width: `${pct}%` }} />
-                          </div>
-                          <span className="text-[10px] opacity-50">{pct}%</span>
+                    {
+                      account: 'work@company.com',
+                      icon: <ClaudeIcon size={30} />,
+                      active: true,
+                      color: '#D97757',
+                      quotas: [
+                        { label: t.providers.quotaLabels.claudeSession, pct: 68 },
+                        { label: t.providers.quotaLabels.claudeWeekly, pct: 42 },
+                      ],
+                    },
+                    {
+                      account: 'team@example.io',
+                      icon: <CodexIcon size={30} />,
+                      active: false,
+                      color: '#10A37F',
+                      quotas: [
+                        { label: t.providers.quotaLabels.codex5h, pct: 85 },
+                        { label: t.providers.quotaLabels.codexWeekly, pct: 60 },
+                      ],
+                    },
+                    {
+                      account: 'personal@gmail.com',
+                      icon: <GeminiIcon size={30} />,
+                      active: false,
+                      color: '#4285F4',
+                      quotas: [
+                        { label: t.providers.quotaLabels.geminiPro, pct: 30 },
+                        { label: t.providers.quotaLabels.geminiFlash, pct: 77 },
+                      ],
+                    },
+                  ].map(({ account, active, icon, color, quotas }, i) => (
+                    <div key={i} className={`grid gap-3 p-3 rounded-2xl border transition-all sm:grid-cols-[minmax(0,0.9fr)_minmax(150px,1.25fr)_auto] sm:items-center ${active ? 'border-primary bg-primary/10' : 'border-base-200 bg-base-100'}`}>
+                      <div className="flex min-w-0 items-center gap-3">
+                        {icon}
+                        <div className="min-w-0">
+                          <div className={`text-sm font-medium truncate ${active ? 'text-primary' : ''}`}>{account}</div>
+                          <div className="mt-1 text-[10px] opacity-45">{active ? t.howto.mockupActive : t.howto.mockupSwitch}</div>
                         </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        {quotas.map((quota) => (
+                          <div key={quota.label} className="grid grid-cols-[4.5rem_1fr_2rem] items-center gap-2">
+                            <span className="truncate text-[10px] opacity-55">{quota.label}</span>
+                            <div className="h-1.5 overflow-hidden rounded-full bg-base-300">
+                              <div className="h-full rounded-full" style={{ width: `${quota.pct}%`, background: color }} />
+                            </div>
+                            <span className="text-right text-[10px] font-medium opacity-60">{quota.pct}%</span>
+                          </div>
+                        ))}
                       </div>
                       {active ? (
                         <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -495,7 +556,7 @@ export default function HomePage() {
                           <span className="text-[10px] text-success font-medium">{t.howto.mockupActive}</span>
                         </div>
                       ) : (
-                        <button className="btn btn-xs btn-ghost rounded-lg opacity-40 hover:opacity-100 flex-shrink-0">
+                        <button type="button" className="btn btn-xs btn-ghost rounded-lg opacity-40 hover:opacity-100 flex-shrink-0">
                           {t.howto.mockupSwitch}
                         </button>
                       )}

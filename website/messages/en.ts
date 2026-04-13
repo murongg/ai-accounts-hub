@@ -12,7 +12,7 @@ export const en: Messages = {
     badge: 'macOS Native App · v0.3.5',
     titleLine1: 'All Your AI Accounts,',
     titleLine2: 'One Hub',
-    desc: 'Unified management for Claude, Codex, and Gemini accounts. One-click credential switching, real-time quota monitoring, and native macOS menubar integration.',
+    desc: 'Unified management for Claude, Codex, and Gemini accounts. One-click credential switching, card/list quota views, and native macOS menubar integration.',
     ctaGithub: 'View Source',
     statProviders: 'AI Providers',
     statAccounts: 'Accounts',
@@ -26,15 +26,15 @@ export const en: Messages = {
     items: [
       {
         title: 'Unified Account Management',
-        desc: 'Store unlimited accounts per AI provider. Work, personal, test accounts — all centrally managed, isolated from each other.',
+        desc: 'Store unlimited accounts per AI provider. Work, personal, and test accounts stay centralized, with quick card/list view switching.',
       },
       {
         title: 'One-Click Credential Switch',
         desc: 'Click to switch. System CLI credentials update instantly — no manual sign-out and sign-in required.',
       },
       {
-        title: 'Real-Time Quota Monitoring',
-        desc: 'See Session, Weekly, and 5h/weekly window quotas at a glance. Stay ahead of limits before they catch you.',
+        title: 'Quota Monitoring & Combined Sorting',
+        desc: 'See Session, Weekly, and 5h/weekly window quotas at a glance, then sort accounts by multiple provider-specific quota dimensions.',
       },
       {
         title: 'macOS Menubar Integration',
@@ -53,13 +53,14 @@ export const en: Messages = {
   providers: {
     badge: 'Supported Providers',
     title: 'Three Major AI Providers',
-    desc: 'Covers the most widely used AI CLI tools, each with provider-specific quota display tailored to their characteristics.',
+    desc: 'Covers the most widely used AI CLI tools, each with provider-specific quota displays and list-view progress bars for fast comparison.',
     claudeNote: 'Reads official OAuth usage API first, falls back to CLI',
     codexNote: 'Reads provider quota API, stored as local snapshots. Supports 5h and weekly window quotas.',
     geminiNote: 'Reads official quota API, displaying Pro / Flash / Flash Lite model quotas separately.',
     quotaLabels: {
       claudeSession: 'Session Quota',
       claudeWeekly: 'Weekly Quota',
+      claudeModelWeekly: 'Model Weekly',
       codex5h: '5h Window',
       codexWeekly: 'Weekly Window',
       geminiPro: 'Pro Remaining',
@@ -79,6 +80,9 @@ export const en: Messages = {
     title: 'Three Steps to Get Started',
     mockupActive: 'Active',
     mockupSwitch: 'Switch',
+    mockupCards: 'Cards',
+    mockupList: 'List',
+    mockupSorted: 'Combined sort',
     steps: [
       {
         title: 'Download & Install',
