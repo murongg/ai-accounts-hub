@@ -27,6 +27,10 @@ unsafe extern "C" {
     fn aah_status_bar_bridge_debug_active_section_index_from_json(payload_json: *const i8)
         -> c_int;
     fn aah_status_bar_bridge_debug_total_metric_count_from_json(payload_json: *const i8) -> c_int;
+    fn aah_status_bar_bridge_debug_section_index_for_id_from_json(
+        payload_json: *const i8,
+        section_id: *const i8,
+    ) -> c_int;
     fn aah_status_bar_bridge_debug_footer_action_count() -> c_int;
     fn aah_status_bar_bridge_debug_selected_tab_after_action_from_json(
         payload_json: *const i8,
@@ -88,6 +92,41 @@ fn native_bridge_presentation_keeps_tabs_actions_and_active_section_order() {
     assert_eq!(active_index, 0);
     assert_eq!(metric_count, 3);
     assert_eq!(footer_count, 3);
+}
+
+#[cfg(target_os = "macos")]
+#[test]
+fn native_bridge_presentation_sorts_accounts_by_primary_quota_after_active_account() {
+    let payload = CString::new(
+        r#"{"selectedTab":"codex","sections":[{"id":"codex:low","providerId":"codex","providerTitle":"Codex","email":"low@example.com","subtitle":"Updated 8m ago","plan":"Pro","isActive":false,"needsRelogin":false,"primaryQuotaPercent":12,"metrics":[{"title":"Session","percent":12,"leftText":"12% left","resetText":"Resets in 3h"}],"switchAccountId":"low"},{"id":"codex:missing","providerId":"codex","providerTitle":"Codex","email":"missing@example.com","subtitle":"Updated 8m ago","plan":"Pro","isActive":false,"needsRelogin":false,"primaryQuotaPercent":null,"metrics":[],"switchAccountId":"missing"},{"id":"codex:active","providerId":"codex","providerTitle":"Codex","email":"active@example.com","subtitle":"Updated 1m ago","plan":"Pro","isActive":true,"needsRelogin":false,"primaryQuotaPercent":3,"metrics":[{"title":"Session","percent":3,"leftText":"3% left","resetText":"Resets in 1h"}],"switchAccountId":null},{"id":"codex:high","providerId":"codex","providerTitle":"Codex","email":"high@example.com","subtitle":"Updated 8m ago","plan":"Pro","isActive":false,"needsRelogin":false,"primaryQuotaPercent":91,"metrics":[{"title":"Session","percent":91,"leftText":"91% left","resetText":"Resets in 3h"}],"switchAccountId":"high"}]}"#,
+    )
+    .unwrap();
+    let high_id = CString::new("codex:high").unwrap();
+    let low_id = CString::new("codex:low").unwrap();
+    let missing_id = CString::new("codex:missing").unwrap();
+
+    let high_index = unsafe {
+        aah_status_bar_bridge_debug_section_index_for_id_from_json(
+            payload.as_ptr(),
+            high_id.as_ptr(),
+        )
+    };
+    let low_index = unsafe {
+        aah_status_bar_bridge_debug_section_index_for_id_from_json(
+            payload.as_ptr(),
+            low_id.as_ptr(),
+        )
+    };
+    let missing_index = unsafe {
+        aah_status_bar_bridge_debug_section_index_for_id_from_json(
+            payload.as_ptr(),
+            missing_id.as_ptr(),
+        )
+    };
+
+    assert_eq!(high_index, 1);
+    assert_eq!(low_index, 2);
+    assert_eq!(missing_index, 3);
 }
 
 #[cfg(target_os = "macos")]

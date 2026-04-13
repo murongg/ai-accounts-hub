@@ -209,6 +209,120 @@ fn codex_payload_keeps_reset_countdown_at_minute_precision() {
 }
 
 #[test]
+fn provider_payload_sorts_inactive_accounts_by_primary_quota_descending() {
+    let mut relogin = codex_account(
+        "relogin",
+        "relogin@example.com",
+        false,
+        Some(100),
+        Some(100),
+    );
+    relogin.needs_relogin = Some(true);
+
+    let payload = build_bridge_payload(
+        StatusBarTab::Codex,
+        vec![
+            codex_account("low", "low@example.com", false, Some(12), Some(90)),
+            codex_account("missing", "missing@example.com", false, None, Some(99)),
+            codex_account("active", "active@example.com", true, Some(3), Some(4)),
+            codex_account("high", "high@example.com", false, Some(91), Some(1)),
+            relogin,
+        ],
+        Vec::new(),
+        Vec::new(),
+        1_775_640_000_000,
+    );
+
+    let ids: Vec<&str> = payload
+        .sections
+        .iter()
+        .map(|section| section.id.as_str())
+        .collect();
+
+    assert_eq!(
+        ids,
+        vec![
+            "codex:active",
+            "codex:high",
+            "codex:low",
+            "codex:missing",
+            "codex:relogin",
+        ]
+    );
+}
+
+#[test]
+fn provider_payload_uses_provider_primary_quota_for_sorting() {
+    let claude_payload = build_bridge_payload(
+        StatusBarTab::Claude,
+        Vec::new(),
+        vec![
+            claude_account(
+                "weekly-high",
+                "weekly@example.com",
+                false,
+                Some(18),
+                Some(99),
+                None,
+                None,
+            ),
+            claude_account(
+                "session-high",
+                "session@example.com",
+                false,
+                Some(72),
+                Some(10),
+                None,
+                None,
+            ),
+        ],
+        Vec::new(),
+        1_775_640_000_000,
+    );
+    let gemini_payload = build_bridge_payload(
+        StatusBarTab::Gemini,
+        Vec::new(),
+        Vec::new(),
+        vec![
+            gemini_account(
+                "flash-high",
+                "flash@example.com",
+                false,
+                Some(11),
+                Some(99),
+                Some(99),
+            ),
+            gemini_account(
+                "pro-high",
+                "pro@example.com",
+                false,
+                Some(88),
+                Some(10),
+                Some(10),
+            ),
+        ],
+        1_775_640_000_000,
+    );
+
+    let claude_ids: Vec<&str> = claude_payload
+        .sections
+        .iter()
+        .map(|section| section.id.as_str())
+        .collect();
+    let gemini_ids: Vec<&str> = gemini_payload
+        .sections
+        .iter()
+        .map(|section| section.id.as_str())
+        .collect();
+
+    assert_eq!(
+        claude_ids,
+        vec!["claude:session-high", "claude:weekly-high"]
+    );
+    assert_eq!(gemini_ids, vec!["gemini:pro-high", "gemini:flash-high"]);
+}
+
+#[test]
 fn relogin_payload_clears_metrics_and_marks_status() {
     let mut broken = gemini_account(
         "bad",
@@ -239,6 +353,7 @@ fn relogin_payload_clears_metrics_and_marks_status() {
             plan: Some("Paid".to_string()),
             is_active: false,
             needs_relogin: true,
+            primary_quota_percent: None,
             metrics: Vec::new(),
             switch_account_id: Some("bad".to_string()),
         }
@@ -275,6 +390,7 @@ fn claude_payload_includes_session_weekly_and_model_metrics() {
             plan: Some("Pro".to_string()),
             is_active: true,
             needs_relogin: false,
+            primary_quota_percent: Some(82),
             metrics: vec![
                 BridgeMetricPayload {
                     title: "Session".to_string(),

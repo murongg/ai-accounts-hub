@@ -1,4 +1,5 @@
 import { getI18n } from "./i18n.ts";
+import type { CodexAccountSummary } from "../types/codex";
 import type { ClaudeAccountSummary } from "../types/claude";
 import type { GeminiAccountSummary } from "../types/gemini.ts";
 import type { AppLanguage } from "../types/settings";
@@ -242,6 +243,72 @@ export function getPlatformAccountMetrics(
     activeCount,
     idleCount: Math.max(accounts.length - activeCount, 0),
   };
+}
+
+type QuotaSortableAccount = {
+  is_active: boolean;
+  needs_relogin?: boolean | null;
+};
+
+export function sortAccountsByPrimaryQuota<T extends QuotaSortableAccount>(
+  activePlatform: string,
+  accounts: T[],
+): T[] {
+  return accounts
+    .map((account, index) => ({
+      account,
+      index,
+      primaryQuota: resolvePrimaryQuota(activePlatform, account),
+    }))
+    .sort((left, right) => {
+      if (left.account.is_active !== right.account.is_active) {
+        return left.account.is_active ? -1 : 1;
+      }
+
+      const quotaOrder = compareNullableQuotaDesc(left.primaryQuota, right.primaryQuota);
+      if (quotaOrder !== 0) {
+        return quotaOrder;
+      }
+
+      return left.index - right.index;
+    })
+    .map(({ account }) => account);
+}
+
+function resolvePrimaryQuota(activePlatform: string, account: QuotaSortableAccount): number | null {
+  if (account.needs_relogin) {
+    return null;
+  }
+
+  if (activePlatform === "codex") {
+    return (account as Partial<CodexAccountSummary>).five_hour_remaining_percent ?? null;
+  }
+
+  if (activePlatform === "claude") {
+    return (account as Partial<ClaudeAccountSummary>).session_remaining_percent ?? null;
+  }
+
+  if (activePlatform === "gemini") {
+    return (account as Partial<GeminiAccountSummary>).pro_remaining_percent ?? null;
+  }
+
+  return null;
+}
+
+function compareNullableQuotaDesc(left: number | null, right: number | null) {
+  if (left === null && right === null) {
+    return 0;
+  }
+
+  if (left === null) {
+    return 1;
+  }
+
+  if (right === null) {
+    return -1;
+  }
+
+  return right - left;
 }
 
 function resolveRefreshAtMs(raw: string) {

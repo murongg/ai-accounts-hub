@@ -33,6 +33,7 @@ int aah_status_bar_bridge_debug_status_item_opaque_pixel_count(unsigned char per
 int aah_status_bar_bridge_debug_visible_tab_count(void);
 int aah_status_bar_bridge_debug_active_section_index_from_json(const char *payload_json);
 int aah_status_bar_bridge_debug_total_metric_count_from_json(const char *payload_json);
+int aah_status_bar_bridge_debug_section_index_for_id_from_json(const char *payload_json, const char *section_id);
 int aah_status_bar_bridge_debug_footer_action_count(void);
 int aah_status_bar_bridge_debug_selected_tab_after_action_from_json(const char *payload_json, const char *action_json);
 int aah_status_bar_bridge_debug_action_keeps_menu_open(const char *action_json);

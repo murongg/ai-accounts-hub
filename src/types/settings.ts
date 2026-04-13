@@ -14,6 +14,7 @@ export type AppUpdaterStatus =
 export interface AppSettings {
   language: AppLanguage;
   theme: AppTheme;
+  auto_switch_enabled: boolean;
 }
 
 export interface AppDataDirectoryInfo {

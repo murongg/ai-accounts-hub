@@ -1,7 +1,12 @@
 #[cfg(target_os = "macos")]
 use std::path::Path;
 #[cfg(target_os = "macos")]
+use std::sync::atomic::{AtomicU64, Ordering};
+#[cfg(target_os = "macos")]
 use std::time::{SystemTime, UNIX_EPOCH};
+
+#[cfg(target_os = "macos")]
+static UNIQUE_SUFFIX_COUNTER: AtomicU64 = AtomicU64::new(0);
 
 #[cfg(target_os = "macos")]
 pub fn shell_escape_path(path: &Path) -> String {
@@ -11,10 +16,13 @@ pub fn shell_escape_path(path: &Path) -> String {
 
 #[cfg(target_os = "macos")]
 pub fn unique_suffix() -> String {
-    SystemTime::now()
+    let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|duration| duration.as_nanos().to_string())
-        .unwrap_or_else(|_| "0".to_string())
+        .map(|duration| duration.as_nanos())
+        .unwrap_or(0);
+    let sequence = UNIQUE_SUFFIX_COUNTER.fetch_add(1, Ordering::Relaxed);
+
+    format!("{timestamp}-{sequence}")
 }
 
 #[cfg(test)]

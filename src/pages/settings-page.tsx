@@ -21,6 +21,7 @@ import type { AppDataDirectoryInfo, AppLanguage, AppTheme, AppUpdaterState } fro
 export interface SettingsPageProps {
   language: AppLanguage;
   theme: AppTheme;
+  autoSwitchEnabled: boolean;
   refreshSettings: CodexRefreshSettings;
   updaterState: AppUpdaterState;
   dataDirectory: AppDataDirectoryInfo | null;
@@ -34,6 +35,7 @@ export interface SettingsPageProps {
   isConfirmingClearAll: boolean;
   onLanguageChange: (language: AppLanguage) => void;
   onThemeChange: (theme: AppTheme) => void;
+  onAutoSwitchEnabledChange: (enabled: boolean) => void;
   onRefreshEnabledChange: (enabled: boolean) => void;
   onRefreshIntervalChange: (intervalSeconds: number) => void;
   onCheckForUpdates: () => void;
@@ -47,6 +49,7 @@ export interface SettingsPageProps {
 function SettingsPageComponent({
   language,
   theme,
+  autoSwitchEnabled,
   refreshSettings,
   updaterState,
   dataDirectory,
@@ -60,6 +63,7 @@ function SettingsPageComponent({
   isConfirmingClearAll,
   onLanguageChange,
   onThemeChange,
+  onAutoSwitchEnabledChange,
   onRefreshEnabledChange,
   onRefreshIntervalChange,
   onCheckForUpdates,
@@ -223,6 +227,25 @@ function SettingsPageComponent({
                       />
                     </div>
                   </div>
+                }
+              />
+
+              <SettingsRow
+                title={copy.settings.autoSwitch.title}
+                description={copy.settings.autoSwitch.description}
+                content={
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      className="toggle toggle-primary"
+                      checked={autoSwitchEnabled}
+                      disabled={isSavingAppSettings}
+                      onChange={(event) => onAutoSwitchEnabledChange(event.target.checked)}
+                    />
+                    <span className="text-sm text-base-content/75">
+                      {copy.settings.autoSwitch.enabledLabel}
+                    </span>
+                  </label>
                 }
               />
             </div>

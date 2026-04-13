@@ -97,6 +97,11 @@ export interface I18nMessages {
       intervalLabel: string;
       options: Array<{ label: string; value: string }>;
     };
+    autoSwitch: {
+      title: string;
+      description: string;
+      enabledLabel: string;
+    };
     update: {
       title: string;
       description: string;
@@ -269,6 +274,11 @@ function createChineseCopy(): I18nMessages {
         intervalLabel: "刷新间隔：",
         options: REFRESH_INTERVAL_OPTIONS["zh-CN"],
       },
+      autoSwitch: {
+        title: "配额用尽自动切换",
+        description: "当前账号主配额为 0% 或需要重登时，自动切到同平台内剩余主配额最高的可用账号。",
+        enabledLabel: "启用自动切换账号",
+      },
       update: {
         title: "应用更新",
         description: "检查新版本并下载已签名的桌面更新包。",
@@ -412,6 +422,12 @@ function createEnglishCopy(): I18nMessages {
         enabledLabel: "Enable scheduled refresh",
         intervalLabel: "Refresh interval:",
         options: REFRESH_INTERVAL_OPTIONS["en-US"],
+      },
+      autoSwitch: {
+        title: "Auto switch when quota is exhausted",
+        description:
+          "When the active account reaches 0% primary quota or needs re-login, switch to the available account with the highest primary quota in the same provider.",
+        enabledLabel: "Enable automatic account switching",
       },
       update: {
         title: "App updates",

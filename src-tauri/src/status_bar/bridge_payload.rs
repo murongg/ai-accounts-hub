@@ -33,6 +33,7 @@ pub struct BridgeProviderPayload {
     pub plan: Option<String>,
     pub is_active: bool,
     pub needs_relogin: bool,
+    pub primary_quota_percent: Option<u8>,
     pub metrics: Vec<BridgeMetricPayload>,
     pub switch_account_id: Option<String>,
 }
@@ -338,6 +339,8 @@ fn build_codex_sections(
         .into_iter()
         .map(|account| {
             let needs_relogin = account.needs_relogin.unwrap_or(false);
+            let primary_quota_percent =
+                primary_quota_percent(needs_relogin, account.five_hour_remaining_percent);
             let metrics = if needs_relogin {
                 Vec::new()
             } else {
@@ -383,6 +386,7 @@ fn build_codex_sections(
                 plan: account.plan,
                 is_active: account.is_active,
                 needs_relogin,
+                primary_quota_percent,
                 metrics,
                 switch_account_id: (!account.is_active).then_some(account.id),
             }
@@ -398,6 +402,8 @@ fn build_gemini_sections(
         .into_iter()
         .map(|account| {
             let needs_relogin = account.needs_relogin.unwrap_or(false);
+            let primary_quota_percent =
+                primary_quota_percent(needs_relogin, account.pro_remaining_percent);
             let metrics = if needs_relogin {
                 Vec::new()
             } else {
@@ -454,6 +460,7 @@ fn build_gemini_sections(
                 plan: account.plan,
                 is_active: account.is_active,
                 needs_relogin,
+                primary_quota_percent,
                 metrics,
                 switch_account_id: (!account.is_active).then_some(account.id),
             }
@@ -469,6 +476,8 @@ fn build_claude_sections(
         .into_iter()
         .map(|account| {
             let needs_relogin = account.needs_relogin.unwrap_or(false);
+            let primary_quota_percent =
+                primary_quota_percent(needs_relogin, account.session_remaining_percent);
             let metrics = if needs_relogin {
                 Vec::new()
             } else {
@@ -529,6 +538,7 @@ fn build_claude_sections(
                 plan: account.plan,
                 is_active: account.is_active,
                 needs_relogin,
+                primary_quota_percent,
                 metrics,
                 switch_account_id: (!account.is_active).then_some(account.id),
             }
@@ -540,8 +550,29 @@ fn sort_sections(sections: &mut [BridgeProviderPayload]) {
     sections.sort_by(|left, right| match (left.is_active, right.is_active) {
         (true, false) => std::cmp::Ordering::Less,
         (false, true) => std::cmp::Ordering::Greater,
-        _ => std::cmp::Ordering::Equal,
+        _ => compare_primary_quota(section_primary_quota(left), section_primary_quota(right)),
     });
+}
+
+fn section_primary_quota(section: &BridgeProviderPayload) -> Option<u8> {
+    section.primary_quota_percent
+}
+
+fn primary_quota_percent(needs_relogin: bool, percent: Option<u8>) -> Option<u8> {
+    if needs_relogin {
+        None
+    } else {
+        percent
+    }
+}
+
+fn compare_primary_quota(left: Option<u8>, right: Option<u8>) -> std::cmp::Ordering {
+    match (left, right) {
+        (Some(left), Some(right)) => right.cmp(&left),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => std::cmp::Ordering::Equal,
+    }
 }
 
 fn section_subtitle(needs_relogin: bool, last_synced_at: Option<&str>, now_ms: i64) -> String {

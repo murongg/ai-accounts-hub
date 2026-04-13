@@ -16,16 +16,36 @@ struct StatusBarMenuPresentation {
     init(payload: StatusBarBridgePayload) {
         self.rawSelectedTab = payload.selectedTab
         self.accountSections = payload.sections
+            .enumerated()
             .sorted { lhs, rhs in
-                if lhs.isActive != rhs.isActive {
-                    return lhs.isActive && !rhs.isActive
+                if lhs.element.isActive != rhs.element.isActive {
+                    return lhs.element.isActive && !rhs.element.isActive
                 }
 
-                return lhs.providerTitle.localizedCaseInsensitiveCompare(rhs.providerTitle) == .orderedAscending
+                let leftQuota = Self.primaryQuotaPercent(for: lhs.element)
+                let rightQuota = Self.primaryQuotaPercent(for: rhs.element)
+                if leftQuota != rightQuota {
+                    if let leftQuota, let rightQuota {
+                        return leftQuota > rightQuota
+                    }
+
+                    return leftQuota != nil
+                }
+
+                return lhs.offset < rhs.offset
             }
-            .map { section in
-                AccountSection(id: section.id, section: section, metrics: section.metrics)
+            .map { indexedSection in
+                let section = indexedSection.element
+                return AccountSection(id: section.id, section: section, metrics: section.metrics)
             }
+    }
+
+    static func primaryQuotaPercent(for section: StatusBarBridgeSection) -> UInt8? {
+        if section.needsRelogin {
+            return nil
+        }
+
+        return section.primaryQuotaPercent
     }
 
     var selectedTab: StatusBarBridgeTab {

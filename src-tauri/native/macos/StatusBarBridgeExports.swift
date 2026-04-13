@@ -328,6 +328,21 @@ func aah_status_bar_bridge_debug_total_metric_count_from_json(_ payloadJSON: Uns
     return StatusBarMenuPresentation(payload: payload).totalMetricCount
 }
 
+@_cdecl("aah_status_bar_bridge_debug_section_index_for_id_from_json")
+func aah_status_bar_bridge_debug_section_index_for_id_from_json(
+    _ payloadJSON: UnsafePointer<CChar>?,
+    _ sectionID: UnsafePointer<CChar>?
+) -> Int32 {
+    guard let sectionID else {
+        return -1
+    }
+
+    let targetID = String(cString: sectionID)
+    let payload = decodedPayload(from: payloadJSON)
+    let presentation = StatusBarMenuPresentation(payload: payload)
+    return Int32(presentation.accountSections.firstIndex { $0.id == targetID } ?? -1)
+}
+
 @_cdecl("aah_status_bar_bridge_debug_footer_action_count")
 func aah_status_bar_bridge_debug_footer_action_count() -> Int32 {
     StatusBarMenuPresentation.footerActionCount

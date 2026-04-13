@@ -23,7 +23,7 @@ import {
   startGeminiAccountLogin,
   switchGeminiAccount,
 } from "../lib/gemini-accounts";
-import { getPlatformAccountMetrics } from "../lib/accounts-display";
+import { getPlatformAccountMetrics, sortAccountsByPrimaryQuota } from "../lib/accounts-display";
 import { createLatestRequestGate } from "../lib/accounts-workspace";
 import type { ClaudeAccountSummary } from "../types/claude";
 import type { CodexAccountSummary } from "../types/codex";
@@ -495,7 +495,7 @@ function AccountsWorkspaceComponent({
     account.email.toLowerCase().includes(normalizedQuery),
   );
   const { totalCount, activeCount, idleCount } = getPlatformAccountMetrics(activePlatform, currentAccounts);
-  const visibleAccounts = searchedAccounts.filter((account) => {
+  const visibleAccounts = sortAccountsByPrimaryQuota(activePlatform, searchedAccounts.filter((account) => {
     if (activeTab === "active") {
       return account.is_active;
     }
@@ -503,7 +503,7 @@ function AccountsWorkspaceComponent({
       return !account.is_active;
     }
     return true;
-  });
+  }));
 
   return (
     <AccountsPage

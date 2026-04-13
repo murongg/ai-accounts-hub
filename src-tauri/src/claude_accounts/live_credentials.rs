@@ -237,6 +237,11 @@ fn read_live_secure_storage(
     fallback_path: &std::path::Path,
     is_custom_config_dir: bool,
 ) -> Result<Vec<u8>, String> {
+    #[cfg(test)]
+    if let Some(payload) = read_plaintext_secure_storage(fallback_path)? {
+        return Ok(payload);
+    }
+
     let service = claude_keychain_service_name(config_dir, is_custom_config_dir);
     let account = current_username();
 

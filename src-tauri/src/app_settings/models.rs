@@ -28,10 +28,26 @@ impl Default for AppTheme {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
+fn default_auto_switch_enabled() -> bool {
+    true
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AppSettings {
     pub language: AppLanguage,
     pub theme: AppTheme,
+    #[serde(default = "default_auto_switch_enabled")]
+    pub auto_switch_enabled: bool,
+}
+
+impl Default for AppSettings {
+    fn default() -> Self {
+        Self {
+            language: AppLanguage::default(),
+            theme: AppTheme::default(),
+            auto_switch_enabled: default_auto_switch_enabled(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

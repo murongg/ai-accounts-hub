@@ -40,6 +40,7 @@ fn app_settings_default_to_chinese_light_theme() {
 
     assert_eq!(settings.language, AppLanguage::ZhCn);
     assert_eq!(settings.theme, AppTheme::Light);
+    assert!(settings.auto_switch_enabled);
 }
 
 #[test]
@@ -52,6 +53,7 @@ fn app_settings_round_trip_through_disk() {
         AppSettings {
             language: AppLanguage::EnUs,
             theme: AppTheme::Dark,
+            auto_switch_enabled: true,
         },
     )
     .expect("save settings");
@@ -59,6 +61,7 @@ fn app_settings_round_trip_through_disk() {
     let loaded = load_app_settings(&paths).expect("load settings");
     assert_eq!(loaded.language, AppLanguage::EnUs);
     assert_eq!(loaded.theme, AppTheme::Dark);
+    assert!(loaded.auto_switch_enabled);
 }
 
 #[test]
@@ -71,10 +74,29 @@ fn app_settings_support_system_theme_round_trip() {
         AppSettings {
             language: AppLanguage::ZhCn,
             theme: AppTheme::System,
+            auto_switch_enabled: false,
         },
     )
     .expect("save settings");
 
     let loaded = load_app_settings(&paths).expect("load settings");
     assert_eq!(loaded.theme, AppTheme::System);
+}
+
+#[test]
+fn app_settings_loads_legacy_files_with_auto_switch_disabled() {
+    let temp = TempDir::new("app-settings-legacy");
+    let paths = CodexAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    paths.ensure_dirs().expect("dirs");
+    fs::write(
+        paths.app_data_dir.join("settings.json"),
+        r#"{"language":"en-US","theme":"dark"}"#,
+    )
+    .expect("legacy settings");
+
+    let loaded = load_app_settings(&paths).expect("load legacy settings");
+
+    assert_eq!(loaded.language, AppLanguage::EnUs);
+    assert_eq!(loaded.theme, AppTheme::Dark);
+    assert!(loaded.auto_switch_enabled);
 }

@@ -9,7 +9,9 @@ import {
   formatTimestamp,
   getPlatformAccountMetrics,
   getQuotaProgressTone,
+  sortAccountsByPrimaryQuota,
 } from "./accounts-display.ts";
+import type { CodexAccountSummary } from "../types/codex.ts";
 import type { ClaudeAccountSummary } from "../types/claude.ts";
 import type { GeminiAccountSummary } from "../types/gemini.ts";
 
@@ -57,6 +59,58 @@ function claudeAccount(overrides: Partial<ClaudeAccountSummary> = {}): ClaudeAcc
     ...overrides,
   };
 }
+
+function codexAccount(overrides: Partial<CodexAccountSummary> = {}): CodexAccountSummary {
+  return {
+    id: "codex-1",
+    email: "codex@example.com",
+    plan: "Plus",
+    account_id: "acct-1",
+    is_active: false,
+    last_authenticated_at: "1775640000",
+    five_hour_remaining_percent: 50,
+    weekly_remaining_percent: 80,
+    five_hour_refresh_at: "1775650800",
+    weekly_refresh_at: "1776248400",
+    last_synced_at: "1775644364",
+    last_sync_error: null,
+    credits_balance: null,
+    needs_relogin: false,
+    ...overrides,
+  };
+}
+
+test("sortAccountsByPrimaryQuota keeps active accounts first then sorts Codex by 5h quota", () => {
+  const sorted = sortAccountsByPrimaryQuota("codex", [
+    codexAccount({ id: "low", five_hour_remaining_percent: 12 }),
+    codexAccount({ id: "missing", five_hour_remaining_percent: null }),
+    codexAccount({ id: "active", is_active: true, five_hour_remaining_percent: 3 }),
+    codexAccount({ id: "high", five_hour_remaining_percent: 91 }),
+    codexAccount({ id: "relogin", five_hour_remaining_percent: 100, needs_relogin: true }),
+  ]);
+
+  assert.deepEqual(sorted.map((account) => account.id), [
+    "active",
+    "high",
+    "low",
+    "missing",
+    "relogin",
+  ]);
+});
+
+test("sortAccountsByPrimaryQuota uses Claude session and Gemini Pro as primary quotas", () => {
+  const sortedClaude = sortAccountsByPrimaryQuota("claude", [
+    claudeAccount({ id: "weekly-high", session_remaining_percent: 18, weekly_remaining_percent: 99 }),
+    claudeAccount({ id: "session-high", session_remaining_percent: 72, weekly_remaining_percent: 10 }),
+  ]);
+  const sortedGemini = sortAccountsByPrimaryQuota("gemini", [
+    account({ id: "flash-high", pro_remaining_percent: 11, flash_remaining_percent: 99 }),
+    account({ id: "pro-high", pro_remaining_percent: 88, flash_remaining_percent: 10 }),
+  ]);
+
+  assert.deepEqual(sortedClaude.map((account) => account.id), ["session-high", "weekly-high"]);
+  assert.deepEqual(sortedGemini.map((account) => account.id), ["pro-high", "flash-high"]);
+});
 
 test("maps quota tone to remaining percentage severity", () => {
   assert.equal(getQuotaProgressTone(75), "text-emerald-500");

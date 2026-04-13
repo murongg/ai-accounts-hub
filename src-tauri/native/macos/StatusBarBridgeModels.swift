@@ -59,6 +59,7 @@ struct StatusBarBridgeSection: Codable, Identifiable, Hashable {
     let plan: String?
     let isActive: Bool
     let needsRelogin: Bool
+    let primaryQuotaPercent: UInt8?
     let metrics: [StatusBarBridgeMetric]
     let switchAccountId: String?
 }

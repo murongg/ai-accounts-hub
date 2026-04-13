@@ -34,6 +34,12 @@ pub struct ProviderMenuState {
     pub accounts: Vec<MenuAccountState>,
 }
 
+struct SortableMenuAccountState {
+    original_index: usize,
+    primary_quota_percent: Option<u8>,
+    account: MenuAccountState,
+}
+
 pub fn build_provider_menu_state(
     selected_provider: MenuProvider,
     codex_accounts: Vec<CodexAccountListItem>,
@@ -44,24 +50,29 @@ pub fn build_provider_menu_state(
         MenuProvider::Codex => sort_menu_accounts(
             codex_accounts
                 .into_iter()
-                .map(|account| {
+                .enumerate()
+                .map(|(original_index, account)| {
                     let quota_summary = build_codex_quota_summary(&account);
-                    let status_label = if account.needs_relogin.unwrap_or(false) {
+                    let needs_relogin = account.needs_relogin.unwrap_or(false);
+                    let primary_quota_percent =
+                        primary_quota_percent(needs_relogin, account.five_hour_remaining_percent);
+                    let status_label = if needs_relogin {
                         "Re-login required".to_string()
                     } else {
                         "Healthy".to_string()
                     };
 
-                    MenuAccountState {
-                        id: account.id,
-                        email: account.email,
-                        plan: account
-                            .plan
-                            .clone()
-                            .unwrap_or_else(|| "Unknown".to_string()),
-                        quota_summary,
-                        is_active: account.is_active,
-                        status_label,
+                    SortableMenuAccountState {
+                        original_index,
+                        primary_quota_percent,
+                        account: MenuAccountState {
+                            id: account.id,
+                            email: account.email,
+                            plan: account.plan.unwrap_or_else(|| "Unknown".to_string()),
+                            quota_summary,
+                            is_active: account.is_active,
+                            status_label,
+                        },
                     }
                 })
                 .collect(),
@@ -69,21 +80,29 @@ pub fn build_provider_menu_state(
         MenuProvider::Claude => sort_menu_accounts(
             claude_accounts
                 .into_iter()
-                .map(|account| {
+                .enumerate()
+                .map(|(original_index, account)| {
                     let quota_summary = build_claude_quota_summary(&account);
-                    let status_label = if account.needs_relogin.unwrap_or(false) {
+                    let needs_relogin = account.needs_relogin.unwrap_or(false);
+                    let primary_quota_percent =
+                        primary_quota_percent(needs_relogin, account.session_remaining_percent);
+                    let status_label = if needs_relogin {
                         "Re-login required".to_string()
                     } else {
                         "Healthy".to_string()
                     };
 
-                    MenuAccountState {
-                        id: account.id,
-                        email: account.email,
-                        plan: account.plan.unwrap_or_else(|| "Unknown".to_string()),
-                        quota_summary,
-                        is_active: account.is_active,
-                        status_label,
+                    SortableMenuAccountState {
+                        original_index,
+                        primary_quota_percent,
+                        account: MenuAccountState {
+                            id: account.id,
+                            email: account.email,
+                            plan: account.plan.unwrap_or_else(|| "Unknown".to_string()),
+                            quota_summary,
+                            is_active: account.is_active,
+                            status_label,
+                        },
                     }
                 })
                 .collect(),
@@ -91,24 +110,29 @@ pub fn build_provider_menu_state(
         MenuProvider::Gemini => sort_menu_accounts(
             gemini_accounts
                 .into_iter()
-                .map(|account| {
+                .enumerate()
+                .map(|(original_index, account)| {
                     let quota_summary = build_gemini_quota_summary(&account);
-                    let status_label = if account.needs_relogin.unwrap_or(false) {
+                    let needs_relogin = account.needs_relogin.unwrap_or(false);
+                    let primary_quota_percent =
+                        primary_quota_percent(needs_relogin, account.pro_remaining_percent);
+                    let status_label = if needs_relogin {
                         "Re-login required".to_string()
                     } else {
                         "Healthy".to_string()
                     };
 
-                    MenuAccountState {
-                        id: account.id,
-                        email: account.email,
-                        plan: account
-                            .plan
-                            .clone()
-                            .unwrap_or_else(|| "Unknown".to_string()),
-                        quota_summary,
-                        is_active: account.is_active,
-                        status_label,
+                    SortableMenuAccountState {
+                        original_index,
+                        primary_quota_percent,
+                        account: MenuAccountState {
+                            id: account.id,
+                            email: account.email,
+                            plan: account.plan.unwrap_or_else(|| "Unknown".to_string()),
+                            quota_summary,
+                            is_active: account.is_active,
+                            status_label,
+                        },
                     }
                 })
                 .collect(),
@@ -150,14 +174,33 @@ fn parse_switch_action(id: &str) -> Option<MenuAction> {
     Some(MenuAction::SwitchAccount(provider, account_id.to_string()))
 }
 
-fn sort_menu_accounts(accounts: Vec<MenuAccountState>) -> Vec<MenuAccountState> {
-    let mut indexed: Vec<(usize, MenuAccountState)> = accounts.into_iter().enumerate().collect();
-    indexed.sort_by(|left, right| match (left.1.is_active, right.1.is_active) {
-        (true, false) => std::cmp::Ordering::Less,
-        (false, true) => std::cmp::Ordering::Greater,
-        _ => left.0.cmp(&right.0),
-    });
-    indexed.into_iter().map(|(_, account)| account).collect()
+fn sort_menu_accounts(mut accounts: Vec<SortableMenuAccountState>) -> Vec<MenuAccountState> {
+    accounts.sort_by(
+        |left, right| match (left.account.is_active, right.account.is_active) {
+            (true, false) => std::cmp::Ordering::Less,
+            (false, true) => std::cmp::Ordering::Greater,
+            _ => compare_primary_quota(left.primary_quota_percent, right.primary_quota_percent)
+                .then_with(|| left.original_index.cmp(&right.original_index)),
+        },
+    );
+    accounts.into_iter().map(|item| item.account).collect()
+}
+
+fn primary_quota_percent(needs_relogin: bool, percent: Option<u8>) -> Option<u8> {
+    if needs_relogin {
+        None
+    } else {
+        percent
+    }
+}
+
+fn compare_primary_quota(left: Option<u8>, right: Option<u8>) -> std::cmp::Ordering {
+    match (left, right) {
+        (Some(left), Some(right)) => right.cmp(&left),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => std::cmp::Ordering::Equal,
+    }
 }
 
 fn build_codex_quota_summary(account: &CodexAccountListItem) -> Option<String> {

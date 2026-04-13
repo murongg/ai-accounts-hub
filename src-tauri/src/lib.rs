@@ -1,5 +1,6 @@
 use tauri::Manager;
 
+pub mod account_auto_switch;
 pub mod app_settings;
 pub mod claude_accounts;
 pub mod claude_usage;

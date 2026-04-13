@@ -155,6 +155,16 @@ function SettingsWorkspaceComponent({
     [appSettings, persistAppSettings],
   );
 
+  const handleAutoSwitchEnabledChange = useCallback(
+    async (enabled: boolean) => {
+      await persistAppSettings({
+        ...appSettings,
+        auto_switch_enabled: enabled,
+      });
+    },
+    [appSettings, persistAppSettings],
+  );
+
   const handleRefreshEnabledChange = useCallback(
     async (enabled: boolean) => {
       try {
@@ -348,6 +358,7 @@ function SettingsWorkspaceComponent({
     <SettingsPage
       language={appSettings.language}
       theme={appSettings.theme}
+      autoSwitchEnabled={appSettings.auto_switch_enabled}
       refreshSettings={refreshSettings}
       updaterState={updaterState}
       dataDirectory={dataDirectory}
@@ -361,6 +372,7 @@ function SettingsWorkspaceComponent({
       isConfirmingClearAll={isConfirmingClearAll}
       onLanguageChange={(language) => void handleLanguageChange(language)}
       onThemeChange={(theme) => void handleThemeChange(theme)}
+      onAutoSwitchEnabledChange={(enabled) => void handleAutoSwitchEnabledChange(enabled)}
       onRefreshEnabledChange={(enabled) => void handleRefreshEnabledChange(enabled)}
       onRefreshIntervalChange={(intervalSeconds) => void handleRefreshIntervalChange(intervalSeconds)}
       onCheckForUpdates={() => void handleCheckForUpdates()}

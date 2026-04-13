@@ -111,6 +111,105 @@ fn codex_menu_state_puts_active_account_first_and_formats_quota_summary() {
 }
 
 #[test]
+fn codex_menu_state_sorts_inactive_accounts_by_primary_quota_descending() {
+    let mut relogin = codex_account(
+        "relogin",
+        "relogin@example.com",
+        false,
+        Some(100),
+        Some(100),
+    );
+    relogin.needs_relogin = Some(true);
+
+    let state = build_provider_menu_state(
+        MenuProvider::Codex,
+        vec![
+            codex_account("low", "low@example.com", false, Some(12), Some(90)),
+            codex_account("missing", "missing@example.com", false, None, Some(99)),
+            codex_account("active", "active@example.com", true, Some(3), Some(4)),
+            codex_account("high", "high@example.com", false, Some(91), Some(1)),
+            relogin,
+        ],
+        Vec::new(),
+        Vec::new(),
+    );
+
+    let ids: Vec<&str> = state
+        .accounts
+        .iter()
+        .map(|account| account.id.as_str())
+        .collect();
+
+    assert_eq!(ids, vec!["active", "high", "low", "missing", "relogin"]);
+}
+
+#[test]
+fn provider_menu_state_uses_provider_primary_quota_for_sorting() {
+    let claude_state = build_provider_menu_state(
+        MenuProvider::Claude,
+        Vec::new(),
+        vec![
+            claude_account(
+                "weekly-high",
+                "weekly@example.com",
+                false,
+                Some(18),
+                Some(99),
+                None,
+                None,
+            ),
+            claude_account(
+                "session-high",
+                "session@example.com",
+                false,
+                Some(72),
+                Some(10),
+                None,
+                None,
+            ),
+        ],
+        Vec::new(),
+    );
+    let gemini_state = build_provider_menu_state(
+        MenuProvider::Gemini,
+        Vec::new(),
+        Vec::new(),
+        vec![
+            gemini_account(
+                "flash-high",
+                "flash@example.com",
+                false,
+                Some(11),
+                Some(99),
+                Some(99),
+            ),
+            gemini_account(
+                "pro-high",
+                "pro@example.com",
+                false,
+                Some(88),
+                Some(10),
+                Some(10),
+            ),
+        ],
+    );
+
+    let claude_ids: Vec<&str> = claude_state
+        .accounts
+        .iter()
+        .map(|account| account.id.as_str())
+        .collect();
+    let gemini_ids: Vec<&str> = gemini_state
+        .accounts
+        .iter()
+        .map(|account| account.id.as_str())
+        .collect();
+
+    assert_eq!(claude_ids, vec!["session-high", "weekly-high"]);
+    assert_eq!(gemini_ids, vec!["pro-high", "flash-high"]);
+}
+
+#[test]
 fn gemini_menu_state_formats_three_quota_buckets() {
     let state = build_provider_menu_state(
         MenuProvider::Gemini,

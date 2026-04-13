@@ -14,6 +14,7 @@ type ActivePage = "accounts" | "settings";
 const defaultAppSettings: AppSettings = {
   language: "zh-CN",
   theme: "light",
+  auto_switch_enabled: true,
 };
 
 function getSystemPrefersDark() {
