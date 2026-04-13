@@ -36,7 +36,7 @@ pub struct ProviderMenuState {
 
 struct SortableMenuAccountState {
     original_index: usize,
-    primary_quota_percent: Option<u8>,
+    quota_sort_key: Vec<Option<f64>>,
     account: MenuAccountState,
 }
 
@@ -54,8 +54,7 @@ pub fn build_provider_menu_state(
                 .map(|(original_index, account)| {
                     let quota_summary = build_codex_quota_summary(&account);
                     let needs_relogin = account.needs_relogin.unwrap_or(false);
-                    let primary_quota_percent =
-                        primary_quota_percent(needs_relogin, account.five_hour_remaining_percent);
+                    let quota_sort_key = codex_quota_sort_key(&account, needs_relogin);
                     let status_label = if needs_relogin {
                         "Re-login required".to_string()
                     } else {
@@ -64,7 +63,7 @@ pub fn build_provider_menu_state(
 
                     SortableMenuAccountState {
                         original_index,
-                        primary_quota_percent,
+                        quota_sort_key,
                         account: MenuAccountState {
                             id: account.id,
                             email: account.email,
@@ -84,8 +83,7 @@ pub fn build_provider_menu_state(
                 .map(|(original_index, account)| {
                     let quota_summary = build_claude_quota_summary(&account);
                     let needs_relogin = account.needs_relogin.unwrap_or(false);
-                    let primary_quota_percent =
-                        primary_quota_percent(needs_relogin, account.session_remaining_percent);
+                    let quota_sort_key = claude_quota_sort_key(&account, needs_relogin);
                     let status_label = if needs_relogin {
                         "Re-login required".to_string()
                     } else {
@@ -94,7 +92,7 @@ pub fn build_provider_menu_state(
 
                     SortableMenuAccountState {
                         original_index,
-                        primary_quota_percent,
+                        quota_sort_key,
                         account: MenuAccountState {
                             id: account.id,
                             email: account.email,
@@ -114,8 +112,7 @@ pub fn build_provider_menu_state(
                 .map(|(original_index, account)| {
                     let quota_summary = build_gemini_quota_summary(&account);
                     let needs_relogin = account.needs_relogin.unwrap_or(false);
-                    let primary_quota_percent =
-                        primary_quota_percent(needs_relogin, account.pro_remaining_percent);
+                    let quota_sort_key = gemini_quota_sort_key(&account, needs_relogin);
                     let status_label = if needs_relogin {
                         "Re-login required".to_string()
                     } else {
@@ -124,7 +121,7 @@ pub fn build_provider_menu_state(
 
                     SortableMenuAccountState {
                         original_index,
-                        primary_quota_percent,
+                        quota_sort_key,
                         account: MenuAccountState {
                             id: account.id,
                             email: account.email,
@@ -179,24 +176,68 @@ fn sort_menu_accounts(mut accounts: Vec<SortableMenuAccountState>) -> Vec<MenuAc
         |left, right| match (left.account.is_active, right.account.is_active) {
             (true, false) => std::cmp::Ordering::Less,
             (false, true) => std::cmp::Ordering::Greater,
-            _ => compare_primary_quota(left.primary_quota_percent, right.primary_quota_percent)
+            _ => compare_quota_sort_keys_desc(&left.quota_sort_key, &right.quota_sort_key)
                 .then_with(|| left.original_index.cmp(&right.original_index)),
         },
     );
     accounts.into_iter().map(|item| item.account).collect()
 }
 
-fn primary_quota_percent(needs_relogin: bool, percent: Option<u8>) -> Option<u8> {
+fn codex_quota_sort_key(account: &CodexAccountListItem, needs_relogin: bool) -> Vec<Option<f64>> {
     if needs_relogin {
-        None
-    } else {
-        percent
+        return vec![None, None, None];
     }
+
+    vec![
+        account.five_hour_remaining_percent.map(f64::from),
+        account.weekly_remaining_percent.map(f64::from),
+        account.credits_balance,
+    ]
 }
 
-fn compare_primary_quota(left: Option<u8>, right: Option<u8>) -> std::cmp::Ordering {
+fn claude_quota_sort_key(
+    account: &ClaudeAccountListItem,
+    needs_relogin: bool,
+) -> Vec<Option<f64>> {
+    if needs_relogin {
+        return vec![None, None, None];
+    }
+
+    vec![
+        account.session_remaining_percent.map(f64::from),
+        account.weekly_remaining_percent.map(f64::from),
+        account.model_weekly_remaining_percent.map(f64::from),
+    ]
+}
+
+fn gemini_quota_sort_key(
+    account: &GeminiAccountListItem,
+    needs_relogin: bool,
+) -> Vec<Option<f64>> {
+    if needs_relogin {
+        return vec![None, None, None];
+    }
+
+    vec![
+        account.pro_remaining_percent.map(f64::from),
+        account.flash_remaining_percent.map(f64::from),
+        account.flash_lite_remaining_percent.map(f64::from),
+    ]
+}
+
+fn compare_quota_sort_keys_desc(left: &[Option<f64>], right: &[Option<f64>]) -> std::cmp::Ordering {
+    left.iter()
+        .zip(right.iter())
+        .map(|(left_value, right_value)| compare_optional_number_desc(*left_value, *right_value))
+        .find(|ordering| *ordering != std::cmp::Ordering::Equal)
+        .unwrap_or(std::cmp::Ordering::Equal)
+}
+
+fn compare_optional_number_desc(left: Option<f64>, right: Option<f64>) -> std::cmp::Ordering {
     match (left, right) {
-        (Some(left), Some(right)) => right.cmp(&left),
+        (Some(left), Some(right)) => right
+            .partial_cmp(&left)
+            .unwrap_or(std::cmp::Ordering::Equal),
         (Some(_), None) => std::cmp::Ordering::Less,
         (None, Some(_)) => std::cmp::Ordering::Greater,
         (None, None) => std::cmp::Ordering::Equal,

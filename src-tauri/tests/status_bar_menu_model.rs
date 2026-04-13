@@ -111,7 +111,7 @@ fn codex_menu_state_puts_active_account_first_and_formats_quota_summary() {
 }
 
 #[test]
-fn codex_menu_state_sorts_inactive_accounts_by_primary_quota_descending() {
+fn codex_menu_state_uses_weekly_and_credits_as_tie_breakers() {
     let mut relogin = codex_account(
         "relogin",
         "relogin@example.com",
@@ -124,10 +124,52 @@ fn codex_menu_state_sorts_inactive_accounts_by_primary_quota_descending() {
     let state = build_provider_menu_state(
         MenuProvider::Codex,
         vec![
-            codex_account("low", "low@example.com", false, Some(12), Some(90)),
+            {
+                let mut account = codex_account(
+                    "weekly-low",
+                    "weekly-low@example.com",
+                    false,
+                    Some(50),
+                    Some(40),
+                );
+                account.credits_balance = Some(999.0);
+                account
+            },
             codex_account("missing", "missing@example.com", false, None, Some(99)),
             codex_account("active", "active@example.com", true, Some(3), Some(4)),
-            codex_account("high", "high@example.com", false, Some(91), Some(1)),
+            {
+                let mut account = codex_account(
+                    "weekly-high-credits-low",
+                    "weekly-high-credits-low@example.com",
+                    false,
+                    Some(50),
+                    Some(90),
+                );
+                account.credits_balance = Some(10.0);
+                account
+            },
+            {
+                let mut account = codex_account(
+                    "weekly-high-credits-high",
+                    "weekly-high-credits-high@example.com",
+                    false,
+                    Some(50),
+                    Some(90),
+                );
+                account.credits_balance = Some(200.0);
+                account
+            },
+            {
+                let mut account = codex_account(
+                    "lower-primary",
+                    "lower-primary@example.com",
+                    false,
+                    Some(49),
+                    Some(100),
+                );
+                account.credits_balance = Some(999.0);
+                account
+            },
             relogin,
         ],
         Vec::new(),
@@ -140,32 +182,52 @@ fn codex_menu_state_sorts_inactive_accounts_by_primary_quota_descending() {
         .map(|account| account.id.as_str())
         .collect();
 
-    assert_eq!(ids, vec!["active", "high", "low", "missing", "relogin"]);
+    assert_eq!(
+        ids,
+        vec![
+            "active",
+            "weekly-high-credits-high",
+            "weekly-high-credits-low",
+            "weekly-low",
+            "lower-primary",
+            "missing",
+            "relogin",
+        ]
+    );
 }
 
 #[test]
-fn provider_menu_state_uses_provider_primary_quota_for_sorting() {
+fn provider_menu_state_uses_all_provider_quotas_for_sorting() {
     let claude_state = build_provider_menu_state(
         MenuProvider::Claude,
         Vec::new(),
         vec![
             claude_account(
-                "weekly-high",
-                "weekly@example.com",
-                false,
-                Some(18),
-                Some(99),
-                None,
-                None,
-            ),
-            claude_account(
-                "session-high",
-                "session@example.com",
+                "weekly-high-model-low",
+                "weekly-high-model-low@example.com",
                 false,
                 Some(72),
+                Some(90),
+                None,
                 Some(10),
+            ),
+            claude_account(
+                "weekly-low",
+                "weekly-low@example.com",
+                false,
+                Some(72),
+                Some(80),
                 None,
+                Some(99),
+            ),
+            claude_account(
+                "weekly-high-model-high",
+                "weekly-high-model-high@example.com",
+                false,
+                Some(72),
+                Some(90),
                 None,
+                Some(70),
             ),
         ],
         Vec::new(),
@@ -176,20 +238,28 @@ fn provider_menu_state_uses_provider_primary_quota_for_sorting() {
         Vec::new(),
         vec![
             gemini_account(
-                "flash-high",
-                "flash@example.com",
+                "flash-high-lite-low",
+                "flash-high-lite-low@example.com",
                 false,
-                Some(11),
-                Some(99),
+                Some(88),
+                Some(90),
+                Some(10),
+            ),
+            gemini_account(
+                "flash-low",
+                "flash-low@example.com",
+                false,
+                Some(88),
+                Some(80),
                 Some(99),
             ),
             gemini_account(
-                "pro-high",
-                "pro@example.com",
+                "flash-high-lite-high",
+                "flash-high-lite-high@example.com",
                 false,
                 Some(88),
-                Some(10),
-                Some(10),
+                Some(90),
+                Some(70),
             ),
         ],
     );
@@ -205,8 +275,14 @@ fn provider_menu_state_uses_provider_primary_quota_for_sorting() {
         .map(|account| account.id.as_str())
         .collect();
 
-    assert_eq!(claude_ids, vec!["session-high", "weekly-high"]);
-    assert_eq!(gemini_ids, vec!["pro-high", "flash-high"]);
+    assert_eq!(
+        claude_ids,
+        vec!["weekly-high-model-high", "weekly-high-model-low", "weekly-low"]
+    );
+    assert_eq!(
+        gemini_ids,
+        vec!["flash-high-lite-high", "flash-high-lite-low", "flash-low"]
+    );
 }
 
 #[test]

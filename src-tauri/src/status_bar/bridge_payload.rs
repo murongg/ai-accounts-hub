@@ -56,9 +56,9 @@ pub struct BridgePayload {
 
 pub fn build_bridge_payload(
     selected_tab: StatusBarTab,
-    codex_accounts: Vec<CodexAccountListItem>,
-    claude_accounts: Vec<ClaudeAccountListItem>,
-    gemini_accounts: Vec<GeminiAccountListItem>,
+    mut codex_accounts: Vec<CodexAccountListItem>,
+    mut claude_accounts: Vec<ClaudeAccountListItem>,
+    mut gemini_accounts: Vec<GeminiAccountListItem>,
     now_ms: i64,
 ) -> BridgePayload {
     let status_item_progress = build_status_item_progress(
@@ -67,9 +67,12 @@ pub fn build_bridge_payload(
         &claude_accounts,
         &gemini_accounts,
     );
-    let mut codex_sections = build_codex_sections(codex_accounts, now_ms);
-    let mut claude_sections = build_claude_sections(claude_accounts, now_ms);
-    let mut gemini_sections = build_gemini_sections(gemini_accounts, now_ms);
+    sort_codex_accounts(&mut codex_accounts);
+    sort_claude_accounts(&mut claude_accounts);
+    sort_gemini_accounts(&mut gemini_accounts);
+    let codex_sections = build_codex_sections(codex_accounts, now_ms);
+    let claude_sections = build_claude_sections(claude_accounts, now_ms);
+    let gemini_sections = build_gemini_sections(gemini_accounts, now_ms);
 
     let sections = match selected_tab {
         StatusBarTab::Overview => {
@@ -101,15 +104,12 @@ pub fn build_bridge_payload(
             overview
         }
         StatusBarTab::Codex => {
-            sort_sections(&mut codex_sections);
             codex_sections
         }
         StatusBarTab::Claude => {
-            sort_sections(&mut claude_sections);
             claude_sections
         }
         StatusBarTab::Gemini => {
-            sort_sections(&mut gemini_sections);
             gemini_sections
         }
     };
@@ -546,16 +546,92 @@ fn build_claude_sections(
         .collect()
 }
 
-fn sort_sections(sections: &mut [BridgeProviderPayload]) {
-    sections.sort_by(|left, right| match (left.is_active, right.is_active) {
+fn sort_codex_accounts(accounts: &mut [CodexAccountListItem]) {
+    accounts.sort_by(|left, right| match (left.is_active, right.is_active) {
         (true, false) => std::cmp::Ordering::Less,
         (false, true) => std::cmp::Ordering::Greater,
-        _ => compare_primary_quota(section_primary_quota(left), section_primary_quota(right)),
+        _ => compare_quota_sort_keys_desc(
+            &codex_quota_sort_key(left),
+            &codex_quota_sort_key(right),
+        ),
     });
 }
 
-fn section_primary_quota(section: &BridgeProviderPayload) -> Option<u8> {
-    section.primary_quota_percent
+fn sort_claude_accounts(accounts: &mut [ClaudeAccountListItem]) {
+    accounts.sort_by(|left, right| match (left.is_active, right.is_active) {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => compare_quota_sort_keys_desc(
+            &claude_quota_sort_key(left),
+            &claude_quota_sort_key(right),
+        ),
+    });
+}
+
+fn sort_gemini_accounts(accounts: &mut [GeminiAccountListItem]) {
+    accounts.sort_by(|left, right| match (left.is_active, right.is_active) {
+        (true, false) => std::cmp::Ordering::Less,
+        (false, true) => std::cmp::Ordering::Greater,
+        _ => compare_quota_sort_keys_desc(
+            &gemini_quota_sort_key(left),
+            &gemini_quota_sort_key(right),
+        ),
+    });
+}
+
+fn codex_quota_sort_key(account: &CodexAccountListItem) -> Vec<Option<f64>> {
+    if account.needs_relogin.unwrap_or(false) {
+        return vec![None, None, None];
+    }
+
+    vec![
+        account.five_hour_remaining_percent.map(f64::from),
+        account.weekly_remaining_percent.map(f64::from),
+        account.credits_balance,
+    ]
+}
+
+fn claude_quota_sort_key(account: &ClaudeAccountListItem) -> Vec<Option<f64>> {
+    if account.needs_relogin.unwrap_or(false) {
+        return vec![None, None, None];
+    }
+
+    vec![
+        account.session_remaining_percent.map(f64::from),
+        account.weekly_remaining_percent.map(f64::from),
+        account.model_weekly_remaining_percent.map(f64::from),
+    ]
+}
+
+fn gemini_quota_sort_key(account: &GeminiAccountListItem) -> Vec<Option<f64>> {
+    if account.needs_relogin.unwrap_or(false) {
+        return vec![None, None, None];
+    }
+
+    vec![
+        account.pro_remaining_percent.map(f64::from),
+        account.flash_remaining_percent.map(f64::from),
+        account.flash_lite_remaining_percent.map(f64::from),
+    ]
+}
+
+fn compare_quota_sort_keys_desc(left: &[Option<f64>], right: &[Option<f64>]) -> std::cmp::Ordering {
+    left.iter()
+        .zip(right.iter())
+        .map(|(left_value, right_value)| compare_optional_number_desc(*left_value, *right_value))
+        .find(|ordering| *ordering != std::cmp::Ordering::Equal)
+        .unwrap_or(std::cmp::Ordering::Equal)
+}
+
+fn compare_optional_number_desc(left: Option<f64>, right: Option<f64>) -> std::cmp::Ordering {
+    match (left, right) {
+        (Some(left), Some(right)) => right
+            .partial_cmp(&left)
+            .unwrap_or(std::cmp::Ordering::Equal),
+        (Some(_), None) => std::cmp::Ordering::Less,
+        (None, Some(_)) => std::cmp::Ordering::Greater,
+        (None, None) => std::cmp::Ordering::Equal,
+    }
 }
 
 fn primary_quota_percent(needs_relogin: bool, percent: Option<u8>) -> Option<u8> {
@@ -563,15 +639,6 @@ fn primary_quota_percent(needs_relogin: bool, percent: Option<u8>) -> Option<u8>
         None
     } else {
         percent
-    }
-}
-
-fn compare_primary_quota(left: Option<u8>, right: Option<u8>) -> std::cmp::Ordering {
-    match (left, right) {
-        (Some(left), Some(right)) => right.cmp(&left),
-        (Some(_), None) => std::cmp::Ordering::Less,
-        (None, Some(_)) => std::cmp::Ordering::Greater,
-        (None, None) => std::cmp::Ordering::Equal,
     }
 }
 

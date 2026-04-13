@@ -258,14 +258,14 @@ export function sortAccountsByPrimaryQuota<T extends QuotaSortableAccount>(
     .map((account, index) => ({
       account,
       index,
-      primaryQuota: resolvePrimaryQuota(activePlatform, account),
+      quotaSortKey: resolveQuotaSortKey(activePlatform, account),
     }))
     .sort((left, right) => {
       if (left.account.is_active !== right.account.is_active) {
         return left.account.is_active ? -1 : 1;
       }
 
-      const quotaOrder = compareNullableQuotaDesc(left.primaryQuota, right.primaryQuota);
+      const quotaOrder = compareQuotaSortKeysDesc(left.quotaSortKey, right.quotaSortKey);
       if (quotaOrder !== 0) {
         return quotaOrder;
       }
@@ -275,24 +275,58 @@ export function sortAccountsByPrimaryQuota<T extends QuotaSortableAccount>(
     .map(({ account }) => account);
 }
 
-function resolvePrimaryQuota(activePlatform: string, account: QuotaSortableAccount): number | null {
+function resolveQuotaSortKey(activePlatform: string, account: QuotaSortableAccount): Array<number | null> {
   if (account.needs_relogin) {
-    return null;
+    return [null, null, null];
   }
 
   if (activePlatform === "codex") {
-    return (account as Partial<CodexAccountSummary>).five_hour_remaining_percent ?? null;
+    const codexAccount = account as Partial<CodexAccountSummary>;
+
+    return [
+      codexAccount.five_hour_remaining_percent ?? null,
+      codexAccount.weekly_remaining_percent ?? null,
+      codexAccount.credits_balance ?? null,
+    ];
   }
 
   if (activePlatform === "claude") {
-    return (account as Partial<ClaudeAccountSummary>).session_remaining_percent ?? null;
+    const claudeAccount = account as Partial<ClaudeAccountSummary>;
+
+    return [
+      claudeAccount.session_remaining_percent ?? null,
+      claudeAccount.weekly_remaining_percent ?? null,
+      claudeAccount.model_weekly_remaining_percent ?? null,
+    ];
   }
 
   if (activePlatform === "gemini") {
-    return (account as Partial<GeminiAccountSummary>).pro_remaining_percent ?? null;
+    const geminiAccount = account as Partial<GeminiAccountSummary>;
+
+    return [
+      geminiAccount.pro_remaining_percent ?? null,
+      geminiAccount.flash_remaining_percent ?? null,
+      geminiAccount.flash_lite_remaining_percent ?? null,
+    ];
   }
 
-  return null;
+  return [null, null, null];
+}
+
+function compareQuotaSortKeysDesc(
+  left: Array<number | null>,
+  right: Array<number | null>,
+) {
+  const keyLength = Math.max(left.length, right.length);
+
+  for (let index = 0; index < keyLength; index += 1) {
+    const order = compareNullableQuotaDesc(left[index] ?? null, right[index] ?? null);
+    if (order !== 0) {
+      return order;
+    }
+  }
+
+  return 0;
 }
 
 function compareNullableQuotaDesc(left: number | null, right: number | null) {

@@ -80,36 +80,104 @@ function codexAccount(overrides: Partial<CodexAccountSummary> = {}): CodexAccoun
   };
 }
 
-test("sortAccountsByPrimaryQuota keeps active accounts first then sorts Codex by 5h quota", () => {
+test("sortAccountsByPrimaryQuota keeps active accounts first then uses Codex quotas as tie breakers", () => {
   const sorted = sortAccountsByPrimaryQuota("codex", [
-    codexAccount({ id: "low", five_hour_remaining_percent: 12 }),
-    codexAccount({ id: "missing", five_hour_remaining_percent: null }),
     codexAccount({ id: "active", is_active: true, five_hour_remaining_percent: 3 }),
-    codexAccount({ id: "high", five_hour_remaining_percent: 91 }),
+    codexAccount({
+      id: "weekly-low",
+      five_hour_remaining_percent: 50,
+      weekly_remaining_percent: 40,
+      credits_balance: 999,
+    }),
+    codexAccount({
+      id: "weekly-high-credits-low",
+      five_hour_remaining_percent: 50,
+      weekly_remaining_percent: 90,
+      credits_balance: 10,
+    }),
+    codexAccount({
+      id: "weekly-high-credits-high",
+      five_hour_remaining_percent: 50,
+      weekly_remaining_percent: 90,
+      credits_balance: 200,
+    }),
+    codexAccount({
+      id: "lower-primary",
+      five_hour_remaining_percent: 49,
+      weekly_remaining_percent: 100,
+      credits_balance: 999,
+    }),
+    codexAccount({ id: "missing", five_hour_remaining_percent: null, weekly_remaining_percent: 99 }),
     codexAccount({ id: "relogin", five_hour_remaining_percent: 100, needs_relogin: true }),
   ]);
 
   assert.deepEqual(sorted.map((account) => account.id), [
     "active",
-    "high",
-    "low",
+    "weekly-high-credits-high",
+    "weekly-high-credits-low",
+    "weekly-low",
+    "lower-primary",
     "missing",
     "relogin",
   ]);
 });
 
-test("sortAccountsByPrimaryQuota uses Claude session and Gemini Pro as primary quotas", () => {
+test("sortAccountsByPrimaryQuota uses Claude weekly and model quotas as tie breakers", () => {
   const sortedClaude = sortAccountsByPrimaryQuota("claude", [
-    claudeAccount({ id: "weekly-high", session_remaining_percent: 18, weekly_remaining_percent: 99 }),
-    claudeAccount({ id: "session-high", session_remaining_percent: 72, weekly_remaining_percent: 10 }),
-  ]);
-  const sortedGemini = sortAccountsByPrimaryQuota("gemini", [
-    account({ id: "flash-high", pro_remaining_percent: 11, flash_remaining_percent: 99 }),
-    account({ id: "pro-high", pro_remaining_percent: 88, flash_remaining_percent: 10 }),
+    claudeAccount({
+      id: "weekly-high-model-low",
+      session_remaining_percent: 72,
+      weekly_remaining_percent: 90,
+      model_weekly_remaining_percent: 10,
+    }),
+    claudeAccount({
+      id: "weekly-low",
+      session_remaining_percent: 72,
+      weekly_remaining_percent: 80,
+      model_weekly_remaining_percent: 99,
+    }),
+    claudeAccount({
+      id: "weekly-high-model-high",
+      session_remaining_percent: 72,
+      weekly_remaining_percent: 90,
+      model_weekly_remaining_percent: 70,
+    }),
   ]);
 
-  assert.deepEqual(sortedClaude.map((account) => account.id), ["session-high", "weekly-high"]);
-  assert.deepEqual(sortedGemini.map((account) => account.id), ["pro-high", "flash-high"]);
+  assert.deepEqual(sortedClaude.map((account) => account.id), [
+    "weekly-high-model-high",
+    "weekly-high-model-low",
+    "weekly-low",
+  ]);
+});
+
+test("sortAccountsByPrimaryQuota uses Gemini flash and flash lite quotas as tie breakers", () => {
+  const sortedGemini = sortAccountsByPrimaryQuota("gemini", [
+    account({
+      id: "flash-high-lite-low",
+      pro_remaining_percent: 88,
+      flash_remaining_percent: 90,
+      flash_lite_remaining_percent: 10,
+    }),
+    account({
+      id: "flash-low",
+      pro_remaining_percent: 88,
+      flash_remaining_percent: 80,
+      flash_lite_remaining_percent: 99,
+    }),
+    account({
+      id: "flash-high-lite-high",
+      pro_remaining_percent: 88,
+      flash_remaining_percent: 90,
+      flash_lite_remaining_percent: 70,
+    }),
+  ]);
+
+  assert.deepEqual(sortedGemini.map((account) => account.id), [
+    "flash-high-lite-high",
+    "flash-high-lite-low",
+    "flash-low",
+  ]);
 });
 
 test("maps quota tone to remaining percentage severity", () => {

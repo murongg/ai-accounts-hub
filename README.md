@@ -66,20 +66,6 @@
 - 不同 provider 的可见字段，取决于对应 CLI 与上游接口是否能稳定返回数据
 - 如果某个账号显示“当前没有 quota 数据”，通常表示该账号这次同步时没有拿到可用 usage 响应
 
-## 不包含的能力
-
-这个项目目前不提供“精确到每一次请求”的 `input tokens`、`output tokens`、`total tokens` 统计。
-
-如果你需要精确 token 账本，通常至少要满足以下条件之一：
-
-- provider 官方提供逐请求可查询的 usage API
-- 所有请求都经过应用托管的代理、wrapper 或日志层
-
-所以 `AI Accounts Hub` 当前更准确的定位是：
-
-- 支持 provider 级 usage / quota 可视化
-- 不提供逐请求 token ledger
-
 ## 快速开始
 
 如果你只想使用应用，直接从 Releases 下载即可：

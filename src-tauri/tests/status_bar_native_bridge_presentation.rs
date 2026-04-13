@@ -96,25 +96,32 @@ fn native_bridge_presentation_keeps_tabs_actions_and_active_section_order() {
 
 #[cfg(target_os = "macos")]
 #[test]
-fn native_bridge_presentation_sorts_accounts_by_primary_quota_after_active_account() {
+fn native_bridge_presentation_preserves_payload_order_after_moving_active_first() {
     let payload = CString::new(
-        r#"{"selectedTab":"codex","sections":[{"id":"codex:low","providerId":"codex","providerTitle":"Codex","email":"low@example.com","subtitle":"Updated 8m ago","plan":"Pro","isActive":false,"needsRelogin":false,"primaryQuotaPercent":12,"metrics":[{"title":"Session","percent":12,"leftText":"12% left","resetText":"Resets in 3h"}],"switchAccountId":"low"},{"id":"codex:missing","providerId":"codex","providerTitle":"Codex","email":"missing@example.com","subtitle":"Updated 8m ago","plan":"Pro","isActive":false,"needsRelogin":false,"primaryQuotaPercent":null,"metrics":[],"switchAccountId":"missing"},{"id":"codex:active","providerId":"codex","providerTitle":"Codex","email":"active@example.com","subtitle":"Updated 1m ago","plan":"Pro","isActive":true,"needsRelogin":false,"primaryQuotaPercent":3,"metrics":[{"title":"Session","percent":3,"leftText":"3% left","resetText":"Resets in 1h"}],"switchAccountId":null},{"id":"codex:high","providerId":"codex","providerTitle":"Codex","email":"high@example.com","subtitle":"Updated 8m ago","plan":"Pro","isActive":false,"needsRelogin":false,"primaryQuotaPercent":91,"metrics":[{"title":"Session","percent":91,"leftText":"91% left","resetText":"Resets in 3h"}],"switchAccountId":"high"}]}"#,
+        r#"{"selectedTab":"codex","sections":[{"id":"codex:weekly-high-credits-high","providerId":"codex","providerTitle":"Codex","email":"weekly-high-credits-high@example.com","subtitle":"Updated 8m ago","plan":"Pro","isActive":false,"needsRelogin":false,"primaryQuotaPercent":50,"metrics":[{"title":"Session","percent":50,"leftText":"50% left","resetText":"Resets in 3h"},{"title":"Weekly","percent":90,"leftText":"90% left","resetText":"Resets in 7d"}],"switchAccountId":"weekly-high-credits-high"},{"id":"codex:weekly-high-credits-low","providerId":"codex","providerTitle":"Codex","email":"weekly-high-credits-low@example.com","subtitle":"Updated 8m ago","plan":"Pro","isActive":false,"needsRelogin":false,"primaryQuotaPercent":50,"metrics":[{"title":"Session","percent":50,"leftText":"50% left","resetText":"Resets in 3h"},{"title":"Weekly","percent":90,"leftText":"90% left","resetText":"Resets in 7d"}],"switchAccountId":"weekly-high-credits-low"},{"id":"codex:weekly-low","providerId":"codex","providerTitle":"Codex","email":"weekly-low@example.com","subtitle":"Updated 8m ago","plan":"Pro","isActive":false,"needsRelogin":false,"primaryQuotaPercent":50,"metrics":[{"title":"Session","percent":50,"leftText":"50% left","resetText":"Resets in 3h"},{"title":"Weekly","percent":40,"leftText":"40% left","resetText":"Resets in 7d"}],"switchAccountId":"weekly-low"},{"id":"codex:missing","providerId":"codex","providerTitle":"Codex","email":"missing@example.com","subtitle":"Updated 8m ago","plan":"Pro","isActive":false,"needsRelogin":false,"primaryQuotaPercent":null,"metrics":[],"switchAccountId":"missing"},{"id":"codex:active","providerId":"codex","providerTitle":"Codex","email":"active@example.com","subtitle":"Updated 1m ago","plan":"Pro","isActive":true,"needsRelogin":false,"primaryQuotaPercent":3,"metrics":[{"title":"Session","percent":3,"leftText":"3% left","resetText":"Resets in 1h"}],"switchAccountId":null}]}"#,
     )
     .unwrap();
-    let high_id = CString::new("codex:high").unwrap();
-    let low_id = CString::new("codex:low").unwrap();
+    let weekly_high_credits_high_id = CString::new("codex:weekly-high-credits-high").unwrap();
+    let weekly_high_credits_low_id = CString::new("codex:weekly-high-credits-low").unwrap();
+    let weekly_low_id = CString::new("codex:weekly-low").unwrap();
     let missing_id = CString::new("codex:missing").unwrap();
 
-    let high_index = unsafe {
+    let weekly_high_credits_high_index = unsafe {
         aah_status_bar_bridge_debug_section_index_for_id_from_json(
             payload.as_ptr(),
-            high_id.as_ptr(),
+            weekly_high_credits_high_id.as_ptr(),
         )
     };
-    let low_index = unsafe {
+    let weekly_high_credits_low_index = unsafe {
         aah_status_bar_bridge_debug_section_index_for_id_from_json(
             payload.as_ptr(),
-            low_id.as_ptr(),
+            weekly_high_credits_low_id.as_ptr(),
+        )
+    };
+    let weekly_low_index = unsafe {
+        aah_status_bar_bridge_debug_section_index_for_id_from_json(
+            payload.as_ptr(),
+            weekly_low_id.as_ptr(),
         )
     };
     let missing_index = unsafe {
@@ -124,9 +131,10 @@ fn native_bridge_presentation_sorts_accounts_by_primary_quota_after_active_accou
         )
     };
 
-    assert_eq!(high_index, 1);
-    assert_eq!(low_index, 2);
-    assert_eq!(missing_index, 3);
+    assert_eq!(weekly_high_credits_high_index, 1);
+    assert_eq!(weekly_high_credits_low_index, 2);
+    assert_eq!(weekly_low_index, 3);
+    assert_eq!(missing_index, 4);
 }
 
 #[cfg(target_os = "macos")]

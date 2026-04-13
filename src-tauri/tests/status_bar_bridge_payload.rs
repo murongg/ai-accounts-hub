@@ -209,7 +209,7 @@ fn codex_payload_keeps_reset_countdown_at_minute_precision() {
 }
 
 #[test]
-fn provider_payload_sorts_inactive_accounts_by_primary_quota_descending() {
+fn provider_payload_uses_weekly_and_credits_as_tie_breakers() {
     let mut relogin = codex_account(
         "relogin",
         "relogin@example.com",
@@ -222,10 +222,42 @@ fn provider_payload_sorts_inactive_accounts_by_primary_quota_descending() {
     let payload = build_bridge_payload(
         StatusBarTab::Codex,
         vec![
-            codex_account("low", "low@example.com", false, Some(12), Some(90)),
+            codex_account("weekly-low", "weekly-low@example.com", false, Some(50), Some(40)),
             codex_account("missing", "missing@example.com", false, None, Some(99)),
             codex_account("active", "active@example.com", true, Some(3), Some(4)),
-            codex_account("high", "high@example.com", false, Some(91), Some(1)),
+            {
+                let mut account = codex_account(
+                    "weekly-high-credits-high",
+                    "weekly-high-credits-high@example.com",
+                    false,
+                    Some(50),
+                    Some(90),
+                );
+                account.credits_balance = Some(200.0);
+                account
+            },
+            {
+                let mut account = codex_account(
+                    "weekly-high-credits-low",
+                    "weekly-high-credits-low@example.com",
+                    false,
+                    Some(50),
+                    Some(90),
+                );
+                account.credits_balance = Some(10.0);
+                account
+            },
+            {
+                let mut account = codex_account(
+                    "lower-primary",
+                    "lower-primary@example.com",
+                    false,
+                    Some(49),
+                    Some(100),
+                );
+                account.credits_balance = Some(999.0);
+                account
+            },
             relogin,
         ],
         Vec::new(),
@@ -243,8 +275,10 @@ fn provider_payload_sorts_inactive_accounts_by_primary_quota_descending() {
         ids,
         vec![
             "codex:active",
-            "codex:high",
-            "codex:low",
+            "codex:weekly-high-credits-high",
+            "codex:weekly-high-credits-low",
+            "codex:weekly-low",
+            "codex:lower-primary",
             "codex:missing",
             "codex:relogin",
         ]
@@ -252,28 +286,37 @@ fn provider_payload_sorts_inactive_accounts_by_primary_quota_descending() {
 }
 
 #[test]
-fn provider_payload_uses_provider_primary_quota_for_sorting() {
+fn provider_payload_uses_all_provider_quotas_for_sorting() {
     let claude_payload = build_bridge_payload(
         StatusBarTab::Claude,
         Vec::new(),
         vec![
             claude_account(
-                "weekly-high",
-                "weekly@example.com",
-                false,
-                Some(18),
-                Some(99),
-                None,
-                None,
-            ),
-            claude_account(
-                "session-high",
-                "session@example.com",
+                "weekly-high-model-low",
+                "weekly-high-model-low@example.com",
                 false,
                 Some(72),
+                Some(90),
+                None,
                 Some(10),
+            ),
+            claude_account(
+                "weekly-high-model-high",
+                "weekly-high-model-high@example.com",
+                false,
+                Some(72),
+                Some(90),
                 None,
+                Some(70),
+            ),
+            claude_account(
+                "weekly-low",
+                "weekly-low@example.com",
+                false,
+                Some(72),
+                Some(80),
                 None,
+                Some(99),
             ),
         ],
         Vec::new(),
@@ -285,20 +328,28 @@ fn provider_payload_uses_provider_primary_quota_for_sorting() {
         Vec::new(),
         vec![
             gemini_account(
-                "flash-high",
-                "flash@example.com",
-                false,
-                Some(11),
-                Some(99),
-                Some(99),
-            ),
-            gemini_account(
-                "pro-high",
-                "pro@example.com",
+                "flash-high-lite-low",
+                "flash-high-lite-low@example.com",
                 false,
                 Some(88),
+                Some(90),
                 Some(10),
-                Some(10),
+            ),
+            gemini_account(
+                "flash-high-lite-high",
+                "flash-high-lite-high@example.com",
+                false,
+                Some(88),
+                Some(90),
+                Some(70),
+            ),
+            gemini_account(
+                "flash-low",
+                "flash-low@example.com",
+                false,
+                Some(88),
+                Some(80),
+                Some(99),
             ),
         ],
         1_775_640_000_000,
@@ -317,9 +368,20 @@ fn provider_payload_uses_provider_primary_quota_for_sorting() {
 
     assert_eq!(
         claude_ids,
-        vec!["claude:session-high", "claude:weekly-high"]
+        vec![
+            "claude:weekly-high-model-high",
+            "claude:weekly-high-model-low",
+            "claude:weekly-low"
+        ]
     );
-    assert_eq!(gemini_ids, vec!["gemini:pro-high", "gemini:flash-high"]);
+    assert_eq!(
+        gemini_ids,
+        vec![
+            "gemini:flash-high-lite-high",
+            "gemini:flash-high-lite-low",
+            "gemini:flash-low"
+        ]
+    );
 }
 
 #[test]
