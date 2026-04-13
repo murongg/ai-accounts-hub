@@ -1,88 +1,130 @@
 # AI Accounts Hub
 
-一个桌面端 AI CLI 账号管理工具，用来统一管理多个账号、切换当前系统凭证，并查看可用的配额或使用状态。
+一个面向 AI CLI 重度用户的桌面账号中枢。
 
-当前项目已经支持：
+它把 `Codex`、`Claude`、`Gemini` 的多个登录态收进应用自己的账号池，并在需要时把选中的账号同步回系统 CLI 配置，让你可以在一台机器上快速切换“当前活跃账号”，同时查看各 provider 的配额或 usage 快照。
 
-- `Codex` 多账号管理、切换、配额同步
-- `Claude` 多账号管理、切换、配额同步
-- `Gemini` 多账号管理、切换、配额同步
-- macOS menubar 快速切换
-- 后台定时刷新
-- 桌面自动更新
+- 下载地址：[Latest Release](https://github.com/murongg/ai-accounts-hub/releases/latest)
+- 项目仓库：[murongg/ai-accounts-hub](https://github.com/murongg/ai-accounts-hub)
 
-![AI Accounts Hub accounts view](./screenshots/screenshots1.png)
+> 当前体验以 macOS 为主。原生 menubar / 状态栏能力仅在 macOS 可用；仓库包含其他平台的构建链路，但整体使用体验以 macOS 为准。
 
-## 功能
+![AI Accounts Hub main window](./screenshots/screenshots1.png)
+![AI Accounts Hub secondary view](./screenshots/screenshots2.jpeg)
 
-- 把多个 `Codex` / `Claude` / `Gemini` 账号保存到应用自己的账号池里
-- 一键切换当前系统正在使用的 CLI 登录态
-- 在主界面和 macOS menubar 中查看账号状态并快速切换
-- 查看 `Codex` 配额、`Claude Session / Weekly / Opus|Sonnet Weekly` 配额，以及 `Gemini Pro / Flash / Flash Lite` 配额
-- 支持后台自动同步、重置倒计时和基础设置
+## 适用场景
 
-## 支持情况
+- 同时维护多个 `Codex` / `Claude` / `Gemini` CLI 账号
+- 经常在不同账号之间切换当前系统登录态
+- 希望在切换前先看到剩余额度、刷新时间或账号健康状态
+- 不想手动备份和覆盖 `~/.codex`、`~/.claude`、`~/.gemini` 下的凭证文件
 
-| Provider | 多账号管理 | 切换当前登录态 | 使用量 / 配额展示 |
-| --- | --- | --- | --- |
-| Codex | 支持 | 支持 | 支持 |
-| Claude | 支持 | 支持 | 支持 |
-| Gemini | 支持 | 支持 | 支持 |
+## 已实现功能
 
-## Token 统计说明
+- `Codex` / `Claude` / `Gemini` 多账号管理
+- 首次启动自动导入当前系统已经登录的账号
+- 一键切换当前系统 CLI 正在使用的登录态
+- 主界面展示账号状态、剩余额度、刷新时间和 relogin 状态
+- 后台定时刷新各 provider 配额快照
+- 在主账号不可用或主配额耗尽时自动切换到可用账号
+- 设置页支持语言、主题、自动切换、刷新间隔、数据目录管理
+- 内置桌面自动更新
+- macOS 原生 menubar / 状态栏快速查看和切换
 
-这个项目目前还不提供“精确到每次请求的 input tokens / output tokens / total tokens”统计。
+## Provider 支持
 
-当前已经实现的是 provider 级别的使用量或配额快照：
+| Provider | 多账号池 | 切换系统登录态 | 配额 / Usage 快照 | 自动切换 |
+| --- | --- | --- | --- | --- |
+| Codex | 支持 | 支持 | `5h` / `Weekly` / `Credits` | 支持 |
+| Claude | 支持 | 支持 | `Session` / `Weekly` / `Opus or Sonnet Weekly` | 支持 |
+| Gemini | 支持 | 支持 | `Pro` / `Flash` / `Flash Lite` | 支持 |
 
-- `Codex`：展示 5 小时窗口、周窗口和 credits 等剩余额度
-- `Claude`：展示 `Session`、`Weekly`，以及可用时展示 `Opus Weekly` 或 `Sonnet Weekly`
-- `Gemini`：展示 `Pro / Flash / Flash Lite` 剩余额度
+## 工作方式
 
-如果要做精确 token 统计，通常需要满足以下至少一条：
+应用的思路不是“代理所有请求”，而是“托管账号凭证并切换系统当前账号”。
 
-- provider 本身提供可查询的 token usage API
-- 所有请求都经过这个应用托管的代理、wrapper 或日志层
+1. 首次启动时，应用会尝试把本机已经登录的 `Codex` / `Claude` / `Gemini` 账号导入自己的账号池。
+2. 每个账号都会隔离存放在应用数据目录里，而不是混在系统当前的 live 配置里。
+3. 当你切换账号时，应用会把目标账号的凭证同步回对应 CLI 的系统路径。
+4. 后台刷新任务会定时更新 usage / quota 快照，并在启用自动切换时选出仍然可用的账号。
 
-所以从项目能力上说，“配额/usage 展示”已经部分支持，但“精确 token 统计”目前还没有实现。
+当前会接管的 live 配置路径主要包括：
+
+- `Codex`: `~/.codex/auth.json`
+- `Claude`: `~/.claude/.credentials.json` 和 `~/.claude.json`
+- `Gemini`: `~/.gemini/` 下的认证与设置文件
 
 ## 配额数据来源
 
-- `Codex`：读取当前已接入的 provider 配额接口并落地为本地快照
-- `Claude`：优先读取官方 OAuth usage 接口；如果当前账号拿不到该接口数据，则回退到本机 `claude` CLI 的 `/usage` 输出做解析
+- `Codex`：读取已接入的 quota 接口并保存为本地快照
+- `Claude`：优先读取 OAuth usage 接口；如果当前账号读不到该接口，则回退解析本机 `claude` CLI 的 `/usage` 输出
 - `Gemini`：读取官方 quota 接口并展示 `Pro / Flash / Flash Lite`
 
 这意味着：
 
-- `Claude` 的配额展示依赖当前系统登录态本身是否可读到 usage 数据
-- 如果界面显示“当前没有 quota 数据”，通常表示该账号这次同步时既没有拿到 OAuth usage 响应，也没有从 CLI `/usage` 解析出稳定窗口
-- 重新登录对应 CLI、手动刷新，或者切换到另一个已验证可读 usage 的账号，通常可以恢复展示
+- 应用展示的是 provider 级别的 usage / quota 快照
+- 不同 provider 的可见字段，取决于对应 CLI 与上游接口是否能稳定返回数据
+- 如果某个账号显示“当前没有 quota 数据”，通常表示该账号这次同步时没有拿到可用 usage 响应
+
+## 不包含的能力
+
+这个项目目前不提供“精确到每一次请求”的 `input tokens`、`output tokens`、`total tokens` 统计。
+
+如果你需要精确 token 账本，通常至少要满足以下条件之一：
+
+- provider 官方提供逐请求可查询的 usage API
+- 所有请求都经过应用托管的代理、wrapper 或日志层
+
+所以 `AI Accounts Hub` 当前更准确的定位是：
+
+- 支持 provider 级 usage / quota 可视化
+- 不提供逐请求 token ledger
 
 ## 快速开始
+
+如果你只想使用应用，直接从 Releases 下载即可：
+
+- [下载最新版本](https://github.com/murongg/ai-accounts-hub/releases/latest)
+
+如果你想从源码运行：
+
+### 环境要求
+
+- `Node.js 22+`
+- `pnpm 10+`
+- `Rust stable`
+- 本机已安装对应 CLI：`codex` / `claude` / `gemini`
+- 推荐在 macOS 上运行和验证
+
+### 启动桌面应用
 
 ```bash
 pnpm install
 pnpm tauri dev
 ```
 
-如果需要完整构建：
+### 构建桌面应用
 
 ```bash
 pnpm build
 pnpm tauri build
 ```
 
-## 运行要求
+### 运行测试
 
-- `Node.js 22+`
-- `pnpm 10+`
-- `Rust stable`
-- 本机安装对应的 CLI：`codex` / `claude` / `gemini`
+```bash
+node --test src/lib/*.test.ts
+cargo test --manifest-path src-tauri/Cargo.toml
+```
 
-## 备注
+> 如果你在 Linux 上本地构建 Tauri，需要额外安装 `libwebkit2gtk-4.1-dev` 等系统依赖，可直接参考 [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)。
 
-- macOS 下提供原生 menubar 集成
-- 不同 provider 的“usage / quota”能力取决于对应 CLI 和上游接口是否可读
+## 仓库结构
+
+- `src/`: React + Vite 前端界面
+- `src-tauri/`: Tauri Rust 后端、账号存储、quota 刷新、自动切换、macOS 状态栏桥接
+- `website/`: 官网 / 下载页
+- `screenshots/`: README 与官网素材
 
 ## License
 
