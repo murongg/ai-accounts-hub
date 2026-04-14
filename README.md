@@ -11,6 +11,7 @@
 
 ![AI Accounts Hub main window](./screenshots/screenshots-1.png)
 ![AI Accounts Hub secondary view](./screenshots/screenshots-2.png)
+![AI Accounts Hub menubar view](./screenshots/screenshots-3.jpg)
 
 ## 适用场景
 
