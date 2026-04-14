@@ -250,7 +250,7 @@ function AccountsPageComponent({
                     plan={geminiAccount.plan ?? "Google"}
                     isActive={account.is_active}
                     isAlive={!(geminiAccount.needs_relogin ?? false)}
-                    quotaRows={buildGeminiListQuotaRows(geminiAccount, language)}
+                    quotaRows={buildGeminiListQuotaRows(geminiAccount, language, nowMs)}
                     activityLabel={usageAvailable ? copy.card.syncedPrefix : copy.accounts.authenticatedPrefix}
                     activityValue={formatTimestamp(
                       usageAvailable ? geminiAccount.last_synced_at : geminiAccount.last_authenticated_at,
@@ -280,7 +280,7 @@ function AccountsPageComponent({
                     plan={claudeAccount.plan ?? copy.accounts.planUnknown}
                     isActive={account.is_active}
                     isAlive={!(claudeAccount.needs_relogin ?? false)}
-                    quotaRows={buildClaudeListQuotaRows(claudeAccount, language)}
+                    quotaRows={buildClaudeListQuotaRows(claudeAccount, language, nowMs)}
                     activityLabel={usageAvailable ? copy.card.syncedPrefix : copy.accounts.authenticatedPrefix}
                     activityValue={formatTimestamp(
                       usageAvailable ? claudeAccount.last_synced_at : claudeAccount.last_authenticated_at,
@@ -299,7 +299,7 @@ function AccountsPageComponent({
             ) : (
               (() => {
                 const codexAccount = account as CodexAccountSummary;
-                const quotaRows = buildCodexListQuotaRows(codexAccount, language);
+                const quotaRows = buildCodexListQuotaRows(codexAccount, language, nowMs);
 
                 return (
                   <AccountListItem
