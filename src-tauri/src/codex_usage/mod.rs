@@ -1,37 +1,32 @@
-pub mod models;
-pub mod oauth;
 pub mod scheduler;
-pub mod service;
-pub mod store;
 
-use dirs::home_dir;
-use tauri::{AppHandle, Manager, State};
+pub use aah_core::codex_usage::{models, oauth, service, store};
+
+use tauri::{AppHandle, State};
 
 use self::models::CodexRefreshSettings;
 use self::scheduler::CodexUsageSchedulerState;
 use crate::codex_accounts::paths::CodexAccountPaths;
 
-fn paths_from_app(app: &AppHandle) -> Result<CodexAccountPaths, String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("failed to resolve app data dir: {error}"))?;
-    let user_home = home_dir().ok_or_else(|| "failed to resolve user home dir".to_string())?;
-
-    Ok(CodexAccountPaths::from_roots(app_data_dir, user_home))
+fn paths_from_app() -> Result<CodexAccountPaths, String> {
+    let managed = aah_core::bootstrap::bootstrap_managed_root(None, None)?;
+    Ok(CodexAccountPaths::from_roots(
+        managed.root,
+        managed.user_home,
+    ))
 }
 
 pub fn initialize_scheduler(
     app: &AppHandle,
     scheduler: &CodexUsageSchedulerState,
 ) -> Result<(), String> {
-    scheduler.initialize(app.clone(), paths_from_app(app)?)
+    scheduler.initialize(app.clone(), paths_from_app()?)
 }
 
 #[tauri::command]
-pub async fn get_codex_refresh_settings(app: AppHandle) -> Result<CodexRefreshSettings, String> {
+pub async fn get_codex_refresh_settings(_app: AppHandle) -> Result<CodexRefreshSettings, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        store::load_refresh_settings(&paths_from_app(&app)?)
+        store::load_refresh_settings(&paths_from_app()?)
     })
     .await
     .map_err(|error| error.to_string())?
@@ -39,12 +34,12 @@ pub async fn get_codex_refresh_settings(app: AppHandle) -> Result<CodexRefreshSe
 
 #[tauri::command]
 pub async fn update_codex_refresh_settings(
-    app: AppHandle,
+    _app: AppHandle,
     scheduler: State<'_, CodexUsageSchedulerState>,
     settings: CodexRefreshSettings,
 ) -> Result<CodexRefreshSettings, String> {
     let saved = tauri::async_runtime::spawn_blocking(move || {
-        let paths = paths_from_app(&app)?;
+        let paths = paths_from_app()?;
         store::save_refresh_settings(&paths, settings)
     })
     .await

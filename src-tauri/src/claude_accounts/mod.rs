@@ -1,43 +1,30 @@
-pub mod auth;
-pub mod cli;
-pub mod keychain;
-pub mod live_credentials;
-pub mod models;
-pub mod paths;
-pub mod service;
-pub mod store;
+pub use aah_core::claude_accounts::{
+    auth, cli, keychain, live_credentials, models, paths, service, store,
+};
 
-use dirs::home_dir;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 use self::models::{ClaudeAccountListItem, StoredClaudeAccount};
 use self::paths::ClaudeAccountPaths;
 use self::service::ClaudeAccountService;
 use crate::codex_usage::scheduler::CodexUsageSchedulerState;
 
-fn service_from_app(
-    app: &AppHandle,
-) -> Result<
+fn service_from_app() -> Result<
     ClaudeAccountService<
         self::keychain::ManagedClaudeKeychainStore,
         self::live_credentials::FileSystemClaudeLiveCredentialStore,
     >,
     String,
 > {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("failed to resolve app data dir: {error}"))?;
-    let user_home = home_dir().ok_or_else(|| "failed to resolve user home dir".to_string())?;
-
+    let managed = aah_core::bootstrap::bootstrap_managed_root(None, None)?;
     Ok(ClaudeAccountService::with_process_runner(
-        ClaudeAccountPaths::from_roots(app_data_dir, user_home),
+        ClaudeAccountPaths::from_roots(managed.root, managed.user_home),
     ))
 }
 
 #[tauri::command]
-pub async fn list_claude_accounts(app: AppHandle) -> Result<Vec<ClaudeAccountListItem>, String> {
-    tauri::async_runtime::spawn_blocking(move || service_from_app(&app)?.list_accounts())
+pub async fn list_claude_accounts(_app: AppHandle) -> Result<Vec<ClaudeAccountListItem>, String> {
+    tauri::async_runtime::spawn_blocking(move || service_from_app()?.list_accounts())
         .await
         .map_err(|error| error.to_string())?
 }
@@ -49,7 +36,7 @@ pub async fn start_claude_account_login(
 ) -> Result<StoredClaudeAccount, String> {
     let refresh_app = app.clone();
     let account = tauri::async_runtime::spawn_blocking(move || {
-        let mut service = service_from_app(&app)?;
+        let mut service = service_from_app()?;
         service.start_login()
     })
     .await
@@ -64,7 +51,7 @@ pub async fn start_claude_account_login(
 pub async fn switch_claude_account(app: AppHandle, account_id: String) -> Result<(), String> {
     let refresh_app = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let mut service = service_from_app(&app)?;
+        let mut service = service_from_app()?;
         service.switch_account(&account_id)
     })
     .await
@@ -77,7 +64,7 @@ pub async fn switch_claude_account(app: AppHandle, account_id: String) -> Result
 pub async fn delete_claude_account(app: AppHandle, account_id: String) -> Result<(), String> {
     let refresh_app = app.clone();
     tauri::async_runtime::spawn_blocking(move || {
-        let mut service = service_from_app(&app)?;
+        let mut service = service_from_app()?;
         service.delete_account(&account_id)
     })
     .await

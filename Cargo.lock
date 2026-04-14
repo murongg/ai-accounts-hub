@@ -6,7 +6,16 @@ version = 4
 name = "aah-core"
 version = "0.3.14"
 dependencies = [
+ "base64 0.22.1",
  "dirs",
+ "portable-pty",
+ "reqwest 0.12.28",
+ "security-framework",
+ "serde",
+ "serde_json",
+ "sha2",
+ "time",
+ "uuid",
 ]
 
 [[package]]

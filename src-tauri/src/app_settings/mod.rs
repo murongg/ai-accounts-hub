@@ -1,39 +1,34 @@
-pub mod models;
-pub mod service;
-pub mod store;
+pub use aah_core::app_settings::{models, service, store};
 
-use dirs::home_dir;
-use tauri::{AppHandle, Manager, State};
+use tauri::State;
 
 use self::models::{AppDataDirectoryInfo, AppSettings, ClearAllDataResult};
 use crate::codex_accounts::paths::CodexAccountPaths;
 use crate::codex_usage::models::CodexRefreshSettings;
 use crate::codex_usage::scheduler::CodexUsageSchedulerState;
 
-fn paths_from_app(app: &AppHandle) -> Result<CodexAccountPaths, String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("failed to resolve app data dir: {error}"))?;
-    let user_home = home_dir().ok_or_else(|| "failed to resolve user home dir".to_string())?;
-
-    Ok(CodexAccountPaths::from_roots(app_data_dir, user_home))
+fn paths_from_app() -> Result<CodexAccountPaths, String> {
+    let managed = aah_core::bootstrap::bootstrap_managed_root(None, None)?;
+    Ok(CodexAccountPaths::from_roots(
+        managed.root,
+        managed.user_home,
+    ))
 }
 
 #[tauri::command]
-pub async fn get_app_settings(app: AppHandle) -> Result<AppSettings, String> {
-    tauri::async_runtime::spawn_blocking(move || store::load_app_settings(&paths_from_app(&app)?))
+pub async fn get_app_settings(_app: tauri::AppHandle) -> Result<AppSettings, String> {
+    tauri::async_runtime::spawn_blocking(move || store::load_app_settings(&paths_from_app()?))
         .await
         .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
 pub async fn update_app_settings(
-    app: AppHandle,
+    _app: tauri::AppHandle,
     settings: AppSettings,
 ) -> Result<AppSettings, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let paths = paths_from_app(&app)?;
+        let paths = paths_from_app()?;
         store::save_app_settings(&paths, settings)
     })
     .await
@@ -41,18 +36,20 @@ pub async fn update_app_settings(
 }
 
 #[tauri::command]
-pub async fn get_app_data_directory_info(app: AppHandle) -> Result<AppDataDirectoryInfo, String> {
+pub async fn get_app_data_directory_info(
+    _app: tauri::AppHandle,
+) -> Result<AppDataDirectoryInfo, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        service::current_data_directory_info(&paths_from_app(&app)?)
+        service::current_data_directory_info(&paths_from_app()?)
     })
     .await
     .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]
-pub async fn reset_app_data_directory(app: AppHandle) -> Result<AppDataDirectoryInfo, String> {
+pub async fn reset_app_data_directory(_app: tauri::AppHandle) -> Result<AppDataDirectoryInfo, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        service::reset_data_directory_to_default(&paths_from_app(&app)?)
+        service::reset_data_directory_to_default(&paths_from_app()?)
     })
     .await
     .map_err(|error| error.to_string())?
@@ -60,11 +57,11 @@ pub async fn reset_app_data_directory(app: AppHandle) -> Result<AppDataDirectory
 
 #[tauri::command]
 pub async fn clear_all_app_data(
-    app: AppHandle,
+    _app: tauri::AppHandle,
     scheduler: State<'_, CodexUsageSchedulerState>,
 ) -> Result<ClearAllDataResult, String> {
     let result = tauri::async_runtime::spawn_blocking(move || {
-        service::clear_all_app_data(&paths_from_app(&app)?)
+        service::clear_all_app_data(&paths_from_app()?)
     })
     .await
     .map_err(|error| error.to_string())??;
