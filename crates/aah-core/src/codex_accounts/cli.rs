@@ -18,6 +18,8 @@ const CODEX_BINARY_RESOLVER: CliBinaryResolver<'static> = CliBinaryResolver {
         ".bun/bin/codex",
         "AppData/Roaming/npm/codex",
         "AppData/Local/pnpm/codex",
+        "AppData/Local/Volta/bin/codex",
+        "AppData/Local/Microsoft/WinGet/Links/codex",
         "scoop/shims/codex",
     ],
     fixed_locations: &["/opt/homebrew/bin/codex", "/usr/local/bin/codex"],

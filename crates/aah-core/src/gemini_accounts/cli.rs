@@ -31,6 +31,8 @@ const GEMINI_BINARY_RESOLVER: CliBinaryResolver<'static> = CliBinaryResolver {
         ".vite-plus/bin/gemini",
         "AppData/Roaming/npm/gemini",
         "AppData/Local/pnpm/gemini",
+        "AppData/Local/Volta/bin/gemini",
+        "AppData/Local/Microsoft/WinGet/Links/gemini",
         "scoop/shims/gemini",
     ],
     fixed_locations: &["/opt/homebrew/bin/gemini", "/usr/local/bin/gemini"],

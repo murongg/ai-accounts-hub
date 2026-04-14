@@ -30,6 +30,8 @@ const CLAUDE_BINARY_RESOLVER: CliBinaryResolver<'static> = CliBinaryResolver {
         ".bun/bin/claude",
         "AppData/Roaming/npm/claude",
         "AppData/Local/pnpm/claude",
+        "AppData/Local/Volta/bin/claude",
+        "AppData/Local/Microsoft/WinGet/Links/claude",
         "scoop/shims/claude",
     ],
     fixed_locations: &["/opt/homebrew/bin/claude", "/usr/local/bin/claude"],

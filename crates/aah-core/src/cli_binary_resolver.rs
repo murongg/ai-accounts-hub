@@ -6,6 +6,16 @@ use std::process::Command;
 const SHELL_BINARY_START_MARKER: &str = "__AIHUB_CLI_BINARY_START__";
 const SHELL_BINARY_END_MARKER: &str = "__AIHUB_CLI_BINARY_END__";
 const COMMAND_WRAPPER_SUFFIXES: &[&str] = &["", ".exe", ".cmd", ".bat"];
+const WINDOWS_ENV_INSTALL_DIRS: &[(&str, &str)] = &[
+    ("APPDATA", "npm"),
+    ("LOCALAPPDATA", "pnpm"),
+    ("LOCALAPPDATA", "Volta/bin"),
+    ("LOCALAPPDATA", "Microsoft/WinGet/Links"),
+    ("NPM_CONFIG_PREFIX", ""),
+    ("PNPM_HOME", ""),
+    ("SCOOP", "shims"),
+    ("SCOOP_GLOBAL", "shims"),
+];
 
 pub struct CliBinaryResolver<'a> {
     pub binary_name: &'a str,
@@ -47,6 +57,7 @@ pub fn resolve_binary_from(
                 None
             }
         })
+        .or_else(|| resolve_under_env_install_dirs(config.binary_name))
         .or_else(|| {
             config
                 .fixed_locations
@@ -62,6 +73,27 @@ fn resolve_under_home(home_dir: Option<&Path>, relative_paths: &[&str]) -> Optio
     relative_paths
         .iter()
         .flat_map(|relative_path| command_candidate_paths(home_dir.join(relative_path)))
+        .find(|path| path.exists())
+}
+
+fn resolve_under_env_install_dirs(binary_name: &str) -> Option<PathBuf> {
+    WINDOWS_ENV_INSTALL_DIRS
+        .iter()
+        .filter_map(|(env_var, relative_dir)| {
+            let root = std::env::var_os(env_var)?;
+            if root.is_empty() {
+                return None;
+            }
+
+            let root = PathBuf::from(root);
+            let candidate = if relative_dir.is_empty() {
+                root.join(binary_name)
+            } else {
+                root.join(relative_dir).join(binary_name)
+            };
+            Some(candidate)
+        })
+        .flat_map(command_candidate_paths)
         .find(|path| path.exists())
 }
 
@@ -167,6 +199,8 @@ fn parse_login_shell_binary_output(output: &str) -> Option<PathBuf> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::ffi::OsString;
+    use std::sync::Mutex;
 
     #[test]
     fn parses_login_shell_binary_lookup_between_markers() {
@@ -220,6 +254,85 @@ more noise
         assert!(should_probe_login_shell_for_os(false));
     }
 
+    #[test]
+    fn resolves_windows_localappdata_volta_bin_without_home_dir() {
+        let _lock = ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let temp = temp_test_dir("resolver-windows-volta-localappdata");
+        let local_app_data = temp.join("LocalAppData");
+        let volta_bin = local_app_data.join("Volta/bin");
+        let codex_cmd = volta_bin.join("codex.cmd");
+        fs::create_dir_all(&volta_bin).unwrap();
+        fs::write(&codex_cmd, "").unwrap();
+        let _env = EnvVarGuard::set("LOCALAPPDATA", &local_app_data);
+
+        let resolved = resolve_binary_from(
+            &test_resolver("codex"),
+            Some(OsString::from("/usr/bin:/bin")),
+            None,
+            None,
+        );
+
+        assert_eq!(resolved, Some(codex_cmd));
+    }
+
+    #[test]
+    fn resolves_windows_localappdata_winget_links_without_home_dir() {
+        let _lock = ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let temp = temp_test_dir("resolver-windows-winget-localappdata");
+        let local_app_data = temp.join("LocalAppData");
+        let winget_links = local_app_data.join("Microsoft/WinGet/Links");
+        let gemini_exe = winget_links.join("gemini.exe");
+        fs::create_dir_all(&winget_links).unwrap();
+        fs::write(&gemini_exe, "").unwrap();
+        let _env = EnvVarGuard::set("LOCALAPPDATA", &local_app_data);
+
+        let resolved = resolve_binary_from(
+            &test_resolver("gemini"),
+            Some(OsString::from("/usr/bin:/bin")),
+            None,
+            None,
+        );
+
+        assert_eq!(resolved, Some(gemini_exe));
+    }
+
+    #[test]
+    fn resolves_windows_scoop_env_without_home_dir() {
+        let _lock = ENV_LOCK
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let temp = temp_test_dir("resolver-windows-scoop-env");
+        let scoop_root = temp.join("scoop");
+        let scoop_shims = scoop_root.join("shims");
+        let claude_cmd = scoop_shims.join("claude.cmd");
+        fs::create_dir_all(&scoop_shims).unwrap();
+        fs::write(&claude_cmd, "").unwrap();
+        let _env = EnvVarGuard::set("SCOOP", &scoop_root);
+
+        let resolved = resolve_binary_from(
+            &test_resolver("claude"),
+            Some(OsString::from("/usr/bin:/bin")),
+            None,
+            None,
+        );
+
+        assert_eq!(resolved, Some(claude_cmd));
+    }
+
+    fn test_resolver(binary_name: &'static str) -> CliBinaryResolver<'static> {
+        CliBinaryResolver {
+            binary_name,
+            home_relative_paths: &[],
+            fixed_locations: &[],
+            include_nvm_bin_env: false,
+            include_nvm_scan: false,
+        }
+    }
+
     fn temp_test_dir(prefix: &str) -> PathBuf {
         let unique = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -228,5 +341,30 @@ more noise
         let path = std::env::temp_dir().join(format!("aihub-{prefix}-{unique}"));
         fs::create_dir_all(&path).unwrap();
         path
+    }
+
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    struct EnvVarGuard {
+        key: &'static str,
+        previous: Option<OsString>,
+    }
+
+    impl EnvVarGuard {
+        fn set(key: &'static str, value: &Path) -> Self {
+            let previous = std::env::var_os(key);
+            std::env::set_var(key, value);
+            Self { key, previous }
+        }
+    }
+
+    impl Drop for EnvVarGuard {
+        fn drop(&mut self) {
+            if let Some(previous) = &self.previous {
+                std::env::set_var(self.key, previous);
+            } else {
+                std::env::remove_var(self.key);
+            }
+        }
     }
 }
