@@ -3,30 +3,40 @@ import type { Messages } from './zh'
 export const en: Messages = {
   nav: {
     features: 'Features',
+    modes: 'Modes',
     providers: 'Providers',
     howto: 'How It Works',
     download: 'Download',
     downloadBtn: 'Download Free',
   },
   hero: {
-    badge: 'macOS Native App · v0.3.5',
+    badge: 'macOS App · CLI · Local Relay · v0.3.5',
     titleLine1: 'All Your AI Accounts,',
-    titleLine2: 'One Hub',
-    desc: 'Unified management for Claude, Codex, and Gemini accounts. One-click credential switching, card/list quota views, and native macOS menubar integration.',
+    titleLine2: 'One Workflow',
+    desc: 'Unified management for Claude, Codex, and Gemini accounts. The desktop app gives you visual control, the aah CLI fits terminal workflows, and the local Codex relay exposes a compatible endpoint for other clients.',
     ctaGithub: 'View Source',
+    cliInstallLabel: 'CLI install',
     statProviders: 'AI Providers',
     statAccounts: 'Accounts',
-    statSwitch: 'Click Switch',
+    statModes: 'Work Modes',
     activeLabel: 'Active',
   },
   features: {
     badge: 'Features',
     title: 'Built for AI Power Users',
-    desc: 'Managing multiple AI accounts across providers is a daily friction. AI Accounts Hub makes it invisible.',
+    desc: 'Managing multiple AI accounts, terminal workflows, and compatible local clients is daily friction. AI Accounts Hub turns it into one coordinated workflow.',
     items: [
       {
         title: 'Unified Account Management',
         desc: 'Store unlimited accounts per AI provider. Work, personal, and test accounts stay centralized, with quick card/list view switching.',
+      },
+      {
+        title: 'Standalone aah CLI',
+        desc: 'Use list, current, switch, and refresh directly in the terminal, with an interactive TUI, JSON output, and custom data directory support.',
+      },
+      {
+        title: 'Local Codex Relay Mode',
+        desc: 'Optionally start a 127.0.0.1-only Codex relay, giving opencode and other OpenAI/Codex-compatible local clients one managed endpoint.',
       },
       {
         title: 'One-Click Credential Switch',
@@ -47,6 +57,34 @@ export const en: Messages = {
       {
         title: 'Auto Updates',
         desc: 'Built-in update mechanism delivers new versions silently. Always on the latest without manual maintenance.',
+      },
+    ],
+  },
+  modes: {
+    badge: 'Three Work Modes',
+    title: 'Desktop, terminal, and local relay',
+    desc: 'One account pool and one shared configuration across multiple entry points. Use AI Accounts Hub as a visual control plane, a terminal-native CLI, or a local Codex-compatible relay.',
+    items: [
+      {
+        title: 'Desktop App',
+        eyebrow: 'Visual control plane',
+        desc: 'Manage multi-provider account pools, inspect quota / usage, configure auto-switching, refresh intervals, data directories, and menubar shortcuts.',
+        command: 'Download from GitHub Releases',
+        bullets: ['Card and list account views', 'macOS menubar switching', 'Auto updates and background refresh'],
+      },
+      {
+        title: 'aah CLI',
+        eyebrow: 'Terminal-native workflow',
+        desc: 'Install the npm package and use it without the desktop app. Desktop and CLI share the same ~/.ai-accounts-hub account pool and settings.',
+        command: 'npm install -g @murongg/aah-cli@latest',
+        bullets: ['aah tui interactive switching', 'list/current/switch/refresh', '--json output for scripts'],
+      },
+      {
+        title: 'Relay Mode',
+        eyebrow: 'Local Codex-compatible endpoint',
+        desc: 'Enable http://127.0.0.1:8765/codex so managed Codex credentials can be reused by opencode and compatible local clients.',
+        command: 'aah relay start --port 8765',
+        bullets: ['Off by default, enabled explicitly', 'Binds to 127.0.0.1 only', 'Desktop and CLI share one relay instance'],
       },
     ],
   },
