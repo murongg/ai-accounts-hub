@@ -13,7 +13,13 @@ pub struct ProcessCodexLoginRunner;
 
 const CODEX_BINARY_RESOLVER: CliBinaryResolver<'static> = CliBinaryResolver {
     binary_name: "codex",
-    home_relative_paths: &[".local/bin/codex"],
+    home_relative_paths: &[
+        ".local/bin/codex",
+        ".bun/bin/codex",
+        "AppData/Roaming/npm/codex",
+        "AppData/Local/pnpm/codex",
+        "scoop/shims/codex",
+    ],
     fixed_locations: &["/opt/homebrew/bin/codex", "/usr/local/bin/codex"],
     include_nvm_bin_env: true,
     include_nvm_scan: true,
@@ -96,6 +102,23 @@ mod tests {
         );
 
         assert_eq!(resolved, Some(newer_codex));
+    }
+
+    #[test]
+    fn resolves_codex_from_windows_npm_home_when_path_is_missing() {
+        let home = temp_test_dir("codex-windows-npm-home");
+        let npm_bin = home.join("AppData/Roaming/npm");
+        let codex_path = npm_bin.join("codex.cmd");
+        fs::create_dir_all(&npm_bin).unwrap();
+        fs::write(&codex_path, "").unwrap();
+
+        let resolved = resolve_codex_binary_from(
+            Some(std::ffi::OsString::from("/usr/bin:/bin")),
+            Some(home),
+            None,
+        );
+
+        assert_eq!(resolved, Some(codex_path));
     }
 
     fn temp_test_dir(prefix: &str) -> PathBuf {

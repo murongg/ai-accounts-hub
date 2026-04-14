@@ -5,6 +5,7 @@ use std::process::Command;
 
 const SHELL_BINARY_START_MARKER: &str = "__AIHUB_CLI_BINARY_START__";
 const SHELL_BINARY_END_MARKER: &str = "__AIHUB_CLI_BINARY_END__";
+const COMMAND_WRAPPER_SUFFIXES: &[&str] = &["", ".exe", ".cmd", ".bat"];
 
 pub struct CliBinaryResolver<'a> {
     pub binary_name: &'a str,
@@ -34,9 +35,7 @@ pub fn resolve_binary_from(
         .or_else(|| resolve_under_home(home_dir.as_deref(), config.home_relative_paths))
         .or_else(|| {
             if config.include_nvm_bin_env {
-                nvm_bin
-                    .map(|dir| dir.join(config.binary_name))
-                    .filter(|path| path.exists())
+                nvm_bin.and_then(|dir| resolve_in_dir(&dir, config.binary_name))
             } else {
                 None
             }
@@ -53,6 +52,7 @@ pub fn resolve_binary_from(
                 .fixed_locations
                 .iter()
                 .map(PathBuf::from)
+                .flat_map(command_candidate_paths)
                 .find(|path| path.exists())
         })
 }
@@ -61,14 +61,14 @@ fn resolve_under_home(home_dir: Option<&Path>, relative_paths: &[&str]) -> Optio
     let home_dir = home_dir?;
     relative_paths
         .iter()
-        .map(|relative_path| home_dir.join(relative_path))
+        .flat_map(|relative_path| command_candidate_paths(home_dir.join(relative_path)))
         .find(|path| path.exists())
 }
 
 fn resolve_in_path(binary_name: &str, path_var: Option<&OsStr>) -> Option<PathBuf> {
     path_var.and_then(|path_var| {
         std::env::split_paths(path_var)
-            .map(|dir| dir.join(binary_name))
+            .flat_map(|dir| command_candidate_paths(dir.join(binary_name)))
             .find(|candidate| candidate.exists())
     })
 }
@@ -78,20 +78,56 @@ fn resolve_nvm_binary(home_dir: Option<&Path>, binary_name: &str) -> Option<Path
     let mut candidates = fs::read_dir(versions_dir)
         .ok()?
         .filter_map(Result::ok)
-        .map(|entry| entry.path().join("bin").join(binary_name))
+        .flat_map(|entry| command_candidate_paths(entry.path().join("bin").join(binary_name)))
         .filter(|path| path.exists())
         .collect::<Vec<_>>();
     candidates.sort();
     candidates.pop()
 }
 
+fn resolve_in_dir(dir: &Path, binary_name: &str) -> Option<PathBuf> {
+    command_candidate_paths(dir.join(binary_name))
+        .into_iter()
+        .find(|path| path.exists())
+}
+
+fn command_candidate_paths(base: PathBuf) -> Vec<PathBuf> {
+    let mut candidates = Vec::with_capacity(COMMAND_WRAPPER_SUFFIXES.len());
+    let base_string = base.to_string_lossy().to_ascii_lowercase();
+
+    for suffix in COMMAND_WRAPPER_SUFFIXES {
+        if suffix.is_empty() || base_string.ends_with(suffix) {
+            candidates.push(base.clone());
+            continue;
+        }
+
+        let mut candidate = base.as_os_str().to_os_string();
+        candidate.push(suffix);
+        candidates.push(PathBuf::from(candidate));
+    }
+
+    candidates
+}
+
 fn resolve_binary_from_login_shell(binary_name: &str) -> Option<PathBuf> {
+    if !should_probe_login_shell() {
+        return None;
+    }
+
     let shell = resolve_login_shell();
     let command = build_login_shell_binary_probe_command(binary_name);
     let output = Command::new(shell).args(["-ilc", &command]).output().ok()?;
     let stdout = String::from_utf8_lossy(&output.stdout);
 
     parse_login_shell_binary_output(&stdout).filter(|path| path.exists())
+}
+
+fn should_probe_login_shell() -> bool {
+    should_probe_login_shell_for_os(cfg!(windows))
+}
+
+fn should_probe_login_shell_for_os(is_windows: bool) -> bool {
+    !is_windows
 }
 
 fn resolve_login_shell() -> PathBuf {
@@ -155,5 +191,42 @@ more noise
         assert!(command.contains("command -v gemini"));
         assert!(command.contains("__AIHUB_CLI_BINARY_START__"));
         assert!(command.contains("__AIHUB_CLI_BINARY_END__"));
+    }
+
+    #[test]
+    fn resolves_windows_cmd_wrapper_from_path() {
+        let temp = temp_test_dir("resolver-windows-path");
+        let bin_dir = temp.join("AppData/Roaming/npm");
+        let codex_cmd = bin_dir.join("codex.cmd");
+        fs::create_dir_all(&bin_dir).unwrap();
+        fs::write(&codex_cmd, "").unwrap();
+        let path_var = std::env::join_paths([bin_dir]).unwrap();
+        let config = CliBinaryResolver {
+            binary_name: "codex",
+            home_relative_paths: &[],
+            fixed_locations: &[],
+            include_nvm_bin_env: false,
+            include_nvm_scan: false,
+        };
+
+        let resolved = resolve_binary_from(&config, Some(path_var), None, None);
+
+        assert_eq!(resolved, Some(codex_cmd));
+    }
+
+    #[test]
+    fn skips_login_shell_probe_on_windows() {
+        assert!(!should_probe_login_shell_for_os(true));
+        assert!(should_probe_login_shell_for_os(false));
+    }
+
+    fn temp_test_dir(prefix: &str) -> PathBuf {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("aihub-{prefix}-{unique}"));
+        fs::create_dir_all(&path).unwrap();
+        path
     }
 }

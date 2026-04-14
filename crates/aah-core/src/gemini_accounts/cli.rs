@@ -26,6 +26,9 @@ const GEMINI_BINARY_RESOLVER: CliBinaryResolver<'static> = CliBinaryResolver {
         ".local/bin/gemini",
         ".bun/bin/gemini",
         ".vite-plus/bin/gemini",
+        "AppData/Roaming/npm/gemini",
+        "AppData/Local/pnpm/gemini",
+        "scoop/shims/gemini",
     ],
     fixed_locations: &["/opt/homebrew/bin/gemini", "/usr/local/bin/gemini"],
     include_nvm_bin_env: true,
@@ -162,6 +165,23 @@ mod tests {
         let vite_plus_bin = home.join(".vite-plus/bin");
         let gemini_path = vite_plus_bin.join("gemini");
         fs::create_dir_all(&vite_plus_bin).unwrap();
+        fs::write(&gemini_path, "").unwrap();
+
+        let resolved = resolve_gemini_binary_from(
+            Some(std::ffi::OsString::from("/usr/bin:/bin")),
+            Some(home),
+            None,
+        );
+
+        assert_eq!(resolved, Some(gemini_path));
+    }
+
+    #[test]
+    fn resolves_gemini_from_windows_pnpm_home_when_path_is_missing() {
+        let home = temp_test_dir("gemini-windows-pnpm-home");
+        let pnpm_bin = home.join("AppData/Local/pnpm");
+        let gemini_path = pnpm_bin.join("gemini.cmd");
+        fs::create_dir_all(&pnpm_bin).unwrap();
         fs::write(&gemini_path, "").unwrap();
 
         let resolved = resolve_gemini_binary_from(
