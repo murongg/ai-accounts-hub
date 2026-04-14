@@ -33,5 +33,7 @@ test("CLI npm publish job configures npmjs registry authentication", () => {
 test("ordinary CI does not run for every push", () => {
   assert.doesNotMatch(ciWorkflow, /\n\s+push:/);
   assert.match(ciWorkflow, /\n\s+pull_request:/);
+  assert.match(ciWorkflow, /types:\s*\[opened,\s*reopened,\s*ready_for_review\]/);
+  assert.doesNotMatch(ciWorkflow, /\bsynchronize\b/);
   assert.match(ciWorkflow, /\n\s+workflow_dispatch:/);
 });
