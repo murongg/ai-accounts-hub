@@ -13,5 +13,6 @@ pub mod gemini_accounts;
 pub mod gemini_usage;
 pub mod managed_root;
 pub mod proxy_env;
+pub mod relay;
 pub mod startup_account_import;
 pub mod time_utils;

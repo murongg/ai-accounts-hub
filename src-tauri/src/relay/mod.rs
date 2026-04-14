@@ -14,9 +14,19 @@ pub use state::RelayRuntimeStatus;
 use state::RelayServerState;
 use tauri::Manager;
 
-fn relay_paths() -> Result<(CodexAccountPaths, ClaudeAccountPaths, GeminiAccountPaths), String> {
+fn relay_context() -> Result<
+    (
+        std::path::PathBuf,
+        CodexAccountPaths,
+        ClaudeAccountPaths,
+        GeminiAccountPaths,
+    ),
+    String,
+> {
     let managed = bootstrap::bootstrap_managed_root(None, None)?;
+    let managed_root = managed.root.clone();
     Ok((
+        managed_root,
         CodexAccountPaths::from_roots(managed.root.clone(), managed.user_home.clone()),
         ClaudeAccountPaths::from_roots(managed.root.clone(), managed.user_home.clone()),
         GeminiAccountPaths::from_roots(managed.root, managed.user_home),
@@ -24,7 +34,7 @@ fn relay_paths() -> Result<(CodexAccountPaths, ClaudeAccountPaths, GeminiAccount
 }
 
 async fn apply_saved_settings(app: tauri::AppHandle) -> Result<RelayRuntimeStatus, String> {
-    let (codex_paths, claude_paths, gemini_paths) = relay_paths()?;
+    let (managed_root, codex_paths, claude_paths, gemini_paths) = relay_context()?;
     let settings = store::load_app_settings(&codex_paths)?;
     let source = Arc::new(LiveRelayCredentialSource::new(
         codex_paths,
@@ -32,7 +42,9 @@ async fn apply_saved_settings(app: tauri::AppHandle) -> Result<RelayRuntimeStatu
         gemini_paths,
     ));
     let state = app.state::<RelayServerState>();
-    Ok(state.apply_settings(settings.relay, source).await)
+    Ok(state
+        .apply_settings(settings.relay, source, &managed_root)
+        .await)
 }
 
 pub fn initialize_relay_from_app(app: tauri::AppHandle) {
@@ -51,8 +63,8 @@ pub async fn apply_relay_settings_from_app(
 
 #[tauri::command]
 pub async fn get_relay_status(app: tauri::AppHandle) -> Result<RelayRuntimeStatus, String> {
-    let (codex_paths, _, _) = relay_paths()?;
+    let (managed_root, codex_paths, _, _) = relay_context()?;
     let settings = store::load_app_settings(&codex_paths)?;
     let state = app.state::<RelayServerState>();
-    Ok(state.status(&settings.relay))
+    Ok(state.status(&settings.relay, &managed_root))
 }
