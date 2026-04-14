@@ -130,7 +130,9 @@ impl CliFacade {
                 continue;
             }
 
-            let active = rows.iter().find(|row| row.provider == item && row.is_active);
+            let active = rows
+                .iter()
+                .find(|row| row.provider == item && row.is_active);
             current.push(CurrentRow {
                 provider: item,
                 active_id: active.map(|row| row.id.clone()),
@@ -237,7 +239,10 @@ impl CliFacade {
     }
 
     fn codex_paths(&self) -> CodexAccountPaths {
-        CodexAccountPaths::from_roots(self.context.managed_root.clone(), self.context.user_home.clone())
+        CodexAccountPaths::from_roots(
+            self.context.managed_root.clone(),
+            self.context.user_home.clone(),
+        )
     }
 
     fn claude_paths(&self) -> ClaudeAccountPaths {

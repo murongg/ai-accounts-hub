@@ -277,7 +277,11 @@ fn provider_menu_state_uses_all_provider_quotas_for_sorting() {
 
     assert_eq!(
         claude_ids,
-        vec!["weekly-high-model-high", "weekly-high-model-low", "weekly-low"]
+        vec![
+            "weekly-high-model-high",
+            "weekly-high-model-low",
+            "weekly-low"
+        ]
     );
     assert_eq!(
         gemini_ids,

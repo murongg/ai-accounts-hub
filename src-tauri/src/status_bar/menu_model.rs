@@ -195,10 +195,7 @@ fn codex_quota_sort_key(account: &CodexAccountListItem, needs_relogin: bool) -> 
     ]
 }
 
-fn claude_quota_sort_key(
-    account: &ClaudeAccountListItem,
-    needs_relogin: bool,
-) -> Vec<Option<f64>> {
+fn claude_quota_sort_key(account: &ClaudeAccountListItem, needs_relogin: bool) -> Vec<Option<f64>> {
     if needs_relogin {
         return vec![None, None, None];
     }
@@ -210,10 +207,7 @@ fn claude_quota_sort_key(
     ]
 }
 
-fn gemini_quota_sort_key(
-    account: &GeminiAccountListItem,
-    needs_relogin: bool,
-) -> Vec<Option<f64>> {
+fn gemini_quota_sort_key(account: &GeminiAccountListItem, needs_relogin: bool) -> Vec<Option<f64>> {
     if needs_relogin {
         return vec![None, None, None];
     }

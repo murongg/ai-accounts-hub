@@ -30,10 +30,8 @@ pub fn run() {
         .setup(|app| {
             proxy_env::import_shell_proxy_env_if_missing();
             let managed = aah_core::bootstrap::bootstrap_managed_root(None, None)?;
-            let import_outcome = startup_account_import::import_logged_in_accounts(
-                managed.root,
-                managed.user_home,
-            );
+            let import_outcome =
+                startup_account_import::import_logged_in_accounts(managed.root, managed.user_home);
             for error in import_outcome.errors {
                 eprintln!("{error}");
             }

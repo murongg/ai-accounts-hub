@@ -47,7 +47,9 @@ pub async fn get_app_data_directory_info(
 }
 
 #[tauri::command]
-pub async fn reset_app_data_directory(_app: tauri::AppHandle) -> Result<AppDataDirectoryInfo, String> {
+pub async fn reset_app_data_directory(
+    _app: tauri::AppHandle,
+) -> Result<AppDataDirectoryInfo, String> {
     tauri::async_runtime::spawn_blocking(move || {
         service::reset_data_directory_to_default(&paths_from_app()?)
     })

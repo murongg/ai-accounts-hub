@@ -25,11 +25,9 @@ pub fn initialize_scheduler(
 
 #[tauri::command]
 pub async fn get_codex_refresh_settings(_app: AppHandle) -> Result<CodexRefreshSettings, String> {
-    tauri::async_runtime::spawn_blocking(move || {
-        store::load_refresh_settings(&paths_from_app()?)
-    })
-    .await
-    .map_err(|error| error.to_string())?
+    tauri::async_runtime::spawn_blocking(move || store::load_refresh_settings(&paths_from_app()?))
+        .await
+        .map_err(|error| error.to_string())?
 }
 
 #[tauri::command]

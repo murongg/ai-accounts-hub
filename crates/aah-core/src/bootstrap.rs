@@ -16,8 +16,9 @@ pub fn bootstrap_managed_root(
 ) -> Result<ManagedRoot, String> {
     let user_home = match home_override {
         Some(home) => home,
-        None => dirs::home_dir()
-            .ok_or_else(|| "failed to resolve user home directory".to_string())?,
+        None => {
+            dirs::home_dir().ok_or_else(|| "failed to resolve user home directory".to_string())?
+        }
     };
     let managed = resolve_managed_root(&user_home, data_dir_override);
     migrate_legacy_root(&managed)?;

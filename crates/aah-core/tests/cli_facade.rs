@@ -4,11 +4,8 @@ use std::fs;
 use std::path::PathBuf;
 
 fn temp_home(prefix: &str) -> PathBuf {
-    let path = std::env::temp_dir().join(format!(
-        "aah-cli-facade-{}-{}",
-        prefix,
-        std::process::id()
-    ));
+    let path =
+        std::env::temp_dir().join(format!("aah-cli-facade-{}-{}", prefix, std::process::id()));
     let _ = fs::remove_dir_all(&path);
     fs::create_dir_all(&path).expect("temp dir");
     path
