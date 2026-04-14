@@ -23,6 +23,11 @@ struct CapturedRequest {
     path_and_query: String,
     authorization: Option<String>,
     account_id: Option<String>,
+    user_agent: Option<String>,
+    content_type: Option<String>,
+    accept_encoding: Option<String>,
+    session_affinity: Option<String>,
+    test_header: Option<String>,
     body: String,
 }
 
@@ -54,6 +59,26 @@ async fn capture_upstream(
             .map(str::to_string),
         account_id: headers
             .get("ChatGPT-Account-Id")
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_string),
+        user_agent: headers
+            .get("user-agent")
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_string),
+        content_type: headers
+            .get("content-type")
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_string),
+        accept_encoding: headers
+            .get("accept-encoding")
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_string),
+        session_affinity: headers
+            .get("x-session-affinity")
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_string),
+        test_header: headers
+            .get("x-test")
             .and_then(|value| value.to_str().ok())
             .map(str::to_string),
         body: String::from_utf8(body.to_vec()).expect("utf8 body"),
@@ -192,6 +217,53 @@ async fn codex_route_forwards_method_path_query_body_and_auth_headers() {
     );
     assert_eq!(captured.account_id.as_deref(), Some("acct_123"));
     assert_eq!(captured.body, r#"{"model":"gpt-test"}"#);
+}
+
+#[tokio::test]
+async fn codex_route_filters_noisy_inbound_headers() {
+    let (upstream, capture) = spawn_capture_server().await;
+    let source = StaticCredentialSource {
+        credentials: HashMap::from([(
+            RelayProvider::Codex,
+            RelayProviderCredential {
+                provider: RelayProvider::Codex,
+                upstream_base_url: format!("{upstream}/backend-api"),
+                bearer_token: "codex-token".to_string(),
+                extra_headers: vec![("ChatGPT-Account-Id".to_string(), "acct_123".to_string())],
+            },
+        )]),
+    };
+    let app = build_relay_router(RelayProxyState::new(Arc::new(source)));
+    let listener = TcpListener::bind("127.0.0.1:0").await.expect("bind relay");
+    let relay_addr = listener.local_addr().expect("relay addr");
+    tokio::spawn(async move {
+        axum::serve(listener, app).await.expect("serve relay");
+    });
+
+    let response = reqwest::Client::new()
+        .post(format!("http://{relay_addr}/codex/responses"))
+        .header("User-Agent", "opencode/1.4.3")
+        .header("Content-Type", "application/json")
+        .header("Accept-Encoding", "gzip, deflate, br, zstd")
+        .header("X-Session-Affinity", "ses_123")
+        .header("X-Test", "keep")
+        .body(r#"{"model":"gpt-test","input":"Say OK","stream":true}"#)
+        .send()
+        .await
+        .expect("relay response");
+
+    assert_eq!(response.status(), StatusCode::CREATED);
+    let captured = capture
+        .captured
+        .lock()
+        .expect("capture lock")
+        .clone()
+        .expect("captured request");
+    assert_eq!(captured.user_agent.as_deref(), Some("opencode/1.4.3"));
+    assert_eq!(captured.content_type.as_deref(), Some("application/json"));
+    assert_eq!(captured.accept_encoding, None);
+    assert_eq!(captured.session_affinity, None);
+    assert_eq!(captured.test_header, None);
 }
 
 #[tokio::test]

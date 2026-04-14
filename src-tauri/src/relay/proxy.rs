@@ -4,7 +4,8 @@ use std::time::Instant;
 use axum::body::Body;
 use axum::extract::{Path, State};
 use axum::http::header::{
-    AUTHORIZATION, CONNECTION, CONTENT_LENGTH, HOST, TRANSFER_ENCODING, USER_AGENT,
+    ACCEPT, AUTHORIZATION, CONNECTION, CONTENT_LENGTH, CONTENT_TYPE, HOST, TRANSFER_ENCODING,
+    USER_AGENT,
 };
 use axum::http::{HeaderMap, HeaderName, HeaderValue, Request, StatusCode};
 use axum::response::Response;
@@ -465,7 +466,7 @@ fn apply_headers(
     credential: &RelayProviderCredential,
 ) -> reqwest::RequestBuilder {
     for (name, value) in inbound {
-        if should_forward_inbound_header(name) {
+        if should_forward_inbound_header(credential.provider, name) {
             builder = builder.header(name, value);
         }
     }
@@ -484,11 +485,16 @@ fn apply_headers(
     builder
 }
 
-fn should_forward_inbound_header(name: &HeaderName) -> bool {
-    !is_hop_by_hop_header(name)
-        && name != HOST
-        && name != AUTHORIZATION
-        && name.as_str().to_ascii_lowercase() != "x-api-key"
+fn should_forward_inbound_header(provider: RelayProvider, name: &HeaderName) -> bool {
+    if is_hop_by_hop_header(name) || name == HOST || name == AUTHORIZATION {
+        return false;
+    }
+    match provider {
+        RelayProvider::Codex => name == USER_AGENT || name == CONTENT_TYPE || name == ACCEPT,
+        RelayProvider::Claude | RelayProvider::Gemini => {
+            name.as_str().to_ascii_lowercase() != "x-api-key"
+        }
+    }
 }
 
 fn is_hop_by_hop_header(name: &HeaderName) -> bool {
