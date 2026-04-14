@@ -391,20 +391,28 @@ function resolveQuotaSortKey(activePlatform: string, account: QuotaSortableAccou
 
   if (activePlatform === "codex") {
     const codexAccount = account as Partial<CodexAccountSummary>;
+    const weeklyRemainingPercent = codexAccount.weekly_remaining_percent ?? null;
+    const fiveHourRemainingPercent = codexAccount.five_hour_remaining_percent ?? null;
+
+    if (weeklyRemainingPercent === null || fiveHourRemainingPercent === null) {
+      return [null, null, null];
+    }
 
     return [
-      codexAccount.five_hour_remaining_percent ?? null,
-      codexAccount.weekly_remaining_percent ?? null,
+      weeklyRemainingPercent,
+      fiveHourRemainingPercent,
       codexAccount.credits_balance ?? null,
     ];
   }
 
   if (activePlatform === "claude") {
     const claudeAccount = account as Partial<ClaudeAccountSummary>;
+    const weeklyRemainingPercent = claudeAccount.weekly_remaining_percent ?? null;
+    const sessionRemainingPercent = claudeAccount.session_remaining_percent ?? null;
 
     return [
-      claudeAccount.session_remaining_percent ?? null,
-      claudeAccount.weekly_remaining_percent ?? null,
+      weeklyRemainingPercent,
+      sessionRemainingPercent,
       claudeAccount.model_weekly_remaining_percent ?? null,
     ];
   }

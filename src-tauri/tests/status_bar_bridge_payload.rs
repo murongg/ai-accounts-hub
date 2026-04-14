@@ -209,7 +209,7 @@ fn codex_payload_keeps_reset_countdown_at_minute_precision() {
 }
 
 #[test]
-fn provider_payload_uses_weekly_and_credits_as_tie_breakers() {
+fn provider_payload_uses_weekly_before_five_hour_and_then_credits_as_tie_breakers() {
     let mut relogin = codex_account(
         "relogin",
         "relogin@example.com",
@@ -281,10 +281,10 @@ fn provider_payload_uses_weekly_and_credits_as_tie_breakers() {
         ids,
         vec![
             "codex:active",
+            "codex:lower-primary",
             "codex:weekly-high-credits-high",
             "codex:weekly-high-credits-low",
             "codex:weekly-low",
-            "codex:lower-primary",
             "codex:missing",
             "codex:relogin",
         ]
@@ -298,28 +298,28 @@ fn provider_payload_uses_all_provider_quotas_for_sorting() {
         Vec::new(),
         vec![
             claude_account(
-                "weekly-high-model-low",
-                "weekly-high-model-low@example.com",
+                "weekly-high-session-low",
+                "weekly-high-session-low@example.com",
                 false,
-                Some(72),
+                Some(10),
                 Some(90),
                 None,
                 Some(10),
             ),
             claude_account(
-                "weekly-high-model-high",
-                "weekly-high-model-high@example.com",
+                "weekly-high-session-high",
+                "weekly-high-session-high@example.com",
                 false,
-                Some(72),
+                Some(70),
                 Some(90),
                 None,
                 Some(70),
             ),
             claude_account(
-                "weekly-low",
-                "weekly-low@example.com",
+                "weekly-low-session-high",
+                "weekly-low-session-high@example.com",
                 false,
-                Some(72),
+                Some(99),
                 Some(80),
                 None,
                 Some(99),
@@ -375,9 +375,9 @@ fn provider_payload_uses_all_provider_quotas_for_sorting() {
     assert_eq!(
         claude_ids,
         vec![
-            "claude:weekly-high-model-high",
-            "claude:weekly-high-model-low",
-            "claude:weekly-low"
+            "claude:weekly-high-session-high",
+            "claude:weekly-high-session-low",
+            "claude:weekly-low-session-high"
         ]
     );
     assert_eq!(

@@ -137,6 +137,57 @@ function FeatureCard({ icon, title, desc, large }: {
   )
 }
 
+// ─── Mode Card ────────────────────────────────────────────────────────────────
+function ModeCard({
+  icon, title, eyebrow, desc, command, bullets, accent,
+}: {
+  icon: React.ReactNode
+  title: string
+  eyebrow: string
+  desc: string
+  command: string
+  bullets: string[]
+  accent: string
+}) {
+  return (
+    <div className="group relative overflow-hidden rounded-[2rem] border border-base-200 bg-base-100 p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/10">
+      <div
+        className="absolute -right-16 -top-16 h-44 w-44 rounded-full opacity-20 blur-3xl transition-transform duration-500 group-hover:scale-125"
+        style={{ background: accent }}
+      />
+      <div className="relative z-10 flex h-full flex-col gap-6">
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <div className="mb-2 text-xs font-medium uppercase tracking-[0.22em] opacity-50">{eyebrow}</div>
+            <h3 className="font-display text-2xl font-extrabold">{title}</h3>
+          </div>
+          <div
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl"
+            style={{ background: `color-mix(in oklch, ${accent} 18%, transparent)`, color: accent }}
+          >
+            {icon}
+          </div>
+        </div>
+
+        <p className="text-sm leading-relaxed opacity-60">{desc}</p>
+
+        <div className="rounded-2xl border border-base-200 bg-base-200/45 px-4 py-3 font-mono text-xs">
+          <span className="opacity-35">$ </span>{command}
+        </div>
+
+        <div className="mt-auto grid gap-2">
+          {bullets.map((bullet) => (
+            <div key={bullet} className="flex items-center gap-2 text-sm">
+              <span className="h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
+              <span className="opacity-65">{bullet}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Step ───────────────────────────────────────────────────────────────────────
 function Step({ num, title, desc, last }: { num: string; title: string; desc: string; last?: boolean }) {
   return (
@@ -174,11 +225,19 @@ export default function HomePage() {
 
   const featureIcons = [
     <svg key="users" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>,
+    <svg key="terminal" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 17l6-6-6-6"/><path d="M12 19h8"/></svg>,
+    <svg key="relay" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 12h5"/><path d="M15 12h5"/><path d="M9 6l6 6-6 6"/><circle cx="4" cy="12" r="2"/><circle cx="20" cy="12" r="2"/></svg>,
     <svg key="switch" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="16 3 21 3 21 8"/><line x1="4" y1="20" x2="21" y2="3"/><polyline points="21 16 21 21 16 21"/><line x1="15" y1="15" x2="21" y2="21"/></svg>,
     <svg key="bar" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>,
     <svg key="menu" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>,
     <svg key="sync" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>,
     <svg key="update" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>,
+  ]
+
+  const modeIcons = [
+    <svg key="desktop" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>,
+    <svg key="cli" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/></svg>,
+    <svg key="relay" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v6"/><path d="M12 15v6"/><path d="M5 8l5 4-5 4"/><path d="M19 8l-5 4 5 4"/><circle cx="12" cy="12" r="3"/></svg>,
   ]
 
   return (
@@ -195,6 +254,7 @@ export default function HomePage() {
           <nav className="hidden md:flex items-center gap-1 ml-6 text-sm">
             {([
               ['#features', t.nav.features],
+              ['#modes', t.nav.modes],
               ['#providers', t.nav.providers],
               ['#howto', t.nav.howto],
               ['#download', t.nav.download],
@@ -255,11 +315,20 @@ export default function HomePage() {
               </a>
             </div>
 
+            <div className="mt-4 inline-flex max-w-full items-center gap-3 rounded-2xl border border-base-300 bg-base-100/70 px-4 py-3 shadow-sm backdrop-blur">
+              <span className="hidden text-xs font-medium uppercase tracking-[0.18em] text-primary sm:inline">
+                {t.hero.cliInstallLabel}
+              </span>
+              <code className="truncate font-mono text-sm text-base-content/70">
+                npm install -g @murongg/aah-cli@latest
+              </code>
+            </div>
+
             <div className="flex gap-8 mt-10 pt-8 border-t border-base-200">
               {[
                 { val: '3', label: t.hero.statProviders },
                 { val: '∞', label: t.hero.statAccounts },
-                { val: '1', label: t.hero.statSwitch },
+                { val: '3', label: t.hero.statModes },
               ].map(({ val, label }) => (
                 <div key={label}>
                   <div className="font-display font-extrabold text-2xl text-primary">{val}</div>
@@ -326,6 +395,34 @@ export default function HomePage() {
             <FeatureCard large icon={featureIcons[0]} title={t.features.items[0].title} desc={t.features.items[0].desc} />
             {t.features.items.slice(1).map((item, i) => (
               <FeatureCard key={i} icon={featureIcons[i + 1]} title={item.title} desc={item.desc} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── Work Modes ────────────────────────────────────────────────────── */}
+      <section id="modes" className="py-24">
+        <div className="max-w-6xl mx-auto px-5">
+          <div className="mb-14 max-w-3xl">
+            <div className="text-xs font-medium text-primary uppercase tracking-widest mb-3">{t.modes.badge}</div>
+            <h2 className="font-display font-extrabold" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)' }}>
+              {t.modes.title}
+            </h2>
+            <p className="mt-3 opacity-60">{t.modes.desc}</p>
+          </div>
+
+          <div className="grid gap-5 lg:grid-cols-3">
+            {t.modes.items.map((item, i) => (
+              <ModeCard
+                key={item.title}
+                icon={modeIcons[i]}
+                title={item.title}
+                eyebrow={item.eyebrow}
+                desc={item.desc}
+                command={item.command}
+                bullets={item.bullets}
+                accent={['#D97757', '#10A37F', '#4285F4'][i]}
+              />
             ))}
           </div>
         </div>

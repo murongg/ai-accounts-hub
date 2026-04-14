@@ -83,7 +83,7 @@ function codexAccount(overrides: Partial<CodexAccountSummary> = {}): CodexAccoun
   };
 }
 
-test("sortAccountsByPrimaryQuota keeps active accounts first then uses Codex quotas as tie breakers", () => {
+test("sortAccountsByPrimaryQuota keeps active accounts first then uses Codex weekly quota before 5h", () => {
   const sorted = sortAccountsByPrimaryQuota("codex", [
     codexAccount({ id: "active", is_active: true, five_hour_remaining_percent: 3 }),
     codexAccount({
@@ -116,41 +116,41 @@ test("sortAccountsByPrimaryQuota keeps active accounts first then uses Codex quo
 
   assert.deepEqual(sorted.map((account) => account.id), [
     "active",
+    "lower-primary",
     "weekly-high-credits-high",
     "weekly-high-credits-low",
     "weekly-low",
-    "lower-primary",
     "missing",
     "relogin",
   ]);
 });
 
-test("sortAccountsByPrimaryQuota uses Claude weekly and model quotas as tie breakers", () => {
+test("sortAccountsByPrimaryQuota uses Claude weekly before session and model quotas", () => {
   const sortedClaude = sortAccountsByPrimaryQuota("claude", [
     claudeAccount({
-      id: "weekly-high-model-low",
-      session_remaining_percent: 72,
+      id: "weekly-high-session-low",
+      session_remaining_percent: 10,
       weekly_remaining_percent: 90,
       model_weekly_remaining_percent: 10,
     }),
     claudeAccount({
-      id: "weekly-low",
-      session_remaining_percent: 72,
+      id: "weekly-low-session-high",
+      session_remaining_percent: 99,
       weekly_remaining_percent: 80,
       model_weekly_remaining_percent: 99,
     }),
     claudeAccount({
-      id: "weekly-high-model-high",
-      session_remaining_percent: 72,
+      id: "weekly-high-session-high",
+      session_remaining_percent: 70,
       weekly_remaining_percent: 90,
       model_weekly_remaining_percent: 70,
     }),
   ]);
 
   assert.deepEqual(sortedClaude.map((account) => account.id), [
-    "weekly-high-model-high",
-    "weekly-high-model-low",
-    "weekly-low",
+    "weekly-high-session-high",
+    "weekly-high-session-low",
+    "weekly-low-session-high",
   ]);
 });
 

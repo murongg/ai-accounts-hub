@@ -1,30 +1,40 @@
 export const zh = {
   nav: {
     features: '功能',
+    modes: '模式',
     providers: '支持',
     howto: '使用方式',
     download: '下载',
     downloadBtn: '免费下载',
   },
   hero: {
-    badge: 'macOS 原生应用 · v0.3.5',
+    badge: 'macOS App · CLI · 本地中转 · v0.3.5',
     titleLine1: '所有 AI 账号',
-    titleLine2: '一键掌控',
-    desc: '统一管理 Claude、Codex、Gemini 的多个账号，一键切换系统登录态，卡片/列表双视图查看配额，原生 menubar 快速访问。',
+    titleLine2: '一套工作流',
+    desc: '统一管理 Claude、Codex、Gemini 的多个账号。桌面端负责可视化控制，aah CLI 接管终端工作流，本地 Codex relay 为兼容客户端提供中转入口。',
     ctaGithub: '查看源码',
+    cliInstallLabel: 'CLI 安装',
     statProviders: 'AI Providers',
     statAccounts: '账号数量',
-    statSwitch: '键切换',
+    statModes: '使用模式',
     activeLabel: '使用中',
   },
   features: {
     badge: '功能特性',
     title: '专为 AI 重度用户而生',
-    desc: '当你同时拥有多个 AI 账号，频繁切换变成了日常负担。AI Accounts Hub 让这一切变得无感。',
+    desc: '当你同时拥有多个 AI 账号，频繁切换、脚本集成和兼容客户端接入都会变成负担。AI Accounts Hub 让这一切变成一套统一工作流。',
     items: [
       {
         title: '多账号统一管理',
         desc: '为每个 AI provider 存储任意数量的账号。工作账号、个人账号、测试账号——全部集中管理，可在卡片和列表视图间快速切换。',
+      },
+      {
+        title: 'aah CLI 独立可用',
+        desc: '不打开桌面端也能在终端里 list、current、switch、refresh，支持交互式 TUI、JSON 输出和自定义数据目录。',
+      },
+      {
+        title: '本地 Codex 中转模式',
+        desc: '可选启动只监听 127.0.0.1 的 Codex relay，为 opencode 或兼容 OpenAI/Codex 风格接口的本地工具提供统一入口。',
       },
       {
         title: '一键切换登录态',
@@ -45,6 +55,34 @@ export const zh = {
       {
         title: '自动更新',
         desc: '内置更新机制，新版本静默推送，随时保持最新功能，无需手动维护。',
+      },
+    ],
+  },
+  modes: {
+    badge: '三种使用模式',
+    title: '从桌面、终端到本地中转',
+    desc: '同一个账号池、同一份配置，在不同入口里协同工作。你可以用图形界面做主控，也可以把 AI Accounts Hub 当成纯 CLI 工具或本地 Codex 兼容入口。',
+    items: [
+      {
+        title: 'Desktop App',
+        eyebrow: '可视化主控台',
+        desc: '管理多 provider 账号池，查看 quota / usage、配置自动切换、刷新间隔、数据目录和 menubar 快捷入口。',
+        command: 'Download from GitHub Releases',
+        bullets: ['账号卡片 / 列表双视图', 'macOS menubar 快速切换', '自动更新与后台刷新'],
+      },
+      {
+        title: 'aah CLI',
+        eyebrow: '终端原生工作流',
+        desc: '单独安装 npm 包即可使用，不依赖桌面 app。桌面端与 CLI 共用 ~/.ai-accounts-hub 账号池与设置。',
+        command: 'npm install -g @murongg/aah-cli@latest',
+        bullets: ['aah tui 交互式切换', 'list/current/switch/refresh', '--json 输出适合脚本集成'],
+      },
+      {
+        title: 'Relay Mode',
+        eyebrow: '本地 Codex 兼容入口',
+        desc: '开启后提供 http://127.0.0.1:8765/codex，把已托管的 Codex 凭证提供给 opencode 等兼容客户端使用。',
+        command: 'aah relay start --port 8765',
+        bullets: ['默认关闭，显式启用', '仅绑定 127.0.0.1', '桌面端与 CLI 共享同一 relay 实例'],
       },
     ],
   },
