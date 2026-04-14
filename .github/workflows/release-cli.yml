@@ -117,6 +117,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          registry-url: https://registry.npmjs.org
+          scope: "@murongg"
 
       - name: Validate CLI release version
         run: node scripts/release/validate-cli-release-version.mjs
