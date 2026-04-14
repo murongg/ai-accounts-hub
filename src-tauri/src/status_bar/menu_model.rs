@@ -188,9 +188,18 @@ fn codex_quota_sort_key(account: &CodexAccountListItem, needs_relogin: bool) -> 
         return vec![None, None, None];
     }
 
+    let Some(weekly_remaining_percent) = account.weekly_remaining_percent.map(f64::from) else {
+        return vec![None, None, None];
+    };
+
+    let Some(five_hour_remaining_percent) = account.five_hour_remaining_percent.map(f64::from)
+    else {
+        return vec![None, None, None];
+    };
+
     vec![
-        account.five_hour_remaining_percent.map(f64::from),
-        account.weekly_remaining_percent.map(f64::from),
+        Some(weekly_remaining_percent),
+        Some(five_hour_remaining_percent),
         account.credits_balance,
     ]
 }
@@ -201,8 +210,8 @@ fn claude_quota_sort_key(account: &ClaudeAccountListItem, needs_relogin: bool) -
     }
 
     vec![
-        account.session_remaining_percent.map(f64::from),
         account.weekly_remaining_percent.map(f64::from),
+        account.session_remaining_percent.map(f64::from),
         account.model_weekly_remaining_percent.map(f64::from),
     ]
 }

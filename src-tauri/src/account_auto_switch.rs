@@ -3,33 +3,110 @@ use crate::codex_accounts::models::CodexAccountListItem;
 use crate::gemini_accounts::models::GeminiAccountListItem;
 
 pub fn select_codex_auto_switch_target(accounts: &[CodexAccountListItem]) -> Option<String> {
-    select_auto_switch_target(
-        accounts,
-        |account| account.id.as_str(),
-        |account| account.is_active,
-        |account| account.needs_relogin.unwrap_or(false),
-        |account| account.five_hour_remaining_percent,
-    )
+    let active_account = accounts.iter().find(|account| account.is_active)?;
+    let active_is_unusable = active_account.needs_relogin.unwrap_or(false)
+        || active_account.five_hour_remaining_percent == Some(0)
+        || active_account.weekly_remaining_percent == Some(0);
+
+    if !active_is_unusable {
+        return None;
+    }
+
+    accounts
+        .iter()
+        .enumerate()
+        .filter(|(_, account)| !account.is_active && !account.needs_relogin.unwrap_or(false))
+        .filter_map(|(index, account)| {
+            let weekly = account.weekly_remaining_percent?;
+            let five_hour = account.five_hour_remaining_percent?;
+
+            (weekly > 0 && five_hour > 0).then(|| {
+                (index, weekly, five_hour, account.id.to_string())
+            })
+        })
+        .max_by(|left, right| {
+            left.1
+                .cmp(&right.1)
+                .then_with(|| left.2.cmp(&right.2))
+                .then_with(|| right.0.cmp(&left.0))
+        })
+        .map(|(_, _, _, account_id)| account_id)
 }
 
 pub fn select_claude_auto_switch_target(accounts: &[ClaudeAccountListItem]) -> Option<String> {
-    select_auto_switch_target(
-        accounts,
-        |account| account.id.as_str(),
-        |account| account.is_active,
-        |account| account.needs_relogin.unwrap_or(false),
-        |account| account.session_remaining_percent,
-    )
+    let active_account = accounts.iter().find(|account| account.is_active)?;
+    let active_is_unusable = active_account.needs_relogin.unwrap_or(false)
+        || active_account.session_remaining_percent == Some(0)
+        || active_account.weekly_remaining_percent == Some(0);
+
+    if !active_is_unusable {
+        return None;
+    }
+
+    accounts
+        .iter()
+        .enumerate()
+        .filter(|(_, account)| !account.is_active && !account.needs_relogin.unwrap_or(false))
+        .filter_map(|(index, account)| {
+            let weekly = account.weekly_remaining_percent?;
+            let session = account.session_remaining_percent?;
+
+            (weekly > 0 && session > 0).then(|| {
+                (
+                    index,
+                    weekly,
+                    session,
+                    account.model_weekly_remaining_percent.unwrap_or(0),
+                    account.id.to_string(),
+                )
+            })
+        })
+        .max_by(|left, right| {
+            left.1
+                .cmp(&right.1)
+                .then_with(|| left.2.cmp(&right.2))
+                .then_with(|| left.3.cmp(&right.3))
+                .then_with(|| right.0.cmp(&left.0))
+        })
+        .map(|(_, _, _, _, account_id)| account_id)
 }
 
 pub fn select_gemini_auto_switch_target(accounts: &[GeminiAccountListItem]) -> Option<String> {
-    select_auto_switch_target(
-        accounts,
-        |account| account.id.as_str(),
-        |account| account.is_active,
-        |account| account.needs_relogin.unwrap_or(false),
-        |account| account.pro_remaining_percent,
-    )
+    let active_account = accounts.iter().find(|account| account.is_active)?;
+    let active_is_unusable = active_account.needs_relogin.unwrap_or(false)
+        || matches!(
+            (
+                active_account.pro_remaining_percent,
+                active_account.flash_remaining_percent,
+                active_account.flash_lite_remaining_percent,
+            ),
+            (Some(0), Some(0), Some(0))
+        );
+
+    if !active_is_unusable {
+        return None;
+    }
+
+    accounts
+        .iter()
+        .enumerate()
+        .filter(|(_, account)| !account.is_active && !account.needs_relogin.unwrap_or(false))
+        .filter_map(|(index, account)| {
+            let pro = account.pro_remaining_percent.unwrap_or(0);
+            let flash = account.flash_remaining_percent.unwrap_or(0);
+            let flash_lite = account.flash_lite_remaining_percent.unwrap_or(0);
+
+            (pro > 0 || flash > 0 || flash_lite > 0)
+                .then(|| (index, pro, flash, flash_lite, account.id.to_string()))
+        })
+        .max_by(|left, right| {
+            left.1
+                .cmp(&right.1)
+                .then_with(|| left.2.cmp(&right.2))
+                .then_with(|| left.3.cmp(&right.3))
+                .then_with(|| right.0.cmp(&left.0))
+        })
+        .map(|(_, _, _, _, account_id)| account_id)
 }
 
 pub fn select_auto_switch_target<T, Id, IsActive, NeedsRelogin, PrimaryQuota>(
@@ -158,7 +235,7 @@ mod tests {
     }
 
     #[test]
-    fn codex_auto_switch_uses_five_hour_quota_as_primary() {
+    fn codex_auto_switch_prioritizes_weekly_quota_before_five_hour_quota() {
         let accounts = vec![
             codex_account("active", true, Some(0), Some(0)),
             codex_account("weekly-high", false, Some(12), Some(99)),
@@ -167,29 +244,109 @@ mod tests {
 
         assert_eq!(
             select_codex_auto_switch_target(&accounts),
-            Some("five-hour-high".to_string())
+            Some("weekly-high".to_string())
         );
     }
 
     #[test]
-    fn claude_and_gemini_auto_switch_use_provider_primary_quotas() {
+    fn codex_auto_switch_triggers_when_weekly_quota_is_depleted() {
+        let accounts = vec![
+            codex_account("active", true, Some(80), Some(0)),
+            codex_account("candidate", false, Some(55), Some(72)),
+        ];
+
+        assert_eq!(
+            select_codex_auto_switch_target(&accounts),
+            Some("candidate".to_string())
+        );
+    }
+
+    #[test]
+    fn codex_auto_switch_ignores_candidates_missing_weekly_or_five_hour_quota() {
+        let accounts = vec![
+            codex_account("active", true, Some(0), Some(0)),
+            codex_account("missing-weekly", false, Some(90), None),
+            codex_account("missing-five-hour", false, None, Some(90)),
+            codex_account("candidate", false, Some(40), Some(35)),
+        ];
+
+        assert_eq!(
+            select_codex_auto_switch_target(&accounts),
+            Some("candidate".to_string())
+        );
+    }
+
+    #[test]
+    fn claude_auto_switch_prioritizes_weekly_before_session() {
         let claude_accounts = vec![
             claude_account("active", true, Some(0), Some(0)),
             claude_account("weekly-high", false, Some(18), Some(99)),
             claude_account("session-high", false, Some(72), Some(10)),
         ];
-        let gemini_accounts = vec![
-            gemini_account("active", true, Some(0), Some(0)),
-            gemini_account("flash-high", false, Some(11), Some(99)),
-            gemini_account("pro-high", false, Some(88), Some(10)),
-        ];
 
         assert_eq!(
             select_claude_auto_switch_target(&claude_accounts),
-            Some("session-high".to_string())
+            Some("weekly-high".to_string())
         );
+    }
+
+    #[test]
+    fn claude_auto_switch_triggers_when_weekly_quota_is_depleted() {
+        let accounts = vec![
+            claude_account("active", true, Some(80), Some(0)),
+            claude_account("candidate", false, Some(55), Some(72)),
+        ];
+
         assert_eq!(
-            select_gemini_auto_switch_target(&gemini_accounts),
+            select_claude_auto_switch_target(&accounts),
+            Some("candidate".to_string())
+        );
+    }
+
+    #[test]
+    fn claude_auto_switch_ignores_candidates_missing_session_or_weekly_quota() {
+        let accounts = vec![
+            claude_account("active", true, Some(0), Some(0)),
+            claude_account("missing-weekly", false, Some(90), None),
+            claude_account("missing-session", false, None, Some(90)),
+            claude_account("candidate", false, Some(40), Some(35)),
+        ];
+
+        assert_eq!(
+            select_claude_auto_switch_target(&accounts),
+            Some("candidate".to_string())
+        );
+    }
+
+    #[test]
+    fn gemini_auto_switch_waits_until_all_quota_buckets_are_depleted() {
+        let still_usable_accounts = vec![
+            gemini_account("active", true, Some(0), Some(18), Some(0)),
+            gemini_account("candidate", false, Some(10), Some(0), Some(0)),
+        ];
+
+        let exhausted_accounts = vec![
+            gemini_account("active", true, Some(0), Some(0), Some(0)),
+            gemini_account("candidate", false, Some(10), Some(0), Some(0)),
+        ];
+
+        assert_eq!(select_gemini_auto_switch_target(&still_usable_accounts), None);
+        assert_eq!(
+            select_gemini_auto_switch_target(&exhausted_accounts),
+            Some("candidate".to_string())
+        );
+    }
+
+    #[test]
+    fn gemini_auto_switch_uses_pro_flash_and_flash_lite_as_ranked_tie_breakers() {
+        let accounts = vec![
+            gemini_account("active", true, Some(0), Some(0), Some(0)),
+            gemini_account("flash-high", false, Some(10), Some(99), Some(10)),
+            gemini_account("pro-high", false, Some(88), Some(10), Some(10)),
+        ];
+
+        assert_eq!(
+            select_gemini_auto_switch_target(&accounts),
             Some("pro-high".to_string())
         );
     }
@@ -250,6 +407,7 @@ mod tests {
         is_active: bool,
         pro_remaining_percent: Option<u8>,
         flash_remaining_percent: Option<u8>,
+        flash_lite_remaining_percent: Option<u8>,
     ) -> GeminiAccountListItem {
         GeminiAccountListItem {
             id: id.to_string(),
@@ -261,7 +419,7 @@ mod tests {
             last_authenticated_at: "0".to_string(),
             pro_remaining_percent,
             flash_remaining_percent,
-            flash_lite_remaining_percent: None,
+            flash_lite_remaining_percent,
             pro_refresh_at: None,
             flash_refresh_at: None,
             flash_lite_refresh_at: None,
