@@ -91,7 +91,7 @@ jobs:
       - name: Restore Rust cache
         uses: swatinem/rust-cache@v2
         with:
-          workspaces: ./src-tauri -> target
+          workspaces: . -> target
 
       - name: Install Linux system dependencies
         if: matrix.os == 'ubuntu-22.04'
@@ -145,14 +145,14 @@ jobs:
           set -euo pipefail
 
           VERSION="$(node -p "require('./package.json').version")"
-          APP_PATH="$(find "src-tauri/target/${{ matrix.target }}/release/bundle" -type d -name '${{ env.APP_PRODUCT_NAME }}.app' | head -n 1)"
+          APP_PATH="$(find "target/${{ matrix.target }}/release/bundle" -type d -name '${{ env.APP_PRODUCT_NAME }}.app' | head -n 1)"
 
           if [[ -z "${APP_PATH}" ]]; then
             echo "${{ env.APP_PRODUCT_NAME }}.app not found in bundle output" >&2
             exit 1
           fi
 
-          OUTPUT_DMG="src-tauri/target/${{ matrix.target }}/release/bundle/dmg/${{ env.APP_SLUG }}_${VERSION}_${{ matrix.asset_arch }}.dmg"
+          OUTPUT_DMG="target/${{ matrix.target }}/release/bundle/dmg/${{ env.APP_SLUG }}_${VERSION}_${{ matrix.asset_arch }}.dmg"
 
           bash scripts/macos/repack-dmg-with-fix.sh \
             "${APP_PATH}" \
@@ -168,7 +168,7 @@ jobs:
           set -euo pipefail
 
           VERSION="$(node -p "require('./package.json').version")"
-          BUNDLE_DIR="src-tauri/target/${{ matrix.target }}/release/bundle/macos"
+          BUNDLE_DIR="target/${{ matrix.target }}/release/bundle/macos"
           SOURCE_BUNDLE="$(find "${BUNDLE_DIR}" -maxdepth 1 -type f -name '*.app.tar.gz' | head -n 1)"
 
           if [[ -z "${SOURCE_BUNDLE}" ]]; then
@@ -192,7 +192,7 @@ jobs:
         env:
           ARTIFACT_PATHS_JSON: ${{ steps.tauri_build.outputs.artifactPaths }}
           CUSTOM_DMG_PATH: ${{ steps.repack_macos_dmg.outputs.dmg_path }}
-          BUNDLE_ROOT: src-tauri/target/${{ matrix.target }}/release/bundle
+          BUNDLE_ROOT: target/${{ matrix.target }}/release/bundle
         run: node scripts/release/normalize-artifact-paths.mjs
 
       - name: Create updater metadata

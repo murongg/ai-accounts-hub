@@ -82,6 +82,65 @@
 
 - [下载最新版本](https://github.com/murongg/ai-accounts-hub/releases/latest)
 
+### 命令行版使用教程
+
+如果你只需要命令行版，可以单独安装 `aah` CLI，不需要安装桌面 app：
+
+```bash
+npm install -g @murongg/aah-cli
+```
+
+启动交互式 TUI：
+
+```bash
+aah tui
+```
+
+在 TUI 里可以用 `up/down` 或 `j/k` 选择账号，`Enter` 切换账号，`r` 刷新 quota，`1/2/3/a` 切换 provider 过滤，`q` 或 `Esc` 退出。
+
+常用命令：
+
+```bash
+aah list
+aah current
+aah refresh
+aah switch --provider codex user@example.com
+```
+
+按 provider 过滤：
+
+```bash
+aah list --provider codex
+aah current --provider claude
+aah refresh --provider gemini
+```
+
+输出 JSON，适合脚本集成：
+
+```bash
+aah list --json
+aah current --json
+```
+
+指定数据目录：
+
+```bash
+aah --data-dir ~/.ai-accounts-hub list
+```
+
+默认情况下，CLI 会使用 `~/.ai-accounts-hub`。桌面 app 与 CLI 共享这个账号池目录；首次启动时会自动迁移旧桌面数据目录。CLI 使用独立版本线和 `cli-vX.Y.Z` Release tag，不和桌面 app 的 `vX.Y.Z` 版本耦合。
+
+发布 CLI 新版本时使用独立 bump 命令和 tag 前缀：
+
+```bash
+pnpm bump:cli patch
+git push --follow-tags
+```
+
+不要用 `v0.1.0` 这种 app tag 发布 CLI；CLI release workflow 只监听 `cli-v0.1.0` 这种 tag。
+
+CLI npm 发布依赖 GitHub Secret `NPM_TOKEN`。如果 npm 账号开启了发布 2FA，这个 token 必须是 npm Automation token；普通 publish token 会在 GitHub Actions 中失败并提示 `EOTP`，因为 CI 无法交互输入一次性验证码。
+
 如果你想从源码运行：
 
 ### 环境要求
@@ -110,7 +169,8 @@ pnpm tauri build
 
 ```bash
 node --test src/lib/*.test.ts
-cargo test --manifest-path src-tauri/Cargo.toml
+cargo test --workspace
+node --test packages/aah-cli/tests/*.test.mjs
 ```
 
 > 如果你在 Linux 上本地构建 Tauri，需要额外安装 `libwebkit2gtk-4.1-dev` 等系统依赖，可直接参考 [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)。
@@ -119,6 +179,9 @@ cargo test --manifest-path src-tauri/Cargo.toml
 
 - `src/`: React + Vite 前端界面
 - `src-tauri/`: Tauri Rust 后端、账号存储、quota 刷新、自动切换、macOS 状态栏桥接
+- `crates/aah-core/`: 桌面 app 与 CLI 共享的账号、存储和 provider 逻辑
+- `crates/aah-cli/`: 独立 `aah` 命令行入口和 ratatui TUI
+- `packages/aah-cli/`: npm 安装器包，安装时下载对应 CLI Release 二进制
 - `website/`: 官网 / 下载页
 - `screenshots/`: README 与官网素材
 

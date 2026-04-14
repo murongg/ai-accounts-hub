@@ -52,13 +52,13 @@ const packageJson = readJson("package.json");
 const packageVersion = packageJson.version;
 const tauriVersion = readJson("src-tauri/tauri.conf.json").version;
 const cargoVersion = readCargoPackageVersion("src-tauri/Cargo.toml");
-const cargoLockVersion = readCargoLockPackageVersion("src-tauri/Cargo.lock", packageJson.name);
+const cargoLockVersion = readCargoLockPackageVersion("Cargo.lock", packageJson.name);
 
 const versionSources = {
   "package.json": packageVersion,
   "src-tauri/tauri.conf.json": tauriVersion,
   "src-tauri/Cargo.toml": cargoVersion,
-  "src-tauri/Cargo.lock": cargoLockVersion,
+  "Cargo.lock ai-accounts-hub": cargoLockVersion,
 };
 
 const mismatches = Object.entries(versionSources).filter(([, version]) => version !== releaseVersion);
@@ -68,4 +68,4 @@ if (mismatches.length > 0) {
   throw new Error(`Release tag ${releaseTag} does not match project version ${releaseVersion}: ${details}`);
 }
 
-console.log(`Release tag ${releaseTag} matches package, Tauri, Cargo, and lockfile versions.`);
+console.log(`Release tag ${releaseTag} matches app versions.`);

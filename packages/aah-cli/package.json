@@ -1,0 +1,27 @@
+{
+  "name": "@murongg/aah-cli",
+  "version": "0.1.0",
+  "description": "Standalone AI Accounts Hub CLI",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/murongg/ai-accounts-hub",
+    "directory": "packages/aah-cli"
+  },
+  "bin": {
+    "aah": "bin/aah.js"
+  },
+  "files": [
+    "bin",
+    "scripts",
+    "vendor",
+    "README.md"
+  ],
+  "scripts": {
+    "postinstall": "node ./scripts/postinstall.mjs"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -103,15 +103,9 @@ pub fn build_bridge_payload(
             }
             overview
         }
-        StatusBarTab::Codex => {
-            codex_sections
-        }
-        StatusBarTab::Claude => {
-            claude_sections
-        }
-        StatusBarTab::Gemini => {
-            gemini_sections
-        }
+        StatusBarTab::Codex => codex_sections,
+        StatusBarTab::Claude => claude_sections,
+        StatusBarTab::Gemini => gemini_sections,
     };
 
     BridgePayload {
@@ -550,10 +544,9 @@ fn sort_codex_accounts(accounts: &mut [CodexAccountListItem]) {
     accounts.sort_by(|left, right| match (left.is_active, right.is_active) {
         (true, false) => std::cmp::Ordering::Less,
         (false, true) => std::cmp::Ordering::Greater,
-        _ => compare_quota_sort_keys_desc(
-            &codex_quota_sort_key(left),
-            &codex_quota_sort_key(right),
-        ),
+        _ => {
+            compare_quota_sort_keys_desc(&codex_quota_sort_key(left), &codex_quota_sort_key(right))
+        }
     });
 }
 

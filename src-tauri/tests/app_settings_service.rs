@@ -101,7 +101,10 @@ fn clear_all_data_resets_settings_and_removes_private_codex_data() {
     assert_eq!(result.app_settings.language, AppLanguage::ZhCn);
     assert_eq!(result.app_settings.theme, AppTheme::Light);
     assert!(result.app_settings.auto_switch_enabled);
-    assert_eq!(result.app_settings.accounts_view_mode, AppAccountsViewMode::Cards);
+    assert_eq!(
+        result.app_settings.accounts_view_mode,
+        AppAccountsViewMode::Cards
+    );
     assert!(result.refresh_settings.enabled);
     assert_eq!(result.refresh_settings.interval_seconds, 300);
     assert!(result.data_directory.is_default);

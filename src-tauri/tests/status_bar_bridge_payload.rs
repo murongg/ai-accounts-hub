@@ -222,7 +222,13 @@ fn provider_payload_uses_weekly_and_credits_as_tie_breakers() {
     let payload = build_bridge_payload(
         StatusBarTab::Codex,
         vec![
-            codex_account("weekly-low", "weekly-low@example.com", false, Some(50), Some(40)),
+            codex_account(
+                "weekly-low",
+                "weekly-low@example.com",
+                false,
+                Some(50),
+                Some(40),
+            ),
             codex_account("missing", "missing@example.com", false, None, Some(99)),
             codex_account("active", "active@example.com", true, Some(3), Some(4)),
             {

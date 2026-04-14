@@ -6,7 +6,9 @@ use std::sync::Mutex;
 
 #[cfg(target_os = "macos")]
 use dirs::home_dir;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::AppHandle;
+#[cfg(target_os = "macos")]
+use tauri::{Emitter, Manager};
 
 #[cfg(target_os = "macos")]
 use crate::claude_accounts::{paths::ClaudeAccountPaths, service::ClaudeAccountService};
@@ -499,7 +501,7 @@ fn load_provider_menu_state<R: tauri::Runtime>(
 
 #[cfg(target_os = "macos")]
 fn load_account_lists<R: tauri::Runtime>(
-    app: &AppHandle<R>,
+    _app: &AppHandle<R>,
 ) -> Result<
     (
         Vec<crate::codex_accounts::models::CodexAccountListItem>,
@@ -508,11 +510,7 @@ fn load_account_lists<R: tauri::Runtime>(
     ),
     String,
 > {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("failed to resolve app data dir: {error}"))?;
-    let user_home = home_dir().ok_or_else(|| "failed to resolve user home dir".to_string())?;
+    let (app_data_dir, user_home) = managed_status_bar_roots()?;
 
     let codex_accounts = CodexAccountService::with_process_runner(CodexAccountPaths::from_roots(
         app_data_dir.clone(),
@@ -533,18 +531,13 @@ fn load_account_lists<R: tauri::Runtime>(
 
 #[cfg(target_os = "macos")]
 async fn switch_provider_account<R: tauri::Runtime>(
-    app: AppHandle<R>,
+    _app: AppHandle<R>,
     provider: MenuProvider,
     account_id: String,
 ) -> Result<(), String> {
     tauri::async_runtime::spawn_blocking(move || match provider {
         MenuProvider::Codex => {
-            let app_data_dir = app
-                .path()
-                .app_data_dir()
-                .map_err(|error| format!("failed to resolve app data dir: {error}"))?;
-            let user_home =
-                home_dir().ok_or_else(|| "failed to resolve user home dir".to_string())?;
+            let (app_data_dir, user_home) = managed_status_bar_roots()?;
             CodexAccountService::with_process_runner(CodexAccountPaths::from_roots(
                 app_data_dir,
                 user_home,
@@ -552,12 +545,7 @@ async fn switch_provider_account<R: tauri::Runtime>(
             .switch_account(&account_id)
         }
         MenuProvider::Gemini => {
-            let app_data_dir = app
-                .path()
-                .app_data_dir()
-                .map_err(|error| format!("failed to resolve app data dir: {error}"))?;
-            let user_home =
-                home_dir().ok_or_else(|| "failed to resolve user home dir".to_string())?;
+            let (app_data_dir, user_home) = managed_status_bar_roots()?;
             GeminiAccountService::with_process_runner(GeminiAccountPaths::from_roots(
                 app_data_dir,
                 user_home,
@@ -565,12 +553,7 @@ async fn switch_provider_account<R: tauri::Runtime>(
             .switch_account(&account_id)
         }
         MenuProvider::Claude => {
-            let app_data_dir = app
-                .path()
-                .app_data_dir()
-                .map_err(|error| format!("failed to resolve app data dir: {error}"))?;
-            let user_home =
-                home_dir().ok_or_else(|| "failed to resolve user home dir".to_string())?;
+            let (app_data_dir, user_home) = managed_status_bar_roots()?;
             ClaudeAccountService::with_process_runner(ClaudeAccountPaths::from_roots(
                 app_data_dir,
                 user_home,
@@ -580,6 +563,19 @@ async fn switch_provider_account<R: tauri::Runtime>(
     })
     .await
     .map_err(|error| error.to_string())?
+}
+
+#[cfg(target_os = "macos")]
+fn managed_status_bar_roots() -> Result<(std::path::PathBuf, std::path::PathBuf), String> {
+    let user_home = home_dir().ok_or_else(|| "failed to resolve user home dir".to_string())?;
+    managed_status_bar_roots_for_home(user_home)
+}
+
+fn managed_status_bar_roots_for_home(
+    user_home: std::path::PathBuf,
+) -> Result<(std::path::PathBuf, std::path::PathBuf), String> {
+    let managed = aah_core::bootstrap::bootstrap_managed_root(Some(user_home.clone()), None)?;
+    Ok((managed.root, managed.user_home))
 }
 
 #[cfg(target_os = "macos")]
@@ -637,4 +633,32 @@ fn show_main_window_internal<R: tauri::Runtime>(app: &AppHandle<R>) -> tauri::Re
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    use super::managed_status_bar_roots_for_home;
+
+    #[test]
+    fn status_bar_uses_shared_managed_root_instead_of_tauri_app_data_dir() {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("time")
+            .as_nanos();
+        let home = std::env::temp_dir().join(format!(
+            "aah-status-bar-home-{}-{unique}",
+            std::process::id()
+        ));
+        let _ = fs::remove_dir_all(&home);
+        fs::create_dir_all(&home).expect("home");
+
+        let (managed_root, managed_user_home) =
+            managed_status_bar_roots_for_home(home.clone()).expect("managed root");
+
+        assert_eq!(managed_root, home.join(".ai-accounts-hub"));
+        assert_eq!(managed_user_home, home);
+    }
 }

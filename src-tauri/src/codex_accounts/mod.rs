@@ -1,34 +1,22 @@
-pub mod auth;
-pub mod cli;
-pub mod models;
-pub mod paths;
-pub mod schedule;
-pub mod service;
-pub mod store;
+pub use aah_core::codex_accounts::{auth, cli, models, paths, schedule, service, store};
 
-use dirs::home_dir;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 use self::models::{CodexAccountListItem, StoredCodexAccount};
 use self::paths::CodexAccountPaths;
 use self::service::CodexAccountService;
 use crate::codex_usage::scheduler::CodexUsageSchedulerState;
 
-fn service_from_app(app: &AppHandle) -> Result<CodexAccountService, String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("failed to resolve app data dir: {error}"))?;
-    let user_home = home_dir().ok_or_else(|| "failed to resolve user home dir".to_string())?;
-
+fn service_from_app() -> Result<CodexAccountService, String> {
+    let managed = aah_core::bootstrap::bootstrap_managed_root(None, None)?;
     Ok(CodexAccountService::with_process_runner(
-        CodexAccountPaths::from_roots(app_data_dir, user_home),
+        CodexAccountPaths::from_roots(managed.root, managed.user_home),
     ))
 }
 
 #[tauri::command]
-pub async fn list_codex_accounts(app: AppHandle) -> Result<Vec<CodexAccountListItem>, String> {
-    tauri::async_runtime::spawn_blocking(move || service_from_app(&app)?.list_accounts())
+pub async fn list_codex_accounts(_app: AppHandle) -> Result<Vec<CodexAccountListItem>, String> {
+    tauri::async_runtime::spawn_blocking(move || service_from_app()?.list_accounts())
         .await
         .map_err(|error| error.to_string())?
 }
@@ -39,10 +27,9 @@ pub async fn start_codex_account_login(
     scheduler: tauri::State<'_, CodexUsageSchedulerState>,
 ) -> Result<StoredCodexAccount, String> {
     let refresh_app = app.clone();
-    let account =
-        tauri::async_runtime::spawn_blocking(move || service_from_app(&app)?.start_login())
-            .await
-            .map_err(|error| error.to_string())??;
+    let account = tauri::async_runtime::spawn_blocking(move || service_from_app()?.start_login())
+        .await
+        .map_err(|error| error.to_string())??;
 
     let _ = scheduler.refresh_codex_now().await;
     let _ = crate::status_bar::refresh_status_menu(&refresh_app);
@@ -53,11 +40,9 @@ pub async fn start_codex_account_login(
 #[tauri::command]
 pub async fn switch_codex_account(app: AppHandle, account_id: String) -> Result<(), String> {
     let refresh_app = app.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        service_from_app(&app)?.switch_account(&account_id)
-    })
-    .await
-    .map_err(|error| error.to_string())??;
+    tauri::async_runtime::spawn_blocking(move || service_from_app()?.switch_account(&account_id))
+        .await
+        .map_err(|error| error.to_string())??;
     let _ = crate::status_bar::refresh_status_menu(&refresh_app);
     Ok(())
 }
@@ -65,11 +50,9 @@ pub async fn switch_codex_account(app: AppHandle, account_id: String) -> Result<
 #[tauri::command]
 pub async fn delete_codex_account(app: AppHandle, account_id: String) -> Result<(), String> {
     let refresh_app = app.clone();
-    tauri::async_runtime::spawn_blocking(move || {
-        service_from_app(&app)?.delete_account(&account_id)
-    })
-    .await
-    .map_err(|error| error.to_string())??;
+    tauri::async_runtime::spawn_blocking(move || service_from_app()?.delete_account(&account_id))
+        .await
+        .map_err(|error| error.to_string())??;
     let _ = crate::status_bar::refresh_status_menu(&refresh_app);
     Ok(())
 }

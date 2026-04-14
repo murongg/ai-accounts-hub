@@ -1,0 +1,3 @@
+[workspace]
+members = ["src-tauri", "crates/aah-core", "crates/aah-cli"]
+resolver = "2"

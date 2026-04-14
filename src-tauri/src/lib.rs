@@ -4,17 +4,15 @@ pub mod account_auto_switch;
 pub mod app_settings;
 pub mod claude_accounts;
 pub mod claude_usage;
-pub mod cli_binary_resolver;
-pub mod cli_process_utils;
 pub mod codex_accounts;
 pub mod codex_usage;
-pub mod fs_utils;
 pub mod gemini_accounts;
 pub mod gemini_usage;
-pub mod proxy_env;
-pub mod startup_account_import;
 pub mod status_bar;
-pub mod time_utils;
+
+pub use aah_core::{
+    cli_binary_resolver, cli_process_utils, fs_utils, proxy_env, startup_account_import, time_utils,
+};
 
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
@@ -31,14 +29,9 @@ pub fn run() {
         .on_window_event(|window, event| status_bar::handle_window_event(window, event))
         .setup(|app| {
             proxy_env::import_shell_proxy_env_if_missing();
-            let app_data_dir = app
-                .path()
-                .app_data_dir()
-                .map_err(|error| format!("failed to resolve app data dir: {error}"))?;
-            let user_home =
-                dirs::home_dir().ok_or_else(|| "failed to resolve user home dir".to_string())?;
+            let managed = aah_core::bootstrap::bootstrap_managed_root(None, None)?;
             let import_outcome =
-                startup_account_import::import_logged_in_accounts(app_data_dir, user_home);
+                startup_account_import::import_logged_in_accounts(managed.root, managed.user_home);
             for error in import_outcome.errors {
                 eprintln!("{error}");
             }

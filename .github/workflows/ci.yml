@@ -1,8 +1,9 @@
 name: CI
 
 on:
-  push:
   pull_request:
+    types: [opened, reopened, ready_for_review]
+  workflow_dispatch:
 
 jobs:
   validate:
@@ -29,7 +30,7 @@ jobs:
       - name: Cache Rust artifacts
         uses: Swatinem/rust-cache@v2
         with:
-          workspaces: src-tauri -> target
+          workspaces: . -> target
 
       - name: Install Linux dependencies for Tauri
         run: |
@@ -51,9 +52,16 @@ jobs:
       - name: Run frontend tests
         run: node --test src/lib/*.test.ts
 
+      - name: Run CLI npm package tests
+        run: |
+          node --test packages/aah-cli/tests/*.test.mjs
+          npm pack --dry-run ./packages/aah-cli
+
       - name: Build frontend
         run: pnpm build
 
+      - name: Build CLI
+        run: cargo build --manifest-path Cargo.toml -p aah-cli --release
+
       - name: Run Rust tests
-        working-directory: src-tauri
-        run: cargo test
+        run: cargo test --workspace

@@ -1,6 +1,6 @@
 [package]
 name = "ai-accounts-hub"
-version = "0.3.14"
+version = "0.3.16"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -19,6 +19,7 @@ tauri-build = { version = "2", features = [] }
 cc = "1"
 
 [dependencies]
+aah-core = { path = "../crates/aah-core" }
 tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }

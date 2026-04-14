@@ -1,0 +1,20 @@
+[package]
+name = "aah-cli"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "aah"
+path = "src/main.rs"
+
+[dependencies]
+aah-core = { path = "../aah-core" }
+clap = { version = "4.5", features = ["derive"] }
+crossterm = "0.29"
+ratatui = "0.29"
+serde_json = "1"
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+tempfile = "3"
