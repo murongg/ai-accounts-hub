@@ -1,4 +1,5 @@
 pub mod bootstrap;
+pub mod cli_facade;
 pub mod app_settings;
 pub mod claude_accounts;
 pub mod claude_usage;
