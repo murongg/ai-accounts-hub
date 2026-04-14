@@ -3,6 +3,7 @@ import { RefreshCw, ShieldCheck, Trash2, User } from "lucide-react";
 
 import { getI18n } from "../lib/i18n";
 import {
+  formatResetLabel,
   getAccountCardTheme,
   getQuotaProgressTone,
   type AccountListQuotaRow,
@@ -156,7 +157,11 @@ function QuotaBar({
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={resolvedPercent}
-        aria-valuetext={isPending ? copy.accounts.waitingFirstSync : `${resolvedPercent}%`}
+        aria-valuetext={
+          isPending
+            ? copy.accounts.waitingFirstSync
+            : `${resolvedPercent}%, ${formatResetLabel(quota.time, language)}`
+        }
       >
         <div
           className={`h-full rounded-full transition-all duration-300 ${
@@ -165,6 +170,9 @@ function QuotaBar({
           style={progressStyle}
         />
       </div>
+      <p className="mt-1.5 truncate text-[10px] font-medium text-base-content/45">
+        {isPending ? copy.accounts.waitingFirstSync : formatResetLabel(quota.time, language)}
+      </p>
     </div>
   );
 }

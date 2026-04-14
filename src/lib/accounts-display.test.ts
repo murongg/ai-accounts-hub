@@ -255,6 +255,7 @@ test("buildClaudeQuotaCards returns placeholder quota cards before first sync", 
 });
 
 test("buildCodexListQuotaRows keeps credits outside the progress rows", () => {
+  const nowMs = 1775640000000;
   const rows = buildCodexListQuotaRows(
     codexAccount({
       five_hour_remaining_percent: 62,
@@ -262,12 +263,13 @@ test("buildCodexListQuotaRows keeps credits outside the progress rows", () => {
       credits_balance: 24.5,
     }),
     "en-US",
+    nowMs,
   );
 
   assert.deepEqual(rows, {
     bars: [
-      { label: "5h", percent: 62 },
-      { label: "Weekly", percent: 81 },
+      { label: "5h", percent: 62, time: "3h" },
+      { label: "Weekly", percent: 81, time: "7d 1h" },
     ],
     meta: "Credits 24.5",
   });
@@ -285,6 +287,7 @@ test("buildCodexListQuotaRows hides empty credits", () => {
 });
 
 test("buildClaudeListQuotaRows returns three horizontal bars", () => {
+  const nowMs = 1775640000000;
   const rows = buildClaudeListQuotaRows(
     claudeAccount({
       session_remaining_percent: 72,
@@ -292,16 +295,19 @@ test("buildClaudeListQuotaRows returns three horizontal bars", () => {
       model_weekly_label: "Opus Weekly",
       model_weekly_remaining_percent: 31,
     }),
+    "en-US",
+    nowMs,
   );
 
-  assert.deepEqual(rows.map((row) => row.label), [
-    "Session",
-    "Weekly",
-    "Opus Weekly",
+  assert.deepEqual(rows, [
+    { label: "Session", percent: 72, time: "3h" },
+    { label: "Weekly", percent: 55, time: "7d 1h" },
+    { label: "Opus Weekly", percent: 31, time: "7d 1h" },
   ]);
 });
 
 test("buildGeminiListQuotaRows returns three horizontal bars in provider order", () => {
+  const nowMs = Date.parse("2026-04-09T08:31:46Z");
   const rows = buildGeminiListQuotaRows(
     account({
       pro_remaining_percent: 88,
@@ -309,12 +315,13 @@ test("buildGeminiListQuotaRows returns three horizontal bars in provider order",
       flash_lite_remaining_percent: 41,
     }),
     "zh-CN",
+    nowMs,
   );
 
-  assert.deepEqual(rows.map((row) => row.label), [
-    "Pro 剩余配额",
-    "Flash 剩余配额",
-    "Flash Lite 剩余配额",
+  assert.deepEqual(rows, [
+    { label: "Pro 剩余配额", percent: 88, time: "2小时" },
+    { label: "Flash 剩余配额", percent: 64, time: "2小时" },
+    { label: "Flash Lite 剩余配额", percent: 41, time: "2小时" },
   ]);
 });
 

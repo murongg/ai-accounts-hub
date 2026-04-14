@@ -16,6 +16,7 @@ export interface QuotaCardModel {
 export interface AccountListQuotaRow {
   label: string;
   percent: number | null;
+  time: string;
 }
 
 export interface CodexListQuotaRows {
@@ -196,6 +197,7 @@ export function buildGeminiQuotaCards(
 export function buildCodexListQuotaRows(
   account: CodexAccountSummary,
   language: AppLanguage = "en-US",
+  nowMs = Date.now(),
 ): CodexListQuotaRows {
   const labels = language === "en-US"
     ? {
@@ -214,10 +216,12 @@ export function buildCodexListQuotaRows(
       {
         label: labels.primary,
         percent: account.five_hour_remaining_percent,
+        time: formatRefreshCountdown(account.five_hour_refresh_at, nowMs, language),
       },
       {
         label: labels.secondary,
         percent: account.weekly_remaining_percent,
+        time: formatRefreshCountdown(account.weekly_refresh_at, nowMs, language),
       },
     ],
     meta: typeof account.credits_balance === "number" && account.credits_balance > 0
@@ -278,6 +282,7 @@ export function buildClaudeQuotaCards(
 export function buildClaudeListQuotaRows(
   account: ClaudeAccountSummary,
   language: AppLanguage = "en-US",
+  nowMs = Date.now(),
 ): AccountListQuotaRow[] {
   const labels = language === "en-US"
     ? {
@@ -295,14 +300,17 @@ export function buildClaudeListQuotaRows(
     {
       label: labels.session,
       percent: account.session_remaining_percent,
+      time: formatRefreshCountdown(account.session_refresh_at, nowMs, language),
     },
     {
       label: labels.weekly,
       percent: account.weekly_remaining_percent,
+      time: formatRefreshCountdown(account.weekly_refresh_at, nowMs, language),
     },
     {
       label: account.model_weekly_label ?? labels.fallbackModel,
       percent: account.model_weekly_remaining_percent,
+      time: formatRefreshCountdown(account.model_weekly_refresh_at, nowMs, language),
     },
   ];
 }
@@ -310,6 +318,7 @@ export function buildClaudeListQuotaRows(
 export function buildGeminiListQuotaRows(
   account: GeminiAccountSummary,
   language: AppLanguage,
+  nowMs = Date.now(),
 ): AccountListQuotaRow[] {
   const copy = getI18n(language);
 
@@ -317,14 +326,17 @@ export function buildGeminiListQuotaRows(
     {
       label: copy.accounts.geminiProLabel,
       percent: account.pro_remaining_percent,
+      time: formatRefreshCountdown(account.pro_refresh_at, nowMs, language),
     },
     {
       label: copy.accounts.geminiFlashLabel,
       percent: account.flash_remaining_percent,
+      time: formatRefreshCountdown(account.flash_refresh_at, nowMs, language),
     },
     {
       label: copy.accounts.geminiFlashLiteLabel,
       percent: account.flash_lite_remaining_percent,
+      time: formatRefreshCountdown(account.flash_lite_refresh_at, nowMs, language),
     },
   ];
 }
