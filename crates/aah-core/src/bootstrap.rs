@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
-use crate::managed_root::{migrate_legacy_root, resolve_managed_root, ManagedRoot};
+use crate::managed_root::{
+    migrate_legacy_root, normalize_managed_root_metadata, resolve_managed_root, ManagedRoot,
+};
 use crate::startup_account_import::import_logged_in_accounts;
 
 #[derive(Debug, Clone)]
@@ -22,6 +24,7 @@ pub fn bootstrap_managed_root(
     };
     let managed = resolve_managed_root(&user_home, data_dir_override);
     migrate_legacy_root(&managed)?;
+    normalize_managed_root_metadata(&managed)?;
     Ok(managed)
 }
 
