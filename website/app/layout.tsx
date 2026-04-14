@@ -20,8 +20,8 @@ const bodyFont = DM_Sans({
 export const metadata: Metadata = {
   title: 'AI Accounts Hub — 统一管理你的 AI 账号',
   description:
-    '一个 macOS 桌面工具，统一管理 Claude、Codex、Gemini 多个账号，一键切换登录态，实时查看配额。',
-  keywords: ['AI', 'Claude', 'Codex', 'Gemini', '账号管理', 'macOS', '配额监控'],
+    '统一管理 Claude、Codex、Gemini 多个账号，支持 macOS 桌面端、aah CLI、本地 Codex 中转、登录态切换和配额监控。',
+  keywords: ['AI', 'Claude', 'Codex', 'Gemini', '账号管理', 'macOS', 'CLI', 'Relay', '配额监控'],
 }
 
 // Inline script to set theme before paint to avoid flash
