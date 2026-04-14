@@ -9,9 +9,18 @@
 
 > 当前体验以 macOS 为主。原生 menubar / 状态栏能力仅在 macOS 可用；仓库包含其他平台的构建链路，但整体使用体验以 macOS 为准。
 
-![AI Accounts Hub main window](./screenshots/screenshots-1.png)
-![AI Accounts Hub secondary view](./screenshots/screenshots-2.png)
-![AI Accounts Hub menubar view](./screenshots/screenshots-3.jpg)
+<table>
+  <tr>
+    <td width="66%">
+      <img src="./screenshots/screenshots-1.png" alt="AI Accounts Hub main window" width="560" />
+      <br />
+      <img src="./screenshots/screenshots-2.png" alt="AI Accounts Hub secondary view" width="560" />
+    </td>
+    <td width="34%" align="center">
+      <img src="./screenshots/screenshots-3.jpg" alt="AI Accounts Hub menubar view" width="300" />
+    </td>
+  </tr>
+</table>
 
 ## 适用场景
 
