@@ -1,4 +1,5 @@
 mod output;
+mod tui;
 
 use std::path::PathBuf;
 
@@ -36,6 +37,11 @@ enum Commands {
         #[arg(long)]
         provider: Option<ProviderArg>,
     },
+    /// Open the interactive TUI
+    Tui {
+        #[arg(long, hide = true)]
+        snapshot: bool,
+    },
 }
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
@@ -63,6 +69,7 @@ fn main() -> Result<(), String> {
         Commands::Refresh { provider } => {
             output::print_refresh(&facade, provider.map(into_provider), cli.json)
         }
+        Commands::Tui { snapshot } => tui::run_tui(&facade, snapshot),
     }
 }
 

@@ -34,7 +34,9 @@ pub fn print_current(
     provider: Option<Provider>,
     json: bool,
 ) -> Result<(), String> {
-    let rows = facade.current(provider).map_err(|error| error.to_string())?;
+    let rows = facade
+        .current(provider)
+        .map_err(|error| error.to_string())?;
     if json {
         println!(
             "{}",
@@ -86,7 +88,9 @@ pub fn print_refresh(
     provider: Option<Provider>,
     json: bool,
 ) -> Result<(), String> {
-    let rows = facade.refresh(provider).map_err(|error| error.to_string())?;
+    let rows = facade
+        .refresh(provider)
+        .map_err(|error| error.to_string())?;
     if json {
         println!(
             "{}",
