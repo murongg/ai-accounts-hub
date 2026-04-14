@@ -6,7 +6,9 @@ use std::sync::Mutex;
 
 #[cfg(target_os = "macos")]
 use dirs::home_dir;
-use tauri::{AppHandle, Emitter, Manager};
+use tauri::AppHandle;
+#[cfg(target_os = "macos")]
+use tauri::{Emitter, Manager};
 
 #[cfg(target_os = "macos")]
 use crate::claude_accounts::{paths::ClaudeAccountPaths, service::ClaudeAccountService};
@@ -569,7 +571,6 @@ fn managed_status_bar_roots() -> Result<(std::path::PathBuf, std::path::PathBuf)
     managed_status_bar_roots_for_home(user_home)
 }
 
-#[cfg(target_os = "macos")]
 fn managed_status_bar_roots_for_home(
     user_home: std::path::PathBuf,
 ) -> Result<(std::path::PathBuf, std::path::PathBuf), String> {
