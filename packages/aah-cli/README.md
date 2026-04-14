@@ -10,6 +10,8 @@ npm install -g @murongg/aah-cli
 
 The npm package has its own standalone CLI version and downloads the matching prebuilt native binary from the `cli-vX.Y.Z` GitHub Release during installation.
 
+Publishing from GitHub Actions requires the repository secret `NPM_TOKEN` to be an npm Automation token when the npm account has publish 2FA enabled. A regular publish token will fail with `EOTP` because CI cannot provide a one-time password.
+
 ## Usage
 
 Open the interactive TUI:

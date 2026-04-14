@@ -139,6 +139,8 @@ git push --follow-tags
 
 不要用 `v0.1.0` 这种 app tag 发布 CLI；CLI release workflow 只监听 `cli-v0.1.0` 这种 tag。
 
+CLI npm 发布依赖 GitHub Secret `NPM_TOKEN`。如果 npm 账号开启了发布 2FA，这个 token 必须是 npm Automation token；普通 publish token 会在 GitHub Actions 中失败并提示 `EOTP`，因为 CI 无法交互输入一次性验证码。
+
 如果你想从源码运行：
 
 ### 环境要求
