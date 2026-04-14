@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { LanguageToggle } from '@/components/LanguageToggle'
 import { DownloadButton, DownloadButtonInverse, GITHUB_URL, RELEASES_URL } from '@/components/DownloadButton'
@@ -138,17 +138,137 @@ function FeatureCard({ icon, title, desc, large }: {
   )
 }
 
+function shortenCommand(command: string) {
+  if (command === 'npm install -g @murongg/aah-cli@latest') {
+    return 'npm i -g @murongg/aah-cli@latest'
+  }
+
+  if (command.includes('install-aah.sh')) {
+    return 'curl .../install-aah.sh | sh'
+  }
+
+  return command
+}
+
+async function copyCommand(command: string) {
+  if (typeof navigator === 'undefined' || !navigator.clipboard) {
+    return false
+  }
+
+  try {
+    await navigator.clipboard.writeText(command)
+    return true
+  } catch {
+    return false
+  }
+}
+
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M5 12l4 4L19 6" />
+    </svg>
+  )
+}
+
+function DownloadIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <path d="M7 10l5 5 5-5" />
+      <path d="M12 15V3" />
+    </svg>
+  )
+}
+
+type CommandLineProps = {
+  command: string
+  feedbackKey: string
+  copyLabel: string
+  action?: 'copy' | 'download'
+  href?: string
+  copied?: boolean
+  compact?: boolean
+  onCopy?: (feedbackKey: string, command: string) => void
+}
+
+function CommandLine({
+  command,
+  feedbackKey,
+  copyLabel,
+  action = 'copy',
+  href,
+  copied = false,
+  compact = false,
+  onCopy,
+}: CommandLineProps) {
+  const actionClass = copied
+    ? 'btn btn-ghost btn-xs btn-square h-7 min-h-7 w-7 shrink-0 rounded-lg border border-success/20 bg-success/10 p-0 text-success opacity-100'
+    : 'btn btn-ghost btn-xs btn-square h-7 min-h-7 w-7 shrink-0 rounded-lg p-0 opacity-60'
+  const containerClass = compact
+    ? 'inline-flex min-w-0 w-full items-center gap-1.5 rounded-xl border border-base-200 bg-base-200/45 px-2.5 py-1.5 font-mono text-[11px]'
+    : 'inline-flex min-w-0 max-w-full items-center gap-2 rounded-2xl border border-base-200 bg-base-200/45 px-3 py-2 font-mono text-xs'
+
+  return (
+    <div className={containerClass}>
+      <span className="opacity-35">$ </span>
+      <code className="min-w-0 flex-1 truncate text-base-content/70" title={command}>
+        {shortenCommand(command)}
+      </code>
+      {action === 'download' ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noopener noreferrer"
+          className={actionClass}
+          aria-label={command}
+          title={command}
+        >
+          <DownloadIcon />
+        </a>
+      ) : (
+        <button
+          type="button"
+          className={actionClass}
+          onClick={() => onCopy?.(feedbackKey, command)}
+          aria-label={`${copyLabel}: ${command}`}
+          title={copyLabel}
+          aria-pressed={copied}
+        >
+          {copied ? <CheckIcon /> : <CopyIcon />}
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ─── Mode Card ────────────────────────────────────────────────────────────────
 function ModeCard({
-  icon, title, eyebrow, desc, command, bullets, accent,
+  icon, title, eyebrow, desc, command, secondaryCommands, bullets, accent,
+  copyLabel, commandAction, commandHref, copiedCommandKey, onCopyCommand,
 }: {
   icon: React.ReactNode
   title: string
   eyebrow: string
   desc: string
   command: string
+  secondaryCommands: string[]
   bullets: string[]
   accent: string
+  copyLabel: string
+  commandAction?: 'copy' | 'download'
+  commandHref?: string
+  copiedCommandKey: string | null
+  onCopyCommand: (feedbackKey: string, command: string) => void
 }) {
   return (
     <div className="group relative overflow-hidden rounded-[2rem] border border-base-200 bg-base-100 p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-primary/10">
@@ -172,8 +292,26 @@ function ModeCard({
 
         <p className="text-sm leading-relaxed opacity-60">{desc}</p>
 
-        <div className="rounded-2xl border border-base-200 bg-base-200/45 px-4 py-3 font-mono text-xs">
-          <span className="opacity-35">$ </span>{command}
+        <div className="grid gap-2">
+          <CommandLine
+            command={command}
+            feedbackKey={`${title}:primary`}
+            copyLabel={copyLabel}
+            action={commandAction}
+            href={commandHref}
+            copied={copiedCommandKey === `${title}:primary`}
+            onCopy={onCopyCommand}
+          />
+          {secondaryCommands.map((item, index) => (
+            <CommandLine
+              key={item}
+              command={item}
+              feedbackKey={`${title}:secondary:${index}`}
+              copyLabel={copyLabel}
+              copied={copiedCommandKey === `${title}:secondary:${index}`}
+              onCopy={onCopyCommand}
+            />
+          ))}
         </div>
 
         <div className="mt-auto grid gap-2">
@@ -212,9 +350,11 @@ export default function HomePage() {
   const { t } = useI18n()
   const githubUrl = GITHUB_URL
   const releaseUrl = RELEASES_URL
+  const copyResetTimer = useRef<number | null>(null)
 
   // Dynamic version from GitHub API
   const [version, setVersion] = useState('v0.3.5')
+  const [copiedKey, setCopiedKey] = useState<string | null>(null)
   useEffect(() => {
     fetch('https://api.github.com/repos/murongg/ai-accounts-hub/releases?per_page=100', {
       headers: { Accept: 'application/vnd.github+json' },
@@ -232,6 +372,33 @@ export default function HomePage() {
       })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    return () => {
+      if (copyResetTimer.current !== null) {
+        window.clearTimeout(copyResetTimer.current)
+      }
+    }
+  }, [])
+
+  const handleCopyCommand = (feedbackKey: string, command: string) => {
+    void copyCommand(command).then((copied) => {
+      if (!copied) {
+        return
+      }
+
+      setCopiedKey(feedbackKey)
+
+      if (copyResetTimer.current !== null) {
+        window.clearTimeout(copyResetTimer.current)
+      }
+
+      copyResetTimer.current = window.setTimeout(() => {
+        setCopiedKey((current) => (current === feedbackKey ? null : current))
+        copyResetTimer.current = null
+      }, 1200)
+    })
+  }
 
   const featureIcons = [
     <svg key="users" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>,
@@ -314,24 +481,46 @@ export default function HomePage() {
               {t.hero.desc}
             </p>
 
-            <div className="flex flex-wrap gap-3">
-              <DownloadButton />
-              <a href={githubUrl} target="_blank" rel="noopener noreferrer"
-                className="btn btn-ghost rounded-2xl gap-2 px-6 border border-base-300">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-                  <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
-                </svg>
-                {t.hero.ctaGithub}
-              </a>
-            </div>
+            <div className="mt-8 w-fit max-w-full">
+              <div className="flex flex-wrap gap-3">
+                <DownloadButton />
+                <a href={githubUrl} target="_blank" rel="noopener noreferrer"
+                  className="btn btn-ghost rounded-2xl gap-2 px-6 border border-base-300">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                    <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z" />
+                  </svg>
+                  {t.hero.ctaGithub}
+                </a>
+              </div>
 
-            <div className="mt-4 inline-flex max-w-full items-center gap-3 rounded-2xl border border-base-300 bg-base-100/70 px-4 py-3 shadow-sm backdrop-blur">
-              <span className="hidden text-xs font-medium uppercase tracking-[0.18em] text-primary sm:inline">
-                {t.hero.cliInstallLabel}
-              </span>
-              <code className="truncate font-mono text-sm text-base-content/70">
-                npm install -g @murongg/aah-cli@latest
-              </code>
+              <div className="mt-4 grid w-full gap-1.5">
+                <div className="grid max-w-full gap-1 sm:grid-cols-[6rem_minmax(0,1fr)] sm:items-center">
+                  <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-primary/90">
+                    {t.hero.cliInstallLabel}
+                  </span>
+                  <CommandLine
+                    command={t.hero.cliInstallCommand}
+                    feedbackKey="hero:cli"
+                    copyLabel={t.hero.copyCommandLabel}
+                    copied={copiedKey === 'hero:cli'}
+                    compact
+                    onCopy={handleCopyCommand}
+                  />
+                </div>
+                <div className="grid max-w-full gap-1 sm:grid-cols-[6rem_minmax(0,1fr)] sm:items-center">
+                  <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-primary/90">
+                    {t.hero.cliShellInstallLabel}
+                  </span>
+                  <CommandLine
+                    command={t.hero.cliShellInstallCommand}
+                    feedbackKey="hero:bash"
+                    copyLabel={t.hero.copyCommandLabel}
+                    copied={copiedKey === 'hero:bash'}
+                    compact
+                    onCopy={handleCopyCommand}
+                  />
+                </div>
+              </div>
             </div>
 
             <div className="flex gap-8 mt-10 pt-8 border-t border-base-200">
@@ -430,8 +619,14 @@ export default function HomePage() {
                 eyebrow={item.eyebrow}
                 desc={item.desc}
                 command={item.command}
+                secondaryCommands={item.secondaryCommands}
                 bullets={item.bullets}
                 accent={['#D97757', '#10A37F', '#4285F4'][i]}
+                copyLabel={t.hero.copyCommandLabel}
+                commandAction={i === 0 ? 'download' : 'copy'}
+                commandHref={i === 0 ? releaseUrl : undefined}
+                copiedCommandKey={copiedKey}
+                onCopyCommand={handleCopyCommand}
               />
             ))}
           </div>

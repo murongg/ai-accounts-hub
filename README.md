@@ -142,6 +142,20 @@
 npm install -g @murongg/aah-cli
 ```
 
+如果你不想依赖 npm，也可以在 macOS / Linux 上直接安装 Release 二进制：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/murongg/ai-accounts-hub/main/scripts/install-aah.sh | sh
+```
+
+指定版本或安装目录：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/murongg/ai-accounts-hub/main/scripts/install-aah.sh -o install-aah.sh
+AAH_VERSION=0.1.3 sh install-aah.sh
+AAH_INSTALL_DIR=/usr/local/bin sh install-aah.sh
+```
+
 启动交互式 TUI：
 
 ```bash
