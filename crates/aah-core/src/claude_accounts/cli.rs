@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+#[cfg(target_os = "macos")]
 use std::process::Command;
 #[cfg(target_os = "macos")]
 use std::thread;
@@ -9,6 +10,8 @@ use std::time::{Duration, Instant};
 #[cfg(test)]
 use crate::cli_binary_resolver::resolve_binary_from;
 use crate::cli_binary_resolver::{resolve_binary, CliBinaryResolver};
+#[cfg(not(target_os = "macos"))]
+use crate::cli_command_runner::run_cli_status;
 #[cfg(target_os = "macos")]
 use crate::cli_process_utils::{shell_escape_path, unique_suffix};
 #[cfg(target_os = "macos")]
@@ -49,11 +52,12 @@ impl ClaudeLoginRunner for ProcessClaudeLoginRunner {
 
         #[cfg(not(target_os = "macos"))]
         {
-            let status = Command::new(binary)
-                .args(["auth", "login"])
-                .env("CLAUDE_CONFIG_DIR", managed_config_dir)
-                .status()
-                .map_err(|error| format!("failed to launch claude auth login: {error}"))?;
+            let status = run_cli_status(
+                &binary,
+                &["auth", "login"],
+                &[("CLAUDE_CONFIG_DIR", managed_config_dir)],
+            )
+            .map_err(|error| format!("failed to launch claude auth login: {error}"))?;
 
             if status.success() {
                 Ok(())

@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 #[cfg(test)]
 use crate::cli_binary_resolver::resolve_binary_from;
 use crate::cli_binary_resolver::{resolve_binary, CliBinaryResolver};
+use crate::cli_command_runner::run_cli_status;
 
 pub trait CodexLoginRunner: Send + Sync {
     fn run_login(&self, managed_home: &Path) -> Result<(), String>;
@@ -33,10 +33,7 @@ impl CodexLoginRunner for ProcessCodexLoginRunner {
         let binary = resolve_codex_binary()
             .ok_or_else(|| "未检测到 codex 命令，请先安装 Codex CLI".to_string())?;
 
-        let status = Command::new(binary)
-            .arg("login")
-            .env("CODEX_HOME", managed_home)
-            .status()
+        let status = run_cli_status(&binary, &["login"], &[("CODEX_HOME", managed_home)])
             .map_err(|error| format!("failed to launch codex login: {error}"))?;
 
         if status.success() {

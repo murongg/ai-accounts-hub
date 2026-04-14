@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+#[cfg(target_os = "macos")]
 use std::process::Command;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -7,6 +8,8 @@ use std::time::{Duration, Instant};
 #[cfg(test)]
 use crate::cli_binary_resolver::resolve_binary_from;
 use crate::cli_binary_resolver::{resolve_binary, CliBinaryResolver};
+#[cfg(not(target_os = "macos"))]
+use crate::cli_command_runner::run_cli_status;
 #[cfg(target_os = "macos")]
 use crate::cli_process_utils::{shell_escape_path, unique_suffix};
 #[cfg(target_os = "macos")]
@@ -50,9 +53,7 @@ impl GeminiLoginRunner for ProcessGeminiLoginRunner {
 
         #[cfg(not(target_os = "macos"))]
         {
-            let status = Command::new(binary)
-                .env("GEMINI_CLI_HOME", managed_home)
-                .status()
+            let status = run_cli_status(&binary, &[], &[("GEMINI_CLI_HOME", managed_home)])
                 .map_err(|error| format!("failed to launch gemini login: {error}"))?;
 
             if !status.success() {

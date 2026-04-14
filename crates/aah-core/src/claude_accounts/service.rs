@@ -174,10 +174,11 @@ impl<K: ClaudeCredentialBundleStore, L: ClaudeLiveCredentialStore> ClaudeAccount
 impl ClaudeAccountService<ManagedClaudeKeychainStore, FileSystemClaudeLiveCredentialStore> {
     pub fn with_process_runner(paths: ClaudeAccountPaths) -> Self {
         let live_paths = paths.clone();
+        let bundle_store = ManagedClaudeKeychainStore::new(paths.managed_bundle_dir.clone());
         Self::new(
             paths,
             Box::new(ProcessClaudeLoginRunner),
-            ManagedClaudeKeychainStore::new(),
+            bundle_store,
             FileSystemClaudeLiveCredentialStore::new(live_paths),
         )
     }

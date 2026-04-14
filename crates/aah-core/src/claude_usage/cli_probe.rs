@@ -12,6 +12,7 @@ use serde_json::{Map, Value};
 use crate::claude_accounts::cli::resolve_claude_binary;
 use crate::claude_accounts::live_credentials::ClaudeLiveCredentialSnapshot;
 use crate::claude_accounts::paths::atomic_write;
+use crate::cli_command_runner::cli_command_plan;
 
 use super::models::{ClaudeRateWindowSnapshot, FetchedClaudeUsage};
 
@@ -73,7 +74,11 @@ impl ClaudeCliUsageProbe for ProcessClaudeCliUsageProbe {
             })
             .map_err(|error| ClaudeCliUsageProbeError::CommandFailed(error.to_string()))?;
 
-        let mut command = CommandBuilder::new(binary);
+        let plan = cli_command_plan(&binary, &[]);
+        let mut command = CommandBuilder::new(plan.program);
+        for arg in plan.args {
+            command.arg(arg);
+        }
         command.env("CLAUDE_CONFIG_DIR", &temp_path);
         command.cwd(&temp_path);
 
