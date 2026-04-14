@@ -1,5 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+#[cfg(target_os = "macos")]
 use std::process::Command;
 use std::thread;
 use std::time::{Duration, Instant};
@@ -7,6 +8,8 @@ use std::time::{Duration, Instant};
 #[cfg(test)]
 use crate::cli_binary_resolver::resolve_binary_from;
 use crate::cli_binary_resolver::{resolve_binary, CliBinaryResolver};
+#[cfg(not(target_os = "macos"))]
+use crate::cli_command_runner::run_cli_status;
 #[cfg(target_os = "macos")]
 use crate::cli_process_utils::{shell_escape_path, unique_suffix};
 #[cfg(target_os = "macos")]
@@ -26,6 +29,11 @@ const GEMINI_BINARY_RESOLVER: CliBinaryResolver<'static> = CliBinaryResolver {
         ".local/bin/gemini",
         ".bun/bin/gemini",
         ".vite-plus/bin/gemini",
+        "AppData/Roaming/npm/gemini",
+        "AppData/Local/pnpm/gemini",
+        "AppData/Local/Volta/bin/gemini",
+        "AppData/Local/Microsoft/WinGet/Links/gemini",
+        "scoop/shims/gemini",
     ],
     fixed_locations: &["/opt/homebrew/bin/gemini", "/usr/local/bin/gemini"],
     include_nvm_bin_env: true,
@@ -47,9 +55,7 @@ impl GeminiLoginRunner for ProcessGeminiLoginRunner {
 
         #[cfg(not(target_os = "macos"))]
         {
-            let status = Command::new(binary)
-                .env("GEMINI_CLI_HOME", managed_home)
-                .status()
+            let status = run_cli_status(&binary, &[], &[("GEMINI_CLI_HOME", managed_home)])
                 .map_err(|error| format!("failed to launch gemini login: {error}"))?;
 
             if !status.success() {
@@ -162,6 +168,23 @@ mod tests {
         let vite_plus_bin = home.join(".vite-plus/bin");
         let gemini_path = vite_plus_bin.join("gemini");
         fs::create_dir_all(&vite_plus_bin).unwrap();
+        fs::write(&gemini_path, "").unwrap();
+
+        let resolved = resolve_gemini_binary_from(
+            Some(std::ffi::OsString::from("/usr/bin:/bin")),
+            Some(home),
+            None,
+        );
+
+        assert_eq!(resolved, Some(gemini_path));
+    }
+
+    #[test]
+    fn resolves_gemini_from_windows_pnpm_home_when_path_is_missing() {
+        let home = temp_test_dir("gemini-windows-pnpm-home");
+        let pnpm_bin = home.join("AppData/Local/pnpm");
+        let gemini_path = pnpm_bin.join("gemini.cmd");
+        fs::create_dir_all(&pnpm_bin).unwrap();
         fs::write(&gemini_path, "").unwrap();
 
         let resolved = resolve_gemini_binary_from(

@@ -81,9 +81,10 @@ impl<K: ClaudeCredentialBundleStore> ClaudeUsageService<K> {
 
 impl ClaudeUsageService<ManagedClaudeKeychainStore> {
     pub fn with_process_fetchers(paths: ClaudeAccountPaths) -> Self {
+        let bundle_store = ManagedClaudeKeychainStore::new(paths.managed_bundle_dir.clone());
         Self::new(
             paths,
-            ManagedClaudeKeychainStore::new(),
+            bundle_store,
             Box::new(OAuthClaudeUsageFetcher::new(
                 ProcessClaudeOAuthHttpClient::default(),
             )),

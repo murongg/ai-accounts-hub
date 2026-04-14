@@ -48,6 +48,10 @@ impl<K: ClaudeCredentialBundleStore, L: ClaudeLiveCredentialStore> ClaudeAccount
     ) -> Result<Option<StoredClaudeAccount>, String> {
         self.paths.ensure_dirs()?;
 
+        if !self.live_store.has_noninteractive_credentials_hint()? {
+            return Ok(None);
+        }
+
         let live = match self.live_store.capture() {
             Ok(snapshot) => snapshot,
             Err(error) if is_missing_live_credentials(&error) => return Ok(None),
@@ -66,11 +70,19 @@ impl<K: ClaudeCredentialBundleStore, L: ClaudeLiveCredentialStore> ClaudeAccount
     pub fn list_accounts(&self) -> Result<Vec<ClaudeAccountListItem>, String> {
         let store = ClaudeAccountStore::load(&self.paths)?;
         let usage_store = ClaudeUsageStore::load(&self.paths)?;
-        let live_identity = self
-            .live_store
-            .capture()
-            .ok()
-            .and_then(|snapshot| identity_from_snapshot(&snapshot).ok());
+        let live_identity = if store.accounts().is_empty()
+            || !self
+                .live_store
+                .has_noninteractive_credentials_hint()
+                .unwrap_or(false)
+        {
+            None
+        } else {
+            self.live_store
+                .capture()
+                .ok()
+                .and_then(|snapshot| identity_from_snapshot(&snapshot).ok())
+        };
         let active_id = live_identity
             .as_ref()
             .and_then(|identity| match_active_identity(identity, store.accounts()))
@@ -174,10 +186,11 @@ impl<K: ClaudeCredentialBundleStore, L: ClaudeLiveCredentialStore> ClaudeAccount
 impl ClaudeAccountService<ManagedClaudeKeychainStore, FileSystemClaudeLiveCredentialStore> {
     pub fn with_process_runner(paths: ClaudeAccountPaths) -> Self {
         let live_paths = paths.clone();
+        let bundle_store = ManagedClaudeKeychainStore::new(paths.managed_bundle_dir.clone());
         Self::new(
             paths,
             Box::new(ProcessClaudeLoginRunner),
-            ManagedClaudeKeychainStore::new(),
+            bundle_store,
             FileSystemClaudeLiveCredentialStore::new(live_paths),
         )
     }

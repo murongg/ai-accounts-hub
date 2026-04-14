@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 #[cfg(test)]
 use crate::cli_binary_resolver::resolve_binary_from;
 use crate::cli_binary_resolver::{resolve_binary, CliBinaryResolver};
+use crate::cli_command_runner::run_cli_status;
 
 pub trait CodexLoginRunner: Send + Sync {
     fn run_login(&self, managed_home: &Path) -> Result<(), String>;
@@ -13,7 +13,15 @@ pub struct ProcessCodexLoginRunner;
 
 const CODEX_BINARY_RESOLVER: CliBinaryResolver<'static> = CliBinaryResolver {
     binary_name: "codex",
-    home_relative_paths: &[".local/bin/codex"],
+    home_relative_paths: &[
+        ".local/bin/codex",
+        ".bun/bin/codex",
+        "AppData/Roaming/npm/codex",
+        "AppData/Local/pnpm/codex",
+        "AppData/Local/Volta/bin/codex",
+        "AppData/Local/Microsoft/WinGet/Links/codex",
+        "scoop/shims/codex",
+    ],
     fixed_locations: &["/opt/homebrew/bin/codex", "/usr/local/bin/codex"],
     include_nvm_bin_env: true,
     include_nvm_scan: true,
@@ -27,10 +35,7 @@ impl CodexLoginRunner for ProcessCodexLoginRunner {
         let binary = resolve_codex_binary()
             .ok_or_else(|| "未检测到 codex 命令，请先安装 Codex CLI".to_string())?;
 
-        let status = Command::new(binary)
-            .arg("login")
-            .env("CODEX_HOME", managed_home)
-            .status()
+        let status = run_cli_status(&binary, &["login"], &[("CODEX_HOME", managed_home)])
             .map_err(|error| format!("failed to launch codex login: {error}"))?;
 
         if status.success() {
@@ -96,6 +101,23 @@ mod tests {
         );
 
         assert_eq!(resolved, Some(newer_codex));
+    }
+
+    #[test]
+    fn resolves_codex_from_windows_npm_home_when_path_is_missing() {
+        let home = temp_test_dir("codex-windows-npm-home");
+        let npm_bin = home.join("AppData/Roaming/npm");
+        let codex_path = npm_bin.join("codex.cmd");
+        fs::create_dir_all(&npm_bin).unwrap();
+        fs::write(&codex_path, "").unwrap();
+
+        let resolved = resolve_codex_binary_from(
+            Some(std::ffi::OsString::from("/usr/bin:/bin")),
+            Some(home),
+            None,
+        );
+
+        assert_eq!(resolved, Some(codex_path));
     }
 
     fn temp_test_dir(prefix: &str) -> PathBuf {

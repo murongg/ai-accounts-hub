@@ -3,6 +3,7 @@ pub mod bootstrap;
 pub mod claude_accounts;
 pub mod claude_usage;
 pub mod cli_binary_resolver;
+pub mod cli_command_runner;
 pub mod cli_facade;
 pub mod cli_process_utils;
 pub mod codex_accounts;

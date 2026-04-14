@@ -1,12 +1,17 @@
 use std::fs;
 use std::path::{Path, PathBuf};
+#[cfg(target_os = "macos")]
 use std::process::Command;
 #[cfg(target_os = "macos")]
 use std::thread;
 #[cfg(target_os = "macos")]
 use std::time::{Duration, Instant};
 
+#[cfg(test)]
+use crate::cli_binary_resolver::resolve_binary_from;
 use crate::cli_binary_resolver::{resolve_binary, CliBinaryResolver};
+#[cfg(not(target_os = "macos"))]
+use crate::cli_command_runner::run_cli_status;
 #[cfg(target_os = "macos")]
 use crate::cli_process_utils::{shell_escape_path, unique_suffix};
 #[cfg(target_os = "macos")]
@@ -20,7 +25,15 @@ pub struct ProcessClaudeLoginRunner;
 
 const CLAUDE_BINARY_RESOLVER: CliBinaryResolver<'static> = CliBinaryResolver {
     binary_name: "claude",
-    home_relative_paths: &[".local/bin/claude"],
+    home_relative_paths: &[
+        ".local/bin/claude",
+        ".bun/bin/claude",
+        "AppData/Roaming/npm/claude",
+        "AppData/Local/pnpm/claude",
+        "AppData/Local/Volta/bin/claude",
+        "AppData/Local/Microsoft/WinGet/Links/claude",
+        "scoop/shims/claude",
+    ],
     fixed_locations: &["/opt/homebrew/bin/claude", "/usr/local/bin/claude"],
     include_nvm_bin_env: true,
     include_nvm_scan: true,
@@ -41,11 +54,12 @@ impl ClaudeLoginRunner for ProcessClaudeLoginRunner {
 
         #[cfg(not(target_os = "macos"))]
         {
-            let status = Command::new(binary)
-                .args(["auth", "login"])
-                .env("CLAUDE_CONFIG_DIR", managed_config_dir)
-                .status()
-                .map_err(|error| format!("failed to launch claude auth login: {error}"))?;
+            let status = run_cli_status(
+                &binary,
+                &["auth", "login"],
+                &[("CLAUDE_CONFIG_DIR", managed_config_dir)],
+            )
+            .map_err(|error| format!("failed to launch claude auth login: {error}"))?;
 
             if status.success() {
                 Ok(())
@@ -153,8 +167,18 @@ pub fn resolve_claude_binary() -> Option<PathBuf> {
 }
 
 #[cfg(test)]
+fn resolve_claude_binary_from(
+    path_var: Option<std::ffi::OsString>,
+    home_dir: Option<PathBuf>,
+    nvm_bin: Option<PathBuf>,
+) -> Option<PathBuf> {
+    resolve_binary_from(&CLAUDE_BINARY_RESOLVER, path_var, home_dir, nvm_bin)
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[cfg(target_os = "macos")]
     #[test]
@@ -173,5 +197,32 @@ mod tests {
         assert!(script.contains("touch '/tmp/failure-marker'"));
         assert!(script.contains("export HTTP_PROXY='http://127.0.0.1:7890'"));
         assert!(script.contains("export HTTPS_PROXY='http://127.0.0.1:7890'"));
+    }
+
+    #[test]
+    fn resolves_claude_from_windows_scoop_shims_when_path_is_missing() {
+        let home = temp_test_dir("claude-windows-scoop-home");
+        let scoop_shims = home.join("scoop/shims");
+        let claude_path = scoop_shims.join("claude.cmd");
+        fs::create_dir_all(&scoop_shims).unwrap();
+        fs::write(&claude_path, "").unwrap();
+
+        let resolved = resolve_claude_binary_from(
+            Some(std::ffi::OsString::from("/usr/bin:/bin")),
+            Some(home),
+            None,
+        );
+
+        assert_eq!(resolved, Some(claude_path));
+    }
+
+    fn temp_test_dir(prefix: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("aihub-{prefix}-{unique}"));
+        fs::create_dir_all(&path).unwrap();
+        path
     }
 }

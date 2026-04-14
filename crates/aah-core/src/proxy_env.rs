@@ -14,7 +14,7 @@ pub(crate) const PROXY_ENV_FAMILIES: [(&str, &str); 4] = [
 
 pub fn import_shell_proxy_env_if_missing() {
     let current = current_proxy_env();
-    let shell = if needs_shell_probe(&current) {
+    let shell = if should_probe_login_shell() && needs_shell_probe(&current) {
         match read_login_shell_proxy_env() {
             Ok(proxy_env) => proxy_env,
             Err(error) => {
@@ -140,6 +140,14 @@ fn needs_shell_probe(current: &BTreeMap<String, String>) -> bool {
     PROXY_ENV_FAMILIES
         .iter()
         .any(|(upper, lower)| family_value(current, upper, lower).is_none())
+}
+
+fn should_probe_login_shell() -> bool {
+    should_probe_login_shell_for_os(cfg!(windows))
+}
+
+fn should_probe_login_shell_for_os(is_windows: bool) -> bool {
+    !is_windows
 }
 
 fn read_login_shell_proxy_env() -> Result<BTreeMap<String, String>, String> {
@@ -283,5 +291,11 @@ mod tests {
         assert!(block.contains("export https_proxy='http://127.0.0.1:7890'"));
         assert!(block.contains("export NO_PROXY='localhost,127.0.0.1'"));
         assert!(block.contains("export no_proxy='localhost,127.0.0.1'"));
+    }
+
+    #[test]
+    fn skips_login_shell_proxy_probe_on_windows() {
+        assert!(!should_probe_login_shell_for_os(true));
+        assert!(should_probe_login_shell_for_os(false));
     }
 }

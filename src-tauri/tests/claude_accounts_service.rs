@@ -1,12 +1,16 @@
 use ai_accounts_hub_lib::claude_accounts::cli::ClaudeLoginRunner;
 use ai_accounts_hub_lib::claude_accounts::keychain::InMemoryClaudeKeychainStore;
 use ai_accounts_hub_lib::claude_accounts::live_credentials::{
-    ClaudeLiveCredentialSnapshot, InMemoryClaudeLiveCredentialStore,
+    ClaudeLiveCredentialSnapshot, ClaudeLiveCredentialStore, InMemoryClaudeLiveCredentialStore,
 };
 use ai_accounts_hub_lib::claude_accounts::paths::ClaudeAccountPaths;
 use ai_accounts_hub_lib::claude_accounts::service::ClaudeAccountService;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{
+    atomic::{AtomicUsize, Ordering},
+    Arc,
+};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 struct TempDir {
@@ -64,6 +68,43 @@ fn live_snapshot(
     }
 }
 
+#[derive(Clone)]
+struct CountingLiveCredentialStore {
+    captures: Arc<AtomicUsize>,
+    snapshot: Result<ClaudeLiveCredentialSnapshot, String>,
+}
+
+impl CountingLiveCredentialStore {
+    fn new(snapshot: Result<ClaudeLiveCredentialSnapshot, String>) -> Self {
+        Self {
+            captures: Arc::new(AtomicUsize::new(0)),
+            snapshot,
+        }
+    }
+
+    fn capture_count(&self) -> usize {
+        self.captures.load(Ordering::SeqCst)
+    }
+}
+
+impl ClaudeLiveCredentialStore for CountingLiveCredentialStore {
+    fn has_noninteractive_credentials_hint(&self) -> Result<bool, String> {
+        Ok(false)
+    }
+
+    fn capture(&self) -> Result<ClaudeLiveCredentialSnapshot, String> {
+        self.captures.fetch_add(1, Ordering::SeqCst);
+        self.snapshot.clone()
+    }
+
+    fn restore(
+        &mut self,
+        _bundle: &ai_accounts_hub_lib::claude_accounts::keychain::ClaudeCredentialBundle,
+    ) -> Result<(), String> {
+        Ok(())
+    }
+}
+
 #[test]
 fn start_login_imports_current_live_claude_account() {
     let temp = TempDir::new("claude-service-start");
@@ -105,6 +146,28 @@ fn list_accounts_marks_the_live_system_claude_account_active() {
     assert_eq!(accounts.len(), 1);
     assert_eq!(accounts[0].id, saved.id);
     assert!(accounts[0].is_active);
+}
+
+#[test]
+fn list_accounts_does_not_capture_live_claude_credentials_when_no_accounts_are_managed() {
+    let temp = TempDir::new("claude-service-list-empty");
+    let paths =
+        ClaudeAccountPaths::from_roots(temp.path().join("app-data"), temp.path().join("home"));
+    let bundle_store = InMemoryClaudeKeychainStore::default();
+    let live_store = CountingLiveCredentialStore::new(Ok(live_snapshot(
+        "murong@example.com",
+        "Murong",
+        "Pro",
+        "owner-a",
+    )));
+    let live_handle = live_store.clone();
+    let service =
+        ClaudeAccountService::new(paths, Box::new(FakeLoginRunner), bundle_store, live_store);
+
+    let accounts = service.list_accounts().expect("list accounts");
+
+    assert!(accounts.is_empty());
+    assert_eq!(live_handle.capture_count(), 0);
 }
 
 #[test]
@@ -167,6 +230,27 @@ fn import_current_account_adds_the_live_system_claude_account() {
 
     assert_eq!(imported.email, "murong@example.com");
     assert_eq!(service.list_accounts().expect("list accounts").len(), 1);
+}
+
+#[test]
+fn import_current_account_skips_live_capture_without_a_claude_credentials_hint() {
+    let temp = TempDir::new("claude-service-import-no-hint");
+    let paths =
+        ClaudeAccountPaths::from_roots(temp.path().join("app-data"), temp.path().join("home"));
+    let bundle_store = InMemoryClaudeKeychainStore::default();
+    let live_store = CountingLiveCredentialStore::new(Err(
+        "Claude secure storage is unavailable for test".to_string(),
+    ));
+    let live_handle = live_store.clone();
+    let mut service =
+        ClaudeAccountService::new(paths, Box::new(FakeLoginRunner), bundle_store, live_store);
+
+    let imported = service
+        .import_current_account_if_missing()
+        .expect("import current account");
+
+    assert!(imported.is_none());
+    assert_eq!(live_handle.capture_count(), 0);
 }
 
 #[test]

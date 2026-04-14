@@ -21,6 +21,10 @@ pub struct ClaudeLiveCredentialState {
 }
 
 pub trait ClaudeLiveCredentialStore: Send {
+    fn has_noninteractive_credentials_hint(&self) -> Result<bool, String> {
+        Ok(true)
+    }
+
     fn capture(&self) -> Result<ClaudeLiveCredentialSnapshot, String>;
     fn capture_login_session(&self) -> Result<ClaudeLiveCredentialSnapshot, String> {
         self.capture()
@@ -52,6 +56,14 @@ impl InMemoryClaudeLiveCredentialStore {
 }
 
 impl ClaudeLiveCredentialStore for InMemoryClaudeLiveCredentialStore {
+    fn has_noninteractive_credentials_hint(&self) -> Result<bool, String> {
+        Ok(self
+            .state
+            .lock()
+            .map_err(|_| "live Claude credential state lock poisoned".to_string())?
+            .is_some())
+    }
+
     fn capture(&self) -> Result<ClaudeLiveCredentialSnapshot, String> {
         self.state
             .lock()
@@ -107,7 +119,23 @@ impl ClaudeLiveCredentialState {
 }
 
 impl ClaudeLiveCredentialStore for FileSystemClaudeLiveCredentialStore {
+    fn has_noninteractive_credentials_hint(&self) -> Result<bool, String> {
+        if path_is_file(&self.paths.system_credentials_path)? {
+            return Ok(true);
+        }
+
+        read_live_oauth_account(&self.paths.system_global_config_path)
+            .map(|oauth_account| oauth_account.is_some())
+    }
+
     fn capture(&self) -> Result<ClaudeLiveCredentialSnapshot, String> {
+        if !self.has_noninteractive_credentials_hint()? {
+            return Err(format!(
+                "Claude secure storage is unavailable for {}",
+                self.paths.system_claude_dir.display()
+            ));
+        }
+
         let credentials_json = read_live_secure_storage(
             &self.paths.system_claude_dir,
             &self.paths.system_credentials_path,
@@ -146,6 +174,14 @@ impl ClaudeLiveCredentialStore for FileSystemClaudeLiveCredentialStore {
             bundle.oauth_account_json.as_deref(),
         )?;
         Ok(())
+    }
+}
+
+fn path_is_file(path: &std::path::Path) -> Result<bool, String> {
+    match fs::metadata(path) {
+        Ok(metadata) => Ok(metadata.is_file()),
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(false),
+        Err(error) => Err(format!("failed to inspect {}: {error}", path.display())),
     }
 }
 
