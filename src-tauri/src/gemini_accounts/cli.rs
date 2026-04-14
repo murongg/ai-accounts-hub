@@ -4,6 +4,8 @@ use std::process::Command;
 use std::thread;
 use std::time::{Duration, Instant};
 
+#[cfg(test)]
+use crate::cli_binary_resolver::resolve_binary_from;
 use crate::cli_binary_resolver::{resolve_binary, CliBinaryResolver};
 #[cfg(target_os = "macos")]
 use crate::cli_process_utils::{shell_escape_path, unique_suffix};
@@ -20,7 +22,11 @@ pub struct ProcessGeminiLoginRunner;
 
 const GEMINI_BINARY_RESOLVER: CliBinaryResolver<'static> = CliBinaryResolver {
     binary_name: "gemini",
-    home_relative_paths: &[".local/bin/gemini", ".bun/bin/gemini"],
+    home_relative_paths: &[
+        ".local/bin/gemini",
+        ".bun/bin/gemini",
+        ".vite-plus/bin/gemini",
+    ],
     fixed_locations: &["/opt/homebrew/bin/gemini", "/usr/local/bin/gemini"],
     include_nvm_bin_env: true,
     include_nvm_scan: true,
@@ -121,8 +127,19 @@ pub fn resolve_gemini_binary() -> Option<PathBuf> {
 }
 
 #[cfg(test)]
+fn resolve_gemini_binary_from(
+    path_var: Option<std::ffi::OsString>,
+    home_dir: Option<PathBuf>,
+    nvm_bin: Option<PathBuf>,
+) -> Option<PathBuf> {
+    resolve_binary_from(&GEMINI_BINARY_RESOLVER, path_var, home_dir, nvm_bin)
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
 
     #[cfg(target_os = "macos")]
     #[test]
@@ -137,5 +154,32 @@ mod tests {
         assert!(script.contains("'/opt/homebrew/bin/gemini'"));
         assert!(script.contains("export HTTP_PROXY='http://127.0.0.1:7890'"));
         assert!(script.contains("export HTTPS_PROXY='http://127.0.0.1:7890'"));
+    }
+
+    #[test]
+    fn resolves_gemini_from_vite_plus_bin_when_path_is_missing() {
+        let home = temp_test_dir("gemini-vite-plus-home");
+        let vite_plus_bin = home.join(".vite-plus/bin");
+        let gemini_path = vite_plus_bin.join("gemini");
+        fs::create_dir_all(&vite_plus_bin).unwrap();
+        fs::write(&gemini_path, "").unwrap();
+
+        let resolved = resolve_gemini_binary_from(
+            Some(std::ffi::OsString::from("/usr/bin:/bin")),
+            Some(home),
+            None,
+        );
+
+        assert_eq!(resolved, Some(gemini_path));
+    }
+
+    fn temp_test_dir(prefix: &str) -> PathBuf {
+        let unique = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("aihub-{prefix}-{unique}"));
+        fs::create_dir_all(&path).unwrap();
+        path
     }
 }
