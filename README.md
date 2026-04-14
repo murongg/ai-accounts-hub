@@ -82,16 +82,53 @@
 
 - [下载最新版本](https://github.com/murongg/ai-accounts-hub/releases/latest)
 
-如果你只需要命令行版，可以单独安装 `aah` CLI：
+### 命令行版使用教程
+
+如果你只需要命令行版，可以单独安装 `aah` CLI，不需要安装桌面 app：
 
 ```bash
 npm install -g @murongg/aah-cli
-aah tui
-aah list
-aah current
 ```
 
-CLI 使用独立版本线和 `cli-vX.Y.Z` Release tag，不和桌面 app 的 `vX.Y.Z` 版本耦合。桌面 app 与 CLI 默认共享 `~/.ai-accounts-hub` 作为账号池目录；首次启动时会自动迁移旧桌面数据目录。
+启动交互式 TUI：
+
+```bash
+aah tui
+```
+
+在 TUI 里可以用 `up/down` 或 `j/k` 选择账号，`Enter` 切换账号，`r` 刷新 quota，`1/2/3/a` 切换 provider 过滤，`q` 或 `Esc` 退出。
+
+常用命令：
+
+```bash
+aah list
+aah current
+aah refresh
+aah switch --provider codex user@example.com
+```
+
+按 provider 过滤：
+
+```bash
+aah list --provider codex
+aah current --provider claude
+aah refresh --provider gemini
+```
+
+输出 JSON，适合脚本集成：
+
+```bash
+aah list --json
+aah current --json
+```
+
+指定数据目录：
+
+```bash
+aah --data-dir ~/.ai-accounts-hub list
+```
+
+默认情况下，CLI 会使用 `~/.ai-accounts-hub`。桌面 app 与 CLI 共享这个账号池目录；首次启动时会自动迁移旧桌面数据目录。CLI 使用独立版本线和 `cli-vX.Y.Z` Release tag，不和桌面 app 的 `vX.Y.Z` 版本耦合。
 
 如果你想从源码运行：
 
