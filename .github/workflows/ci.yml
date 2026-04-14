@@ -65,3 +65,30 @@ jobs:
 
       - name: Run Rust tests
         run: cargo test --workspace
+
+  windows-smoke:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
+      - name: Run Windows CLI discovery tests
+        run: cargo test --manifest-path Cargo.toml -p aah-core windows
+
+      - name: Run command runner tests
+        run: cargo test --manifest-path Cargo.toml -p aah-core cli_command_runner
+
+      - name: Run Claude account service smoke tests
+        run: cargo test --manifest-path Cargo.toml -p ai-accounts-hub claude_accounts_service
+
+      - name: Build CLI
+        run: cargo build --manifest-path Cargo.toml -p aah-cli --release
