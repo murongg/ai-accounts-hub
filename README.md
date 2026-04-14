@@ -4,6 +4,11 @@
 
 它把 `Codex`、`Claude`、`Gemini` 的多个登录态收进应用自己的账号池，并在需要时把选中的账号同步回系统 CLI 配置，让你可以在一台机器上快速切换“当前活跃账号”，同时查看各 provider 的配额或 usage 快照。
 
+你可以把它当成两种模式来用：
+
+- **桌面 App 模式**：用图形界面统一管理账号、切换系统当前凭证、查看 quota / usage、配置自动切换和本地中转服务。
+- **CLI 模式**：安装 `aah` 后直接在终端里完成账号查看、切换、刷新和 relay 管理；CLI 和桌面 App 共用同一个账号池与 relay 状态。
+
 - 下载地址：[Latest Release](https://github.com/murongg/ai-accounts-hub/releases/latest)
 - 项目仓库：[murongg/ai-accounts-hub](https://github.com/murongg/ai-accounts-hub)
 
@@ -28,6 +33,28 @@
 - 经常在不同账号之间切换当前系统登录态
 - 希望在切换前先看到剩余额度、刷新时间或账号健康状态
 - 不想手动备份和覆盖 `~/.codex`、`~/.claude`、`~/.gemini` 下的凭证文件
+
+## 两种使用模式
+
+### 桌面 App 模式
+
+适合把 AI Accounts Hub 当成主控台来用：
+
+- 管理多 provider、多账号池
+- 切换系统当前 live 凭证
+- 查看 quota / usage / relogin 状态
+- 配置自动切换、刷新间隔、数据目录和本地中转
+- 使用 macOS menubar / 状态栏入口快速切换账号
+
+### CLI 模式
+
+适合已经长期在终端里工作，但又不想手动维护账号文件的人：
+
+- 用 `aah list/current/switch/refresh` 管理账号
+- 用 TUI 进行交互式切换
+- 用 JSON 输出做脚本集成
+- 用 `aah relay ...` 管理本地中转
+- 与桌面 App 共享同一份账号池、配置和 relay 运行状态
 
 ## 已实现功能
 
@@ -101,11 +128,13 @@
 
 ## 快速开始
 
-如果你只想使用应用，直接从 Releases 下载即可：
+### 桌面 App 模式
+
+如果你只想使用桌面应用，直接从 Releases 下载即可：
 
 - [下载最新版本](https://github.com/murongg/ai-accounts-hub/releases/latest)
 
-### 命令行版使用教程
+### CLI 模式
 
 如果你只需要命令行版，可以单独安装 `aah` CLI，不需要安装桌面 app：
 
