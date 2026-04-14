@@ -5,6 +5,7 @@ import { ThemeToggle } from '@/components/ThemeToggle'
 import { LanguageToggle } from '@/components/LanguageToggle'
 import { DownloadButton, DownloadButtonInverse, GITHUB_URL, RELEASES_URL } from '@/components/DownloadButton'
 import { useI18n } from '@/lib/i18n'
+import { selectLatestAppReleaseTag } from '@/lib/releases'
 
 // ─── Brand Logo ────────────────────────────────────────────────────────────────
 function HubLogo({ size = 36 }: { size?: number }) {
@@ -215,11 +216,20 @@ export default function HomePage() {
   // Dynamic version from GitHub API
   const [version, setVersion] = useState('v0.3.5')
   useEffect(() => {
-    fetch('https://api.github.com/repos/murongg/ai-accounts-hub/releases/latest', {
+    fetch('https://api.github.com/repos/murongg/ai-accounts-hub/releases?per_page=100', {
       headers: { Accept: 'application/vnd.github+json' },
     })
       .then((r) => r.json())
-      .then((d) => { if (d.tag_name) setVersion(d.tag_name) })
+      .then((releases) => {
+        if (!Array.isArray(releases)) {
+          return
+        }
+
+        const appVersion = selectLatestAppReleaseTag(releases)
+        if (appVersion) {
+          setVersion(appVersion)
+        }
+      })
       .catch(() => {})
   }, [])
 
