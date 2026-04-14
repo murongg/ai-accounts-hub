@@ -1,20 +1,30 @@
 import { spawnSync } from "node:child_process";
 
-const commandArgs = [
-  "node_modules/bumpp/bin/bumpp.mjs",
-  ...process.argv.slice(2),
-  "crates/aah-cli/Cargo.toml",
-  "packages/aah-cli/package.json",
-  "--configFilePath",
-  "bump.config.ts",
-];
-
-const result = spawnSync("node", commandArgs, {
-  stdio: "inherit",
-});
-
-if (typeof result.status === "number") {
-  process.exit(result.status);
+export function buildCliBumpArgs(args) {
+  return [
+    "node_modules/bumpp/bin/bumpp.mjs",
+    ...args,
+    "--tag",
+    "cli-v%s",
+    "crates/aah-cli/Cargo.toml",
+    "packages/aah-cli/package.json",
+    "--configFilePath",
+    "bump.config.ts",
+  ];
 }
 
-process.exit(1);
+function main() {
+  const result = spawnSync("node", buildCliBumpArgs(process.argv.slice(2)), {
+    stdio: "inherit",
+  });
+
+  if (typeof result.status === "number") {
+    process.exit(result.status);
+  }
+
+  process.exit(1);
+}
+
+if (process.argv[1] && import.meta.url === new URL(process.argv[1], "file:").href) {
+  main();
+}

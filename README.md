@@ -130,6 +130,15 @@ aah --data-dir ~/.ai-accounts-hub list
 
 默认情况下，CLI 会使用 `~/.ai-accounts-hub`。桌面 app 与 CLI 共享这个账号池目录；首次启动时会自动迁移旧桌面数据目录。CLI 使用独立版本线和 `cli-vX.Y.Z` Release tag，不和桌面 app 的 `vX.Y.Z` 版本耦合。
 
+发布 CLI 新版本时使用独立 bump 命令和 tag 前缀：
+
+```bash
+pnpm bump:cli patch
+git push --follow-tags
+```
+
+不要用 `v0.1.0` 这种 app tag 发布 CLI；CLI release workflow 只监听 `cli-v0.1.0` 这种 tag。
+
 如果你想从源码运行：
 
 ### 环境要求
