@@ -37,6 +37,7 @@
 - 主界面展示账号状态、剩余额度、刷新时间和 relogin 状态
 - 后台定时刷新各 provider 配额快照
 - 在主账号不可用或主配额耗尽时自动切换到可用账号
+- 可选启动本地 `Codex` relay，并在桌面端与 CLI 之间共享同一个 relay 实例
 - 设置页支持语言、主题、自动切换、刷新间隔、数据目录管理
 - 内置桌面自动更新
 - macOS 原生 menubar / 状态栏快速查看和切换
@@ -49,9 +50,9 @@
 | Claude | 支持 | 支持 | `Session` / `Weekly` / `Opus or Sonnet Weekly` | 支持 |
 | Gemini | 支持 | 支持 | `Pro` / `Flash` / `Flash Lite` | 支持 |
 
-## 工作方式
+## 账号托管模式
 
-应用的思路不是“代理所有请求”，而是“托管账号凭证并切换系统当前账号”。
+应用默认的工作方式不是“代理所有请求”，而是“托管账号凭证并切换系统当前账号”。
 
 1. 首次启动时，应用会尝试把本机已经登录的 `Codex` / `Claude` / `Gemini` 账号导入自己的账号池。
 2. 每个账号都会隔离存放在应用数据目录里，而不是混在系统当前的 live 配置里。
@@ -63,6 +64,28 @@
 - `Codex`: `~/.codex/auth.json`
 - `Claude`: `~/.claude/.credentials.json` 和 `~/.claude.json`
 - `Gemini`: `~/.gemini/` 下的认证与设置文件
+
+## 中转模式
+
+如果你想在 `opencode` 或其他兼容 OpenAI/Codex 风格接口的 CLI 里使用 AI Accounts Hub 托管的账号，或者你想要更无感的账号切换体验，可以启用中转模式。
+
+- relay 默认关闭，需要在桌面端设置页或 CLI 里显式启用
+- 当前只提供 `Codex` 路由，不代理 `Claude` 或 `Gemini`
+- 只监听 `127.0.0.1`
+- 默认地址是 `http://127.0.0.1:8765/codex`
+- 桌面端和 CLI 会共享同一个运行中的 relay 实例
+
+启用后，你会得到：
+
+- 给本地工具提供统一的 `Codex` 兼容入口
+- 复用 AI Accounts Hub 已托管的 `Codex` 凭证
+- 在桌面端和 CLI 之间共享同一套 relay 配置和运行时状态
+
+相关状态文件：
+
+- relay 配置保存在 `~/.ai-accounts-hub/settings.json`
+- relay 运行时注册表保存在 `~/.ai-accounts-hub/relay/runtime.json`
+- 如果使用 `--data-dir`，这两个文件都会跟着切到对应目录
 
 ## 配额数据来源
 
@@ -122,6 +145,20 @@ aah list --json
 aah current --json
 ```
 
+管理本地 relay：
+
+```bash
+aah relay status
+aah relay start --port 8765
+aah relay stop
+aah relay set-port 9876
+```
+
+其中：
+
+- `aah relay start [--port ...]` 会把 relay 持久化设为启用，并确保后台实例正在运行
+- `aah relay stop` 会把 relay 持久化设为关闭，并停止当前实例
+
 指定数据目录：
 
 ```bash
@@ -179,7 +216,7 @@ node --test packages/aah-cli/tests/*.test.mjs
 
 - `src/`: React + Vite 前端界面
 - `src-tauri/`: Tauri Rust 后端、账号存储、quota 刷新、自动切换、macOS 状态栏桥接
-- `crates/aah-core/`: 桌面 app 与 CLI 共享的账号、存储和 provider 逻辑
+- `crates/aah-core/`: 桌面 app 与 CLI 共享的账号、存储、provider 和 relay 逻辑
 - `crates/aah-cli/`: 独立 `aah` 命令行入口和 ratatui TUI
 - `packages/aah-cli/`: npm 安装器包，安装时下载对应 CLI Release 二进制
 - `website/`: 官网 / 下载页

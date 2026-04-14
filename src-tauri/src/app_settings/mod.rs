@@ -24,15 +24,18 @@ pub async fn get_app_settings(_app: tauri::AppHandle) -> Result<AppSettings, Str
 
 #[tauri::command]
 pub async fn update_app_settings(
-    _app: tauri::AppHandle,
+    app: tauri::AppHandle,
     settings: AppSettings,
 ) -> Result<AppSettings, String> {
-    tauri::async_runtime::spawn_blocking(move || {
+    let saved = tauri::async_runtime::spawn_blocking(move || {
         let paths = paths_from_app()?;
         store::save_app_settings(&paths, settings)
     })
     .await
-    .map_err(|error| error.to_string())?
+    .map_err(|error| error.to_string())??;
+
+    let _ = crate::relay::apply_relay_settings_from_app(app).await;
+    Ok(saved)
 }
 
 #[tauri::command]
@@ -59,7 +62,7 @@ pub async fn reset_app_data_directory(
 
 #[tauri::command]
 pub async fn clear_all_app_data(
-    _app: tauri::AppHandle,
+    app: tauri::AppHandle,
     scheduler: State<'_, CodexUsageSchedulerState>,
 ) -> Result<ClearAllDataResult, String> {
     let result = tauri::async_runtime::spawn_blocking(move || {
@@ -69,5 +72,6 @@ pub async fn clear_all_app_data(
     .map_err(|error| error.to_string())??;
 
     scheduler.update_settings(CodexRefreshSettings::default())?;
+    let _ = crate::relay::apply_relay_settings_from_app(app).await;
     Ok(result)
 }

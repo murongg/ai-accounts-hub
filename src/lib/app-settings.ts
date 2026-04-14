@@ -1,5 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { AppDataDirectoryInfo, AppSettings, ClearAllDataResult } from "../types/settings";
+import type {
+  AppDataDirectoryInfo,
+  AppSettings,
+  ClearAllDataResult,
+  RelayRuntimeStatus,
+} from "../types/settings";
 
 export function getAppSettings() {
   return invoke<AppSettings>("get_app_settings");
@@ -19,4 +24,8 @@ export function resetAppDataDirectory() {
 
 export function clearAllAppData() {
   return invoke<ClearAllDataResult>("clear_all_app_data");
+}
+
+export function getRelayStatus() {
+  return invoke<RelayRuntimeStatus>("get_relay_status");
 }

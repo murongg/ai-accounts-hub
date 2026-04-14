@@ -1,5 +1,7 @@
 use serde::Serialize;
 
+use crate::app_settings::models::RelaySettings as AppRelaySettings;
+use crate::app_settings::store::{load_app_settings, save_app_settings};
 use crate::bootstrap::BootstrapContext;
 use crate::claude_accounts::{
     models::ClaudeAccountListItem, paths::ClaudeAccountPaths, service::ClaudeAccountService,
@@ -13,6 +15,8 @@ use crate::gemini_accounts::{
     models::GeminiAccountListItem, paths::GeminiAccountPaths, service::GeminiAccountService,
 };
 use crate::gemini_usage::service::GeminiUsageService;
+use crate::relay::registry::{shared_runtime_status, stop_shared_runtime, RelayRegistryPaths};
+use crate::relay::RelayRuntimeStatus;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum Provider {
@@ -188,6 +192,52 @@ impl CliFacade {
             });
         }
         Ok(rows)
+    }
+
+    pub fn relay_status(&self) -> Result<RelayRuntimeStatus, CliError> {
+        let codex_paths = self.codex_paths();
+        let settings = load_app_settings(&codex_paths).map_err(CliError::Environment)?;
+        let registry_paths = RelayRegistryPaths::from_managed_root(&self.context.managed_root);
+        Ok(shared_runtime_status(
+            &settings.relay,
+            &registry_paths,
+            None,
+        ))
+    }
+
+    pub fn relay_enable(&self, port: Option<u16>) -> Result<AppRelaySettings, CliError> {
+        let codex_paths = self.codex_paths();
+        let mut settings = load_app_settings(&codex_paths).map_err(CliError::Environment)?;
+        settings.relay.enabled = true;
+        if let Some(port) = port {
+            settings.relay.port = port;
+        }
+        save_app_settings(&codex_paths, settings)
+            .map(|settings| settings.relay)
+            .map_err(CliError::Environment)
+    }
+
+    pub fn relay_disable(&self) -> Result<AppRelaySettings, CliError> {
+        let codex_paths = self.codex_paths();
+        let mut settings = load_app_settings(&codex_paths).map_err(CliError::Environment)?;
+        settings.relay.enabled = false;
+        save_app_settings(&codex_paths, settings)
+            .map(|settings| settings.relay)
+            .map_err(CliError::Environment)
+    }
+
+    pub fn relay_set_port(&self, port: u16) -> Result<AppRelaySettings, CliError> {
+        let codex_paths = self.codex_paths();
+        let mut settings = load_app_settings(&codex_paths).map_err(CliError::Environment)?;
+        settings.relay.port = port;
+        save_app_settings(&codex_paths, settings)
+            .map(|settings| settings.relay)
+            .map_err(CliError::Environment)
+    }
+
+    pub fn relay_stop(&self) -> Result<bool, CliError> {
+        let registry_paths = RelayRegistryPaths::from_managed_root(&self.context.managed_root);
+        stop_shared_runtime(&registry_paths).map_err(CliError::Environment)
     }
 
     fn switch_codex(&self, selection: SwitchSelection) -> Result<SwitchOutcome, CliError> {

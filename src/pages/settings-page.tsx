@@ -1,11 +1,14 @@
-import { memo, type ReactNode } from "react";
+import { memo, type ReactNode, useEffect, useRef, useState } from "react";
 import {
+  Check,
+  Copy,
   Database,
   Download,
   FolderOpen,
   Globe,
   MonitorCog,
   Moon,
+  Network,
   RefreshCw,
   RotateCcw,
   SunMedium,
@@ -14,14 +17,24 @@ import {
 
 import { SelectField } from "../components/select-field";
 import { getI18n } from "../lib/i18n";
+import { copyTextToClipboard, relayBaseUrlsFromStatus } from "../lib/relay-settings";
 import { formatUpdateProgress } from "../lib/updater-progress";
 import type { CodexRefreshSettings } from "../types/codex";
-import type { AppDataDirectoryInfo, AppLanguage, AppTheme, AppUpdaterState } from "../types/settings";
+import type {
+  AppDataDirectoryInfo,
+  AppLanguage,
+  AppTheme,
+  AppUpdaterState,
+  RelayRuntimeStatus,
+  RelaySettings,
+} from "../types/settings";
 
 export interface SettingsPageProps {
   language: AppLanguage;
   theme: AppTheme;
   autoSwitchEnabled: boolean;
+  relaySettings: RelaySettings;
+  relayStatus: RelayRuntimeStatus | null;
   refreshSettings: CodexRefreshSettings;
   updaterState: AppUpdaterState;
   dataDirectory: AppDataDirectoryInfo | null;
@@ -36,6 +49,8 @@ export interface SettingsPageProps {
   onLanguageChange: (language: AppLanguage) => void;
   onThemeChange: (theme: AppTheme) => void;
   onAutoSwitchEnabledChange: (enabled: boolean) => void;
+  onRelayEnabledChange: (enabled: boolean) => void;
+  onRelayPortChange: (value: string) => void;
   onRefreshEnabledChange: (enabled: boolean) => void;
   onRefreshIntervalChange: (intervalSeconds: number) => void;
   onCheckForUpdates: () => void;
@@ -50,6 +65,8 @@ function SettingsPageComponent({
   language,
   theme,
   autoSwitchEnabled,
+  relaySettings,
+  relayStatus,
   refreshSettings,
   updaterState,
   dataDirectory,
@@ -64,6 +81,8 @@ function SettingsPageComponent({
   onLanguageChange,
   onThemeChange,
   onAutoSwitchEnabledChange,
+  onRelayEnabledChange,
+  onRelayPortChange,
   onRefreshEnabledChange,
   onRefreshIntervalChange,
   onCheckForUpdates,
@@ -74,6 +93,8 @@ function SettingsPageComponent({
   onCancelClearAllData,
 }: SettingsPageProps) {
   const copy = getI18n(language);
+  const [copiedRelayUrl, setCopiedRelayUrl] = useState<string | null>(null);
+  const copiedRelayUrlResetTimerRef = useRef<number | null>(null);
   const isDataDirectoryBusy = isOpeningDataDirectory || isResettingDataDirectory || isClearingAllData;
   const isUpdateBusy = isCheckingForUpdates || isInstallingUpdate;
   const hasAvailableUpdate =
@@ -103,6 +124,30 @@ function SettingsPageComponent({
               : updaterState.status === "error"
                 ? updaterState.last_error ?? copy.settings.update.checkingFailed
                 : copy.settings.update.notCheckedYet;
+
+  useEffect(() => {
+    return () => {
+      if (copiedRelayUrlResetTimerRef.current !== null) {
+        window.clearTimeout(copiedRelayUrlResetTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleRelayUrlCopy = async (url: string) => {
+    const copied = await copyTextToClipboard(url);
+    if (!copied) {
+      return;
+    }
+
+    setCopiedRelayUrl(url);
+    if (copiedRelayUrlResetTimerRef.current !== null) {
+      window.clearTimeout(copiedRelayUrlResetTimerRef.current);
+    }
+    copiedRelayUrlResetTimerRef.current = window.setTimeout(() => {
+      setCopiedRelayUrl((current) => (current === url ? null : current));
+      copiedRelayUrlResetTimerRef.current = null;
+    }, 1500);
+  };
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -184,6 +229,101 @@ function SettingsPageComponent({
                       <MonitorCog size={16} />
                       {copy.settings.theme.system}
                     </button>
+                  </div>
+                }
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="card rounded-[24px] border border-base-300 bg-base-100 shadow-sm">
+          <div className="card-body p-8">
+            <SectionTitle
+              icon={<Network size={16} />}
+              title={copy.settings.sections.relay}
+              iconClassName="bg-secondary/10 text-secondary"
+            />
+
+            <div className="space-y-6">
+              <SettingsRow
+                title={copy.settings.relay.title}
+                description={copy.settings.relay.description}
+                content={
+                  <div className="space-y-4">
+                    <label className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        className="toggle toggle-primary"
+                        checked={relaySettings.enabled}
+                        disabled={isSavingAppSettings}
+                        onChange={(event) => onRelayEnabledChange(event.target.checked)}
+                      />
+                      <span className="text-sm text-base-content/75">
+                        {copy.settings.relay.enabledLabel}
+                      </span>
+                    </label>
+
+                    <div className="flex flex-wrap items-center gap-3">
+                      <span className="text-sm text-base-content/55">{copy.settings.relay.portLabel}</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={65535}
+                        value={relaySettings.port}
+                        disabled={isSavingAppSettings}
+                        onChange={(event) => onRelayPortChange(event.target.value)}
+                        className="input input-bordered max-w-[160px] rounded-xl border-base-300 bg-base-100 shadow-none"
+                      />
+                      <span className={`badge ${relayStatus?.running ? "badge-success" : "badge-outline"}`}>
+                        {relayStatus?.running
+                          ? copy.settings.relay.statusRunning
+                          : copy.settings.relay.statusStopped}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-base-content/50">{copy.settings.relay.localOnlyHint}</p>
+                    <p className="text-sm text-warning">{copy.settings.relay.supportedProvidersHint}</p>
+
+                    {relayStatus?.last_error ? (
+                      <p className="text-sm text-error">{relayStatus.last_error}</p>
+                    ) : null}
+
+                    {relayStatus ? (
+                      <div className="space-y-2">
+                        <p className="text-xs font-medium uppercase tracking-[0.16em] text-base-content/45">
+                          {copy.settings.relay.baseUrls}
+                        </p>
+                        <div className="space-y-2">
+                          {relayBaseUrlsFromStatus(relayStatus).map(([provider, url]) => (
+                            <div
+                              key={provider}
+                              className="grid gap-2 text-sm sm:grid-cols-[88px_minmax(0,1fr)] sm:items-center"
+                            >
+                              <span className="font-medium text-base-content/70">{provider}</span>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <code className="min-w-0 flex-1 break-all rounded-lg bg-base-200 px-3 py-2 text-xs text-base-content/70">
+                                  {url}
+                                </code>
+                                <button
+                                  type="button"
+                                  className={`btn btn-sm h-9 rounded-lg border px-3 text-xs shadow-none ${
+                                    copiedRelayUrl === url
+                                      ? "border-success/20 bg-success/10 text-success hover:border-success/20 hover:bg-success/10"
+                                      : "border-base-300 bg-base-100 text-base-content/65 hover:bg-base-200 hover:text-base-content"
+                                  }`}
+                                  onClick={() => void handleRelayUrlCopy(url)}
+                                >
+                                  {copiedRelayUrl === url ? <Check size={14} /> : <Copy size={14} />}
+                                  {copiedRelayUrl === url
+                                    ? copy.settings.relay.copiedUrl
+                                    : copy.settings.relay.copyUrl}
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 }
               />

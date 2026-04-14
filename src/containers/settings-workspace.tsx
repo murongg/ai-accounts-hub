@@ -5,10 +5,12 @@ import { SettingsPage } from "../pages/settings-page";
 import {
   clearAllAppData,
   getAppDataDirectoryInfo,
+  getRelayStatus,
   resetAppDataDirectory,
   updateAppSettings,
 } from "../lib/app-settings";
 import { getI18n } from "../lib/i18n";
+import { normalizeRelayPortInput } from "../lib/relay-settings";
 import {
   checkForAppUpdate,
   type DownloadEvent,
@@ -23,6 +25,7 @@ import type {
   AppSettings,
   AppTheme,
   AppUpdaterState,
+  RelayRuntimeStatus,
 } from "../types/settings";
 
 interface SettingsWorkspaceProps {
@@ -54,6 +57,7 @@ function SettingsWorkspaceComponent({
 }: SettingsWorkspaceProps) {
   const [availableUpdate, setAvailableUpdate] = useState<Update | null>(null);
   const [dataDirectory, setDataDirectory] = useState<AppDataDirectoryInfo | null>(null);
+  const [relayStatus, setRelayStatus] = useState<RelayRuntimeStatus | null>(null);
   const [isSavingAppSettings, setIsSavingAppSettings] = useState(false);
   const [isSavingRefreshSettings, setIsSavingRefreshSettings] = useState(false);
   const [isOpeningDataDirectory, setIsOpeningDataDirectory] = useState(false);
@@ -108,11 +112,21 @@ function SettingsWorkspaceComponent({
     }
   }, [onToast]);
 
+  const loadRelayStatus = useCallback(async () => {
+    try {
+      const status = await getRelayStatus();
+      setRelayStatus(status);
+    } catch (error) {
+      onToast("error", errorMessage(error));
+    }
+  }, [onToast]);
+
   useEffect(() => {
     void loadRefreshSettings();
     void loadDataDirectoryInfo();
     void loadCurrentVersion();
-  }, [loadCurrentVersion, loadDataDirectoryInfo, loadRefreshSettings]);
+    void loadRelayStatus();
+  }, [loadCurrentVersion, loadDataDirectoryInfo, loadRefreshSettings, loadRelayStatus]);
 
   useEffect(() => {
     return () => {
@@ -163,6 +177,35 @@ function SettingsWorkspaceComponent({
       });
     },
     [appSettings, persistAppSettings],
+  );
+
+  const handleRelayEnabledChange = useCallback(
+    async (enabled: boolean) => {
+      await persistAppSettings({
+        ...appSettings,
+        relay: {
+          ...appSettings.relay,
+          enabled,
+        },
+      });
+      await loadRelayStatus();
+    },
+    [appSettings, loadRelayStatus, persistAppSettings],
+  );
+
+  const handleRelayPortChange = useCallback(
+    async (value: string) => {
+      const port = normalizeRelayPortInput(value, appSettings.relay.port);
+      await persistAppSettings({
+        ...appSettings,
+        relay: {
+          ...appSettings.relay,
+          port,
+        },
+      });
+      await loadRelayStatus();
+    },
+    [appSettings, loadRelayStatus, persistAppSettings],
   );
 
   const handleRefreshEnabledChange = useCallback(
@@ -345,6 +388,7 @@ function SettingsWorkspaceComponent({
       onAppSettingsChange(result.app_settings);
       setRefreshSettings(result.refresh_settings);
       setDataDirectory(result.data_directory);
+      await loadRelayStatus();
       onToast("success", getI18n(result.app_settings.language).settings.feedback.dataCleared);
     } catch (error) {
       onToast("error", errorMessage(error));
@@ -352,13 +396,15 @@ function SettingsWorkspaceComponent({
       setIsConfirmingClearAll(false);
       setIsClearingAllData(false);
     }
-  }, [isConfirmingClearAll, onAppSettingsChange, onToast]);
+  }, [isConfirmingClearAll, loadRelayStatus, onAppSettingsChange, onToast]);
 
   return (
     <SettingsPage
       language={appSettings.language}
       theme={appSettings.theme}
       autoSwitchEnabled={appSettings.auto_switch_enabled}
+      relaySettings={appSettings.relay}
+      relayStatus={relayStatus}
       refreshSettings={refreshSettings}
       updaterState={updaterState}
       dataDirectory={dataDirectory}
@@ -373,6 +419,8 @@ function SettingsWorkspaceComponent({
       onLanguageChange={(language) => void handleLanguageChange(language)}
       onThemeChange={(theme) => void handleThemeChange(theme)}
       onAutoSwitchEnabledChange={(enabled) => void handleAutoSwitchEnabledChange(enabled)}
+      onRelayEnabledChange={(enabled) => void handleRelayEnabledChange(enabled)}
+      onRelayPortChange={(value) => void handleRelayPortChange(value)}
       onRefreshEnabledChange={(enabled) => void handleRefreshEnabledChange(enabled)}
       onRefreshIntervalChange={(intervalSeconds) => void handleRefreshIntervalChange(intervalSeconds)}
       onCheckForUpdates={() => void handleCheckForUpdates()}

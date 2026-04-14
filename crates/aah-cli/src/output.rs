@@ -1,4 +1,6 @@
+use aah_core::app_settings::models::RelaySettings;
 use aah_core::cli_facade::{CliFacade, Provider, SwitchSelection};
+use aah_core::relay::RelayRuntimeStatus;
 
 pub fn print_list(
     facade: &CliFacade,
@@ -108,6 +110,45 @@ pub fn print_refresh(
         }
     }
     Ok(())
+}
+
+pub fn print_relay_status(facade: &CliFacade, json: bool) -> Result<(), String> {
+    let status = facade.relay_status().map_err(|error| error.to_string())?;
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&status).map_err(|error| error.to_string())?
+        );
+    } else {
+        println!("running: {}", if status.running { "yes" } else { "no" });
+        println!("host: {}", status.bind_host);
+        println!("port: {}", status.port);
+        println!("codex: {}", status.codex_base_url);
+        if let Some(error) = status.last_error {
+            println!("error: {error}");
+        }
+    }
+    Ok(())
+}
+
+pub fn print_relay_settings(action: &str, settings: RelaySettings) {
+    println!(
+        "{action}: enabled={}, port={}",
+        if settings.enabled { "yes" } else { "no" },
+        settings.port
+    );
+}
+
+pub fn print_relay_started(status: RelayRuntimeStatus) {
+    println!("Relay running at {}", status.codex_base_url);
+}
+
+pub fn print_relay_stopped(stopped: bool) {
+    if stopped {
+        println!("Relay stopped.");
+    } else {
+        println!("Relay is not running.");
+    }
 }
 
 fn provider_label(provider: Provider) -> &'static str {

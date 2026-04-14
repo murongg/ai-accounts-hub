@@ -8,6 +8,7 @@ pub mod codex_accounts;
 pub mod codex_usage;
 pub mod gemini_accounts;
 pub mod gemini_usage;
+pub mod relay;
 pub mod status_bar;
 
 pub use aah_core::{
@@ -24,6 +25,7 @@ fn greet(name: &str) -> String {
 pub fn run() {
     tauri::Builder::default()
         .manage(codex_usage::scheduler::CodexUsageSchedulerState::default())
+        .manage(relay::state::RelayServerState::default())
         .manage(status_bar::StatusBarState::default())
         .on_menu_event(|app, event| status_bar::handle_menu_event(app, event))
         .on_window_event(|window, event| status_bar::handle_window_event(window, event))
@@ -37,6 +39,7 @@ pub fn run() {
             }
             let scheduler = app.state::<codex_usage::scheduler::CodexUsageSchedulerState>();
             codex_usage::initialize_scheduler(&app.handle(), &scheduler)?;
+            relay::initialize_relay_from_app(app.handle().clone());
             status_bar::setup_status_bar(app)?;
             Ok(())
         })
@@ -63,6 +66,7 @@ pub fn run() {
             app_settings::get_app_data_directory_info,
             app_settings::reset_app_data_directory,
             app_settings::clear_all_app_data,
+            relay::get_relay_status,
             codex_usage::get_codex_refresh_settings,
             codex_usage::update_codex_refresh_settings,
             codex_usage::refresh_codex_usage_now,

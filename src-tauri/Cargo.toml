@@ -1,6 +1,6 @@
 [package]
 name = "ai-accounts-hub"
-version = "0.3.17"
+version = "0.3.18"
 description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
@@ -20,6 +20,7 @@ cc = "1"
 
 [dependencies]
 aah-core = { path = "../crates/aah-core" }
+axum = "0.8"
 tauri = { version = "2", features = ["tray-icon", "macos-private-api"] }
 tauri-plugin-opener = "2"
 serde = { version = "1", features = ["derive"] }
@@ -27,8 +28,9 @@ serde_json = "1"
 base64 = "0.22"
 dirs = "6"
 uuid = { version = "1", features = ["v4", "serde"] }
-reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
-tokio = { version = "1", features = ["macros", "sync", "time"] }
+futures-util = "0.3"
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls", "stream"] }
+tokio = { version = "1", features = ["macros", "net", "rt", "sync", "time"] }
 tauri-plugin-updater = "2.10.1"
 time = { version = "0.3", features = ["parsing"] }
 sha2 = "0.10"

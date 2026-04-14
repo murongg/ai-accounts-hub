@@ -12,11 +12,25 @@ export type AppUpdaterStatus =
   | "installed"
   | "error";
 
+export interface RelaySettings {
+  enabled: boolean;
+  port: number;
+}
+
+export interface RelayRuntimeStatus {
+  running: boolean;
+  bind_host: "127.0.0.1";
+  port: number;
+  last_error: string | null;
+  codex_base_url: string;
+}
+
 export interface AppSettings {
   language: AppLanguage;
   theme: AppTheme;
   auto_switch_enabled: boolean;
   accounts_view_mode: AccountsViewMode;
+  relay: RelaySettings;
 }
 
 export interface AppDataDirectoryInfo {

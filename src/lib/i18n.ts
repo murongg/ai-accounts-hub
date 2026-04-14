@@ -80,6 +80,7 @@ export interface I18nMessages {
     sections: {
       general: string;
       sync: string;
+      relay: string;
       updates: string;
       data: string;
     };
@@ -106,6 +107,19 @@ export interface I18nMessages {
       title: string;
       description: string;
       enabledLabel: string;
+    };
+    relay: {
+      title: string;
+      description: string;
+      enabledLabel: string;
+      portLabel: string;
+      statusRunning: string;
+      statusStopped: string;
+      localOnlyHint: string;
+      supportedProvidersHint: string;
+      baseUrls: string;
+      copyUrl: string;
+      copiedUrl: string;
     };
     update: {
       title: string;
@@ -262,6 +276,7 @@ function createChineseCopy(): I18nMessages {
       sections: {
         general: "通用设置",
         sync: "同步与刷新",
+        relay: "本地中转",
         updates: "更新与版本",
         data: "数据与恢复",
       },
@@ -288,6 +303,19 @@ function createChineseCopy(): I18nMessages {
         title: "配额用尽自动切换",
         description: "当前账号主配额为 0% 或需要重登时，自动切到同平台内剩余主配额最高的可用账号。",
         enabledLabel: "启用自动切换账号",
+      },
+      relay: {
+        title: "本地中转服务",
+        description: "仅监听 127.0.0.1，使用当前已切换到 live 状态的账号进行请求中转。",
+        enabledLabel: "启用本地中转服务",
+        portLabel: "监听端口",
+        statusRunning: "运行中",
+        statusStopped: "未运行",
+        localOnlyHint: "本机服务，无 token。不要通过反向代理或端口映射暴露到公网。",
+        supportedProvidersHint: "当前仅支持 Codex 中转，Claude 和 Gemini 暂不支持。",
+        baseUrls: "Base URL",
+        copyUrl: "复制",
+        copiedUrl: "已复制",
       },
       update: {
         title: "应用更新",
@@ -416,6 +444,7 @@ function createEnglishCopy(): I18nMessages {
       sections: {
         general: "General",
         sync: "Sync",
+        relay: "Local relay",
         updates: "Updates",
         data: "Data & recovery",
       },
@@ -443,6 +472,20 @@ function createEnglishCopy(): I18nMessages {
         description:
           "When the active account reaches 0% primary quota or needs re-login, switch to the available account with the highest primary quota in the same provider.",
         enabledLabel: "Enable automatic account switching",
+      },
+      relay: {
+        title: "Local relay service",
+        description:
+          "Listens on 127.0.0.1 only and forwards requests with the currently active live account.",
+        enabledLabel: "Enable local relay service",
+        portLabel: "Port",
+        statusRunning: "Running",
+        statusStopped: "Stopped",
+        localOnlyHint: "Local service, no token. Do not expose it through a reverse proxy or port mapping.",
+        supportedProvidersHint: "Only Codex relay is currently supported. Claude and Gemini are unavailable for now.",
+        baseUrls: "Base URL",
+        copyUrl: "Copy",
+        copiedUrl: "Copied",
       },
       update: {
         title: "App updates",
