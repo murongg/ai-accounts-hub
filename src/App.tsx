@@ -16,6 +16,10 @@ const defaultAppSettings: AppSettings = {
   theme: "light",
   auto_switch_enabled: true,
   accounts_view_mode: "cards",
+  relay: {
+    enabled: false,
+    port: 8765,
+  },
 };
 
 function getSystemPrefersDark() {

@@ -45,6 +45,27 @@ fn default_auto_switch_enabled() -> bool {
     true
 }
 
+fn default_relay_port() -> u16 {
+    8765
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct RelaySettings {
+    #[serde(default)]
+    pub enabled: bool,
+    #[serde(default = "default_relay_port")]
+    pub port: u16,
+}
+
+impl Default for RelaySettings {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            port: default_relay_port(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct AppSettings {
     pub language: AppLanguage,
@@ -53,6 +74,8 @@ pub struct AppSettings {
     pub auto_switch_enabled: bool,
     #[serde(default)]
     pub accounts_view_mode: AppAccountsViewMode,
+    #[serde(default)]
+    pub relay: RelaySettings,
 }
 
 impl Default for AppSettings {
@@ -62,6 +85,7 @@ impl Default for AppSettings {
             theme: AppTheme::default(),
             auto_switch_enabled: default_auto_switch_enabled(),
             accounts_view_mode: AppAccountsViewMode::default(),
+            relay: RelaySettings::default(),
         }
     }
 }

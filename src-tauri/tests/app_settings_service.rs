@@ -1,5 +1,5 @@
 use ai_accounts_hub_lib::app_settings::models::{
-    AppAccountsViewMode, AppLanguage, AppSettings, AppTheme,
+    AppAccountsViewMode, AppLanguage, AppSettings, AppTheme, RelaySettings,
 };
 use ai_accounts_hub_lib::app_settings::service::{
     clear_all_app_data, current_data_directory_info, reset_data_directory_to_default,
@@ -65,6 +65,7 @@ fn clear_all_data_resets_settings_and_removes_private_codex_data() {
             theme: AppTheme::Dark,
             auto_switch_enabled: true,
             accounts_view_mode: AppAccountsViewMode::List,
+            relay: RelaySettings::default(),
         },
     )
     .expect("save app settings");
@@ -104,6 +105,13 @@ fn clear_all_data_resets_settings_and_removes_private_codex_data() {
     assert_eq!(
         result.app_settings.accounts_view_mode,
         AppAccountsViewMode::Cards
+    );
+    assert_eq!(
+        result.app_settings.relay,
+        RelaySettings {
+            enabled: false,
+            port: 8765,
+        }
     );
     assert!(result.refresh_settings.enabled);
     assert_eq!(result.refresh_settings.interval_seconds, 300);

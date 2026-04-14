@@ -70,6 +70,11 @@ impl Display for GeminiUsageFetchError {
 
 pub struct ProcessGeminiUsageFetcher;
 
+pub struct FreshGeminiOAuthCredentials {
+    pub access_token: String,
+    pub oauth_creds: Value,
+}
+
 impl GeminiUsageFetcher for ProcessGeminiUsageFetcher {
     fn fetch_usage(
         &self,
@@ -80,43 +85,10 @@ impl GeminiUsageFetcher for ProcessGeminiUsageFetcher {
             .map_err(GeminiUsageFetchError::MissingCredentials)?;
         validate_auth_type(settings.as_ref())?;
 
-        let mut oauth_creds = read_json_value(&gemini_dir.join("oauth_creds.json"))
-            .map_err(GeminiUsageFetchError::MissingCredentials)?;
-        let mut access_token = oauth_creds
-            .get("access_token")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .ok_or_else(|| {
-                GeminiUsageFetchError::MissingCredentials(
-                    "oauth_creds.json is missing access_token".to_string(),
-                )
-            })?
-            .to_string();
-
-        if token_is_expired(&oauth_creds) {
-            let refresh_token = oauth_creds
-                .get("refresh_token")
-                .and_then(Value::as_str)
-                .map(str::trim)
-                .filter(|value| !value.is_empty())
-                .ok_or_else(|| {
-                    GeminiUsageFetchError::unauthorized(
-                        "access token expired and refresh_token is missing",
-                    )
-                })?;
-            let refreshed = refresh_access_token(refresh_token, &gemini_dir)?;
-            update_stored_credentials(
-                &gemini_dir.join("oauth_creds.json"),
-                &mut oauth_creds,
-                &refreshed,
-            )
-            .map_err(GeminiUsageFetchError::RequestFailed)?;
-            access_token = refreshed.access_token.clone();
-            if let Some(id_token) = refreshed.id_token {
-                oauth_creds["id_token"] = Value::String(id_token);
-            }
-        }
+        let FreshGeminiOAuthCredentials {
+            access_token,
+            oauth_creds,
+        } = read_fresh_gemini_oauth_credentials(&gemini_dir)?;
 
         let claims = extract_claims_from_token(oauth_creds.get("id_token").and_then(Value::as_str));
         let client = build_http_client()?;
@@ -151,6 +123,50 @@ impl GeminiUsageFetcher for ProcessGeminiUsageFetcher {
         normalize_usage_response(parsed, code_assist.tier, claims.hosted_domain.as_deref())
             .map_err(GeminiUsageFetchError::InvalidResponse)
     }
+}
+
+pub fn read_fresh_gemini_oauth_credentials(
+    gemini_dir: &Path,
+) -> Result<FreshGeminiOAuthCredentials, GeminiUsageFetchError> {
+    let oauth_path = gemini_dir.join("oauth_creds.json");
+    let mut oauth_creds =
+        read_json_value(&oauth_path).map_err(GeminiUsageFetchError::MissingCredentials)?;
+    let mut access_token = oauth_creds
+        .get("access_token")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .ok_or_else(|| {
+            GeminiUsageFetchError::MissingCredentials(
+                "oauth_creds.json is missing access_token".to_string(),
+            )
+        })?
+        .to_string();
+
+    if token_is_expired(&oauth_creds) {
+        let refresh_token = oauth_creds
+            .get("refresh_token")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .ok_or_else(|| {
+                GeminiUsageFetchError::unauthorized(
+                    "access token expired and refresh_token is missing",
+                )
+            })?;
+        let refreshed = refresh_access_token(refresh_token, gemini_dir)?;
+        update_stored_credentials(&oauth_path, &mut oauth_creds, &refreshed)
+            .map_err(GeminiUsageFetchError::RequestFailed)?;
+        access_token = refreshed.access_token.clone();
+        if let Some(id_token) = refreshed.id_token {
+            oauth_creds["id_token"] = Value::String(id_token);
+        }
+    }
+
+    Ok(FreshGeminiOAuthCredentials {
+        access_token,
+        oauth_creds,
+    })
 }
 
 fn quota_request<'a>(
@@ -627,9 +643,12 @@ fn read_optional_json_value(path: &Path) -> Result<Option<Value>, String> {
 
 #[cfg(test)]
 mod tests {
-    use super::quota_request;
+    use super::{quota_request, read_fresh_gemini_oauth_credentials};
     use reqwest::blocking::Client;
     use reqwest::header::AUTHORIZATION;
+    use serde_json::json;
+    use std::fs;
+    use std::path::PathBuf;
 
     #[test]
     fn quota_request_includes_bearer_authorization_header() {
@@ -645,5 +664,46 @@ mod tests {
                 .and_then(|value| value.to_str().ok()),
             Some("Bearer access-token")
         );
+    }
+
+    #[test]
+    fn read_fresh_gemini_oauth_credentials_returns_unexpired_access_token() {
+        let gemini_dir = temp_test_dir("gemini-oauth-fresh");
+        fs::create_dir_all(&gemini_dir).expect("create gemini dir");
+        fs::write(
+            gemini_dir.join("oauth_creds.json"),
+            serde_json::to_vec(&json!({
+                "access_token": "fresh-token",
+                "expiry_date": 4_102_444_800_000_u64
+            }))
+            .expect("oauth json"),
+        )
+        .expect("write oauth creds");
+
+        let credentials =
+            read_fresh_gemini_oauth_credentials(&gemini_dir).expect("fresh credentials");
+
+        assert_eq!(credentials.access_token, "fresh-token");
+        assert_eq!(
+            credentials
+                .oauth_creds
+                .get("access_token")
+                .and_then(serde_json::Value::as_str),
+            Some("fresh-token")
+        );
+    }
+
+    fn temp_test_dir(prefix: &str) -> PathBuf {
+        let path = std::env::temp_dir().join(format!(
+            "aah-{prefix}-{}",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .expect("clock")
+                .as_nanos()
+        ));
+        if path.exists() {
+            fs::remove_dir_all(&path).expect("clear temp dir");
+        }
+        path
     }
 }

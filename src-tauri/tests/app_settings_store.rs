@@ -1,5 +1,5 @@
 use ai_accounts_hub_lib::app_settings::models::{
-    AppAccountsViewMode, AppLanguage, AppSettings, AppTheme,
+    AppAccountsViewMode, AppLanguage, AppSettings, AppTheme, RelaySettings,
 };
 use ai_accounts_hub_lib::app_settings::store::{load_app_settings, save_app_settings};
 use ai_accounts_hub_lib::codex_accounts::paths::CodexAccountPaths;
@@ -47,6 +47,22 @@ fn app_settings_default_to_chinese_light_theme() {
 }
 
 #[test]
+fn app_settings_default_to_relay_disabled_on_default_port() {
+    let temp = TempDir::new("app-settings-relay-default");
+    let paths = CodexAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+
+    let settings = load_app_settings(&paths).expect("default settings");
+
+    assert_eq!(
+        settings.relay,
+        RelaySettings {
+            enabled: false,
+            port: 8765,
+        }
+    );
+}
+
+#[test]
 fn app_settings_round_trip_through_disk() {
     let temp = TempDir::new("app-settings-save");
     let paths = CodexAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
@@ -58,6 +74,7 @@ fn app_settings_round_trip_through_disk() {
             theme: AppTheme::Dark,
             auto_switch_enabled: true,
             accounts_view_mode: AppAccountsViewMode::List,
+            relay: RelaySettings::default(),
         },
     )
     .expect("save settings");
@@ -67,6 +84,37 @@ fn app_settings_round_trip_through_disk() {
     assert_eq!(loaded.theme, AppTheme::Dark);
     assert!(loaded.auto_switch_enabled);
     assert_eq!(loaded.accounts_view_mode, AppAccountsViewMode::List);
+}
+
+#[test]
+fn app_settings_round_trip_relay_settings() {
+    let temp = TempDir::new("app-settings-relay-save");
+    let paths = CodexAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+
+    save_app_settings(
+        &paths,
+        AppSettings {
+            language: AppLanguage::EnUs,
+            theme: AppTheme::Dark,
+            auto_switch_enabled: true,
+            accounts_view_mode: AppAccountsViewMode::List,
+            relay: RelaySettings {
+                enabled: true,
+                port: 9876,
+            },
+        },
+    )
+    .expect("save settings");
+
+    let loaded = load_app_settings(&paths).expect("load settings");
+
+    assert_eq!(
+        loaded.relay,
+        RelaySettings {
+            enabled: true,
+            port: 9876,
+        }
+    );
 }
 
 #[test]
@@ -81,6 +129,7 @@ fn app_settings_support_system_theme_round_trip() {
             theme: AppTheme::System,
             auto_switch_enabled: false,
             accounts_view_mode: AppAccountsViewMode::Cards,
+            relay: RelaySettings::default(),
         },
     )
     .expect("save settings");
