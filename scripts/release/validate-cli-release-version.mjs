@@ -43,29 +43,26 @@ if (!releaseTag) {
   throw new Error("RELEASE_TAG is required");
 }
 
-if (!/^v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(releaseTag)) {
-  throw new Error(`Release tag must look like v1.2.3 or v1.2.3-beta.1, received: ${releaseTag}`);
+if (!/^cli-v\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/.test(releaseTag)) {
+  throw new Error(`CLI release tag must look like cli-v1.2.3 or cli-v1.2.3-beta.1, received: ${releaseTag}`);
 }
 
-const releaseVersion = releaseTag.replace(/^v/, "");
-const packageJson = readJson("package.json");
-const packageVersion = packageJson.version;
-const tauriVersion = readJson("src-tauri/tauri.conf.json").version;
-const cargoVersion = readCargoPackageVersion("src-tauri/Cargo.toml");
-const cargoLockVersion = readCargoLockPackageVersion("Cargo.lock", packageJson.name);
+const releaseVersion = releaseTag.replace(/^cli-v/, "");
+const npmPackageVersion = readJson("packages/aah-cli/package.json").version;
+const cargoVersion = readCargoPackageVersion("crates/aah-cli/Cargo.toml");
+const cargoLockVersion = readCargoLockPackageVersion("Cargo.lock", "aah-cli");
 
 const versionSources = {
-  "package.json": packageVersion,
-  "src-tauri/tauri.conf.json": tauriVersion,
-  "src-tauri/Cargo.toml": cargoVersion,
-  "Cargo.lock ai-accounts-hub": cargoLockVersion,
+  "packages/aah-cli/package.json": npmPackageVersion,
+  "crates/aah-cli/Cargo.toml": cargoVersion,
+  "Cargo.lock aah-cli": cargoLockVersion,
 };
 
 const mismatches = Object.entries(versionSources).filter(([, version]) => version !== releaseVersion);
 
 if (mismatches.length > 0) {
   const details = mismatches.map(([filePath, version]) => `${filePath}=${version}`).join(", ");
-  throw new Error(`Release tag ${releaseTag} does not match project version ${releaseVersion}: ${details}`);
+  throw new Error(`CLI release tag ${releaseTag} does not match CLI version ${releaseVersion}: ${details}`);
 }
 
-console.log(`Release tag ${releaseTag} matches app versions.`);
+console.log(`CLI release tag ${releaseTag} matches CLI versions.`);

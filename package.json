@@ -5,8 +5,12 @@
   "type": "module",
   "scripts": {
     "bump": "node scripts/release/run-bump.mjs",
+    "bump:cli": "node scripts/release/run-cli-bump.mjs",
     "dev": "vite",
     "build": "tsc && vite build",
+    "build:cli": "cargo build --manifest-path Cargo.toml -p aah-cli --release",
+    "test:cli:npm": "node --test packages/aah-cli/tests/*.test.mjs",
+    "test:release": "node --test scripts/release/*.test.mjs",
     "preview": "vite preview",
     "tauri": "tauri"
   },

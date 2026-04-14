@@ -1,0 +1,148 @@
+name: Release CLI
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: CLI release tag to build and publish, for example cli-v0.1.0
+        required: true
+        type: string
+      publish_npm:
+        description: Publish the npm package after uploading CLI binaries
+        required: false
+        default: true
+        type: boolean
+  push:
+    tags:
+      - "cli-v*"
+
+permissions:
+  contents: write
+  id-token: write
+
+env:
+  NODE_VERSION: 22
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag_name || github.ref_name }}
+
+jobs:
+  build_cli:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: macOS (Apple Silicon)
+            os: macos-15
+            target: aarch64-apple-darwin
+            binary_name: aah
+            asset_name: aah_${VERSION}_aarch64-apple-darwin
+          - name: macOS (Intel)
+            os: macos-15-intel
+            target: x86_64-apple-darwin
+            binary_name: aah
+            asset_name: aah_${VERSION}_x86_64-apple-darwin
+          - name: Linux (x64)
+            os: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            binary_name: aah
+            asset_name: aah_${VERSION}_x86_64-unknown-linux-gnu
+          - name: Windows (x64)
+            os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary_name: aah.exe
+            asset_name: aah_${VERSION}_x86_64-pc-windows-msvc.exe
+
+    name: Build CLI ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Validate CLI release version
+        run: node scripts/release/validate-cli-release-version.mjs
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Restore Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: . -> target
+
+      - name: Build CLI
+        run: cargo build --manifest-path Cargo.toml -p aah-cli --release --target ${{ matrix.target }}
+
+      - name: Collect CLI binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          VERSION="${RELEASE_TAG#cli-v}"
+          mkdir -p dist
+          cp "target/${{ matrix.target }}/release/${{ matrix.binary_name }}" "dist/${{ matrix.asset_name }}"
+          if [[ "${{ runner.os }}" != "Windows" ]]; then
+            chmod 755 "dist/${{ matrix.asset_name }}"
+          fi
+
+      - name: Upload CLI binary artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: aah-cli-${{ matrix.target }}
+          path: dist/*
+          if-no-files-found: error
+
+  publish_cli:
+    name: Publish CLI Release
+    if: startsWith(github.ref, 'refs/tags/cli-v') || github.event_name == 'workflow_dispatch'
+    needs: build_cli
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Validate CLI release version
+        run: node scripts/release/validate-cli-release-version.mjs
+
+      - name: Run npm package tests
+        run: |
+          node --test packages/aah-cli/tests/*.test.mjs
+          npm pack --dry-run ./packages/aah-cli
+
+      - name: Download CLI binaries
+        uses: actions/download-artifact@v5
+        with:
+          pattern: aah-cli-*
+          path: cli-assets
+          merge-multiple: true
+
+      - name: Upload CLI release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: AI Accounts Hub CLI ${{ env.RELEASE_TAG }}
+          prerelease: ${{ contains(env.RELEASE_TAG, '-alpha') || contains(env.RELEASE_TAG, '-beta') || contains(env.RELEASE_TAG, '-rc') }}
+          overwrite_files: true
+          fail_on_unmatched_files: true
+          files: cli-assets/*
+
+      - name: Publish npm package
+        if: github.event_name == 'push' || inputs.publish_npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish ./packages/aah-cli --access public --provenance

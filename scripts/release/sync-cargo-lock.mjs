@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 
 export function syncCargoLock() {
-  execFileSync("cargo", ["update", "--manifest-path", "src-tauri/Cargo.toml", "-w"], {
+  execFileSync("cargo", ["update", "--manifest-path", "Cargo.toml", "-w"], {
     stdio: "inherit",
   });
 }

@@ -82,6 +82,17 @@
 
 - [下载最新版本](https://github.com/murongg/ai-accounts-hub/releases/latest)
 
+如果你只需要命令行版，可以单独安装 `aah` CLI：
+
+```bash
+npm install -g @murongg/aah-cli
+aah tui
+aah list
+aah current
+```
+
+CLI 使用独立版本线和 `cli-vX.Y.Z` Release tag，不和桌面 app 的 `vX.Y.Z` 版本耦合。桌面 app 与 CLI 默认共享 `~/.ai-accounts-hub` 作为账号池目录；首次启动时会自动迁移旧桌面数据目录。
+
 如果你想从源码运行：
 
 ### 环境要求
@@ -110,7 +121,8 @@ pnpm tauri build
 
 ```bash
 node --test src/lib/*.test.ts
-cargo test --manifest-path src-tauri/Cargo.toml
+cargo test --workspace
+node --test packages/aah-cli/tests/*.test.mjs
 ```
 
 > 如果你在 Linux 上本地构建 Tauri，需要额外安装 `libwebkit2gtk-4.1-dev` 等系统依赖，可直接参考 [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)。
@@ -119,6 +131,9 @@ cargo test --manifest-path src-tauri/Cargo.toml
 
 - `src/`: React + Vite 前端界面
 - `src-tauri/`: Tauri Rust 后端、账号存储、quota 刷新、自动切换、macOS 状态栏桥接
+- `crates/aah-core/`: 桌面 app 与 CLI 共享的账号、存储和 provider 逻辑
+- `crates/aah-cli/`: 独立 `aah` 命令行入口和 ratatui TUI
+- `packages/aah-cli/`: npm 安装器包，安装时下载对应 CLI Release 二进制
 - `website/`: 官网 / 下载页
 - `screenshots/`: README 与官网素材
 
