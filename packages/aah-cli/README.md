@@ -52,6 +52,28 @@ aah list --json
 aah current --json
 ```
 
+## Relay Mode
+
+If you need a local Codex-compatible endpoint, you can enable the built-in relay.
+
+- The relay is off by default
+- It currently serves Codex routes only
+- It only binds to `127.0.0.1`
+- The default base URL is `http://127.0.0.1:8765/codex`
+- The desktop app and CLI share the same running relay instance
+
+Manage the local relay:
+
+```bash
+aah relay status
+aah relay start --port 8765
+aah relay stop
+aah relay set-port 9876
+```
+
+- `aah relay start [--port ...]` persists `enabled=true` and makes sure the relay is running
+- `aah relay stop` persists `enabled=false` and stops the current relay instance
+
 Use a custom data directory:
 
 ```bash
@@ -59,3 +81,5 @@ aah --data-dir ~/.ai-accounts-hub list
 ```
 
 By default, the CLI stores and reads managed account data from `~/.ai-accounts-hub`. The desktop app uses the same directory, and startup migrates older desktop app data into this shared directory by default.
+
+Relay settings are stored in `~/.ai-accounts-hub/settings.json`. The shared relay runtime registry lives at `~/.ai-accounts-hub/relay/runtime.json`. If you pass `--data-dir`, both paths move under that directory.

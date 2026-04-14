@@ -37,8 +37,6 @@ fn relay_help_lists_runtime_and_config_commands() {
         .stdout(predicate::str::contains("status"))
         .stdout(predicate::str::contains("start"))
         .stdout(predicate::str::contains("stop"))
-        .stdout(predicate::str::contains("enable"))
-        .stdout(predicate::str::contains("disable"))
         .stdout(predicate::str::contains("set-port"));
 }
 
@@ -62,14 +60,14 @@ fn relay_status_json_reports_stopped_when_no_owner_is_running() {
 }
 
 #[test]
-fn relay_enable_persists_relay_settings() {
+fn relay_start_persists_relay_settings() {
     let temp = tempfile::tempdir().expect("temp dir");
 
     Command::cargo_bin("aah")
         .expect("binary")
         .env("HOME", temp.path())
         .env("USERPROFILE", temp.path())
-        .args(["relay", "enable", "--port", "9876", "--data-dir"])
+        .args(["relay", "start", "--port", "9876", "--data-dir"])
         .arg(temp.path())
         .assert()
         .success();
@@ -77,6 +75,15 @@ fn relay_enable_persists_relay_settings() {
     let settings = fs::read_to_string(temp.path().join("settings.json")).expect("settings.json");
     assert!(settings.contains("\"enabled\": true"), "{settings}");
     assert!(settings.contains("\"port\": 9876"), "{settings}");
+
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .env("HOME", temp.path())
+        .env("USERPROFILE", temp.path())
+        .args(["relay", "stop", "--data-dir"])
+        .arg(temp.path())
+        .assert()
+        .success();
 }
 
 #[test]
@@ -120,4 +127,7 @@ fn relay_start_and_stop_manage_a_single_runtime_instance() {
         .assert()
         .success()
         .stdout(predicate::str::contains("\"running\": false"));
+
+    let settings = fs::read_to_string(temp.path().join("settings.json")).expect("settings.json");
+    assert!(settings.contains("\"enabled\": false"), "{settings}");
 }

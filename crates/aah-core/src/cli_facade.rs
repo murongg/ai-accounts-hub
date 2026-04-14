@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::app_settings::models::{RelaySettings, RelaySettings as AppRelaySettings};
+use crate::app_settings::models::RelaySettings as AppRelaySettings;
 use crate::app_settings::store::{load_app_settings, save_app_settings};
 use crate::bootstrap::BootstrapContext;
 use crate::claude_accounts::{
@@ -231,13 +231,6 @@ impl CliFacade {
         let mut settings = load_app_settings(&codex_paths).map_err(CliError::Environment)?;
         settings.relay.port = port;
         save_app_settings(&codex_paths, settings)
-            .map(|settings| settings.relay)
-            .map_err(CliError::Environment)
-    }
-
-    pub fn relay_settings(&self) -> Result<RelaySettings, CliError> {
-        let codex_paths = self.codex_paths();
-        load_app_settings(&codex_paths)
             .map(|settings| settings.relay)
             .map_err(CliError::Environment)
     }

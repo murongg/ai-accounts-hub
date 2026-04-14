@@ -65,13 +65,11 @@ enum Commands {
 #[derive(Subcommand)]
 enum RelayCommands {
     Status,
-    Start,
-    Stop,
-    Enable {
+    Start {
         #[arg(long)]
         port: Option<u16>,
     },
-    Disable,
+    Stop,
     SetPort {
         port: u16,
     },
@@ -126,18 +124,7 @@ fn handle_relay_command(
 ) -> Result<(), String> {
     match command {
         RelayCommands::Status => output::print_relay_status(facade, json),
-        RelayCommands::Enable { port } => {
-            let settings = facade
-                .relay_enable(port)
-                .map_err(|error| error.to_string())?;
-            output::print_relay_settings("Relay enabled", settings);
-            Ok(())
-        }
-        RelayCommands::Disable => {
-            let settings = facade.relay_disable().map_err(|error| error.to_string())?;
-            output::print_relay_settings("Relay disabled", settings);
-            Ok(())
-        }
+        RelayCommands::Start { port } => start_relay_host(facade, data_dir, port),
         RelayCommands::SetPort { port } => {
             let settings = facade
                 .relay_set_port(port)
@@ -146,22 +133,28 @@ fn handle_relay_command(
             Ok(())
         }
         RelayCommands::Stop => {
+            let _ = facade.relay_disable().map_err(|error| error.to_string())?;
             let stopped = facade.relay_stop().map_err(|error| error.to_string())?;
             output::print_relay_stopped(stopped);
             Ok(())
         }
-        RelayCommands::Start => start_relay_host(facade, data_dir),
     }
 }
 
-fn start_relay_host(facade: &CliFacade, data_dir: Option<PathBuf>) -> Result<(), String> {
+fn start_relay_host(
+    facade: &CliFacade,
+    data_dir: Option<PathBuf>,
+    port_override: Option<u16>,
+) -> Result<(), String> {
+    let settings = facade
+        .relay_enable(port_override)
+        .map_err(|error| error.to_string())?;
     let existing = facade.relay_status().map_err(|error| error.to_string())?;
     if existing.running {
         output::print_relay_started(existing);
         return Ok(());
     }
 
-    let settings = facade.relay_settings().map_err(|error| error.to_string())?;
     let current_exe = std::env::current_exe()
         .map_err(|error| format!("failed to resolve current exe: {error}"))?;
     let mut command = Command::new(current_exe);
@@ -225,9 +218,15 @@ fn run_relay_host(data_dir: Option<PathBuf>, port: u16) -> Result<(), String> {
             .unwrap_or_else(|| "relay host failed to start".to_string()));
     }
 
+    let mut missed_health_checks = 0u8;
     while state.is_local_runtime_running() {
         thread::sleep(Duration::from_millis(250));
-        if !facade_alive(&registry_paths, port) {
+        if facade_alive(&registry_paths, port) {
+            missed_health_checks = 0;
+            continue;
+        }
+        missed_health_checks = missed_health_checks.saturating_add(1);
+        if missed_health_checks >= 8 {
             break;
         }
     }
