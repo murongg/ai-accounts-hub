@@ -118,6 +118,8 @@ export interface I18nMessages {
       localOnlyHint: string;
       supportedProvidersHint: string;
       baseUrls: string;
+      copyUrl: string;
+      copiedUrl: string;
     };
     update: {
       title: string;
@@ -312,6 +314,8 @@ function createChineseCopy(): I18nMessages {
         localOnlyHint: "本机服务，无 token。不要通过反向代理或端口映射暴露到公网。",
         supportedProvidersHint: "当前仅支持 Codex 中转，Claude 和 Gemini 暂不支持。",
         baseUrls: "Base URL",
+        copyUrl: "复制",
+        copiedUrl: "已复制",
       },
       update: {
         title: "应用更新",
@@ -480,6 +484,8 @@ function createEnglishCopy(): I18nMessages {
         localOnlyHint: "Local service, no token. Do not expose it through a reverse proxy or port mapping.",
         supportedProvidersHint: "Only Codex relay is currently supported. Claude and Gemini are unavailable for now.",
         baseUrls: "Base URL",
+        copyUrl: "Copy",
+        copiedUrl: "Copied",
       },
       update: {
         title: "App updates",

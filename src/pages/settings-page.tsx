@@ -1,5 +1,7 @@
-import { memo, type ReactNode } from "react";
+import { memo, type ReactNode, useEffect, useRef, useState } from "react";
 import {
+  Check,
+  Copy,
   Database,
   Download,
   FolderOpen,
@@ -15,7 +17,7 @@ import {
 
 import { SelectField } from "../components/select-field";
 import { getI18n } from "../lib/i18n";
-import { relayBaseUrlsFromStatus } from "../lib/relay-settings";
+import { copyTextToClipboard, relayBaseUrlsFromStatus } from "../lib/relay-settings";
 import { formatUpdateProgress } from "../lib/updater-progress";
 import type { CodexRefreshSettings } from "../types/codex";
 import type {
@@ -91,6 +93,8 @@ function SettingsPageComponent({
   onCancelClearAllData,
 }: SettingsPageProps) {
   const copy = getI18n(language);
+  const [copiedRelayUrl, setCopiedRelayUrl] = useState<string | null>(null);
+  const copiedRelayUrlResetTimerRef = useRef<number | null>(null);
   const isDataDirectoryBusy = isOpeningDataDirectory || isResettingDataDirectory || isClearingAllData;
   const isUpdateBusy = isCheckingForUpdates || isInstallingUpdate;
   const hasAvailableUpdate =
@@ -120,6 +124,30 @@ function SettingsPageComponent({
               : updaterState.status === "error"
                 ? updaterState.last_error ?? copy.settings.update.checkingFailed
                 : copy.settings.update.notCheckedYet;
+
+  useEffect(() => {
+    return () => {
+      if (copiedRelayUrlResetTimerRef.current !== null) {
+        window.clearTimeout(copiedRelayUrlResetTimerRef.current);
+      }
+    };
+  }, []);
+
+  const handleRelayUrlCopy = async (url: string) => {
+    const copied = await copyTextToClipboard(url);
+    if (!copied) {
+      return;
+    }
+
+    setCopiedRelayUrl(url);
+    if (copiedRelayUrlResetTimerRef.current !== null) {
+      window.clearTimeout(copiedRelayUrlResetTimerRef.current);
+    }
+    copiedRelayUrlResetTimerRef.current = window.setTimeout(() => {
+      setCopiedRelayUrl((current) => (current === url ? null : current));
+      copiedRelayUrlResetTimerRef.current = null;
+    }, 1500);
+  };
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -267,11 +295,30 @@ function SettingsPageComponent({
                         </p>
                         <div className="space-y-2">
                           {relayBaseUrlsFromStatus(relayStatus).map(([provider, url]) => (
-                            <div key={provider} className="grid gap-2 text-sm sm:grid-cols-[88px_1fr]">
+                            <div
+                              key={provider}
+                              className="grid gap-2 text-sm sm:grid-cols-[88px_minmax(0,1fr)] sm:items-center"
+                            >
                               <span className="font-medium text-base-content/70">{provider}</span>
-                              <code className="break-all rounded-lg bg-base-200 px-3 py-2 text-xs text-base-content/70">
-                                {url}
-                              </code>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <code className="min-w-0 flex-1 break-all rounded-lg bg-base-200 px-3 py-2 text-xs text-base-content/70">
+                                  {url}
+                                </code>
+                                <button
+                                  type="button"
+                                  className={`btn btn-sm h-9 rounded-lg border px-3 text-xs shadow-none ${
+                                    copiedRelayUrl === url
+                                      ? "border-success/20 bg-success/10 text-success hover:border-success/20 hover:bg-success/10"
+                                      : "border-base-300 bg-base-100 text-base-content/65 hover:bg-base-200 hover:text-base-content"
+                                  }`}
+                                  onClick={() => void handleRelayUrlCopy(url)}
+                                >
+                                  {copiedRelayUrl === url ? <Check size={14} /> : <Copy size={14} />}
+                                  {copiedRelayUrl === url
+                                    ? copy.settings.relay.copiedUrl
+                                    : copy.settings.relay.copyUrl}
+                                </button>
+                              </div>
                             </div>
                           ))}
                         </div>
