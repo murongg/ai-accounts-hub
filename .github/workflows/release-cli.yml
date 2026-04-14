@@ -64,6 +64,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
+          registry-url: https://registry.npmjs.org
+          scope: "@murongg"
 
       - name: Validate CLI release version
         run: node scripts/release/validate-cli-release-version.mjs
@@ -140,6 +142,16 @@ jobs:
           overwrite_files: true
           fail_on_unmatched_files: true
           files: cli-assets/*
+
+      - name: Verify npm publish token
+        if: github.event_name == 'push' || inputs.publish_npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [[ -z "${NODE_AUTH_TOKEN}" ]]; then
+            echo "NPM_TOKEN secret is required to publish @murongg/aah-cli" >&2
+            exit 1
+          fi
 
       - name: Publish npm package
         if: github.event_name == 'push' || inputs.publish_npm
