@@ -4,6 +4,8 @@ export function buildCliBumpArgs(args) {
   return [
     "node_modules/bumpp/bin/bumpp.mjs",
     ...args,
+    "--commit",
+    "chore: release cli-v%s",
     "--tag",
     "cli-v%s",
     "crates/aah-cli/Cargo.toml",
