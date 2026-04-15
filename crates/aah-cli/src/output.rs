@@ -15,15 +15,15 @@ pub fn print_list(
         );
     } else {
         println!(
-            "{:<8}  {:<6}  {:<28}  {}",
-            "PROVIDER", "ACTIVE", "EMAIL", "SUMMARY"
+            "{:<8}  {:<6}  {:<36}  {}",
+            "PROVIDER", "ACTIVE", "ACCOUNT", "SUMMARY"
         );
         for row in rows {
             println!(
-                "{:<8}  {:<6}  {:<28}  {}",
+                "{:<8}  {:<6}  {:<36}  {}",
                 provider_label(row.provider),
                 if row.is_active { "yes" } else { "no" },
-                row.email,
+                account_display(row.label.as_deref(), &row.email),
                 row.summary
             );
         }
@@ -58,12 +58,15 @@ pub fn print_current(
             serde_json::to_string_pretty(&rows).map_err(|error| error.to_string())?
         );
     } else {
-        println!("{:<8}  {:<28}  {}", "PROVIDER", "ACTIVE EMAIL", "SUMMARY");
+        println!("{:<8}  {:<36}  {}", "PROVIDER", "ACTIVE ACCOUNT", "SUMMARY");
         for row in rows {
             println!(
-                "{:<8}  {:<28}  {}",
+                "{:<8}  {:<36}  {}",
                 provider_label(row.provider),
-                row.active_email.unwrap_or_else(|| "-".to_string()),
+                match row.active_email {
+                    Some(email) => account_display(row.active_label.as_deref(), &email),
+                    None => "-".to_string(),
+                },
                 row.summary
             );
         }
@@ -95,6 +98,52 @@ pub fn print_switch(
         outcome.email,
         outcome.id
     );
+    Ok(())
+}
+
+pub fn print_remove(
+    facade: &CliFacade,
+    provider: Provider,
+    selector: String,
+) -> Result<(), String> {
+    let selection = selection_from_selector(&selector);
+    let outcome = facade
+        .remove(provider, selection)
+        .map_err(|error| error.to_string())?;
+    println!(
+        "Removed {} account {} ({}).",
+        provider_title(outcome.provider),
+        outcome.email,
+        outcome.id
+    );
+    Ok(())
+}
+
+pub fn print_label(
+    facade: &CliFacade,
+    provider: Provider,
+    selector: String,
+    label: Option<String>,
+) -> Result<(), String> {
+    let selection = selection_from_selector(&selector);
+    let outcome = facade
+        .label(provider, selection, label)
+        .map_err(|error| error.to_string())?;
+    match outcome.label {
+        Some(label) => println!(
+            "Labelled {} account {} ({}) as \"{}\".",
+            provider_title(outcome.provider),
+            outcome.email,
+            outcome.id,
+            label
+        ),
+        None => println!(
+            "Cleared label for {} account {} ({}).",
+            provider_title(outcome.provider),
+            outcome.email,
+            outcome.id
+        ),
+    }
     Ok(())
 }
 
@@ -228,6 +277,21 @@ fn provider_title(provider: Provider) -> &'static str {
         Provider::Codex => "Codex",
         Provider::Claude => "Claude",
         Provider::Gemini => "Gemini",
+    }
+}
+
+fn account_display(label: Option<&str>, email: &str) -> String {
+    match label {
+        Some(label) => format!("{label} <{email}>"),
+        None => email.to_string(),
+    }
+}
+
+fn selection_from_selector(selector: &str) -> SwitchSelection {
+    if selector.contains('@') {
+        SwitchSelection::Email(selector.to_string())
+    } else {
+        SwitchSelection::Id(selector.to_string())
     }
 }
 

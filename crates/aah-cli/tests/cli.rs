@@ -72,6 +72,14 @@ fn scriptable_subcommand_help_has_descriptions() {
             "Refresh usage and account status for managed accounts",
         ),
         (
+            ["remove", "--help"].as_slice(),
+            "Remove a managed account from the shared account pool",
+        ),
+        (
+            ["label", "--help"].as_slice(),
+            "Set or clear a managed account display label",
+        ),
+        (
             ["doctor", "--help"].as_slice(),
             "Check local CLI setup and account hub health",
         ),
@@ -136,6 +144,115 @@ fn upgrade_rejects_global_json_output() {
         .stderr(predicate::str::contains(
             "--json is not supported for upgrade",
         ));
+}
+
+#[test]
+fn label_sets_account_display_label() {
+    let temp = tempfile::tempdir().expect("temp dir");
+    write_codex_account(temp.path(), "codex-1", "user@example.com");
+
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .env("HOME", temp.path())
+        .env("USERPROFILE", temp.path())
+        .args([
+            "label",
+            "--provider",
+            "codex",
+            "codex-1",
+            "Work",
+            "--data-dir",
+        ])
+        .arg(temp.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Labelled Codex account user@example.com (codex-1) as \"Work\".",
+        ));
+
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .env("HOME", temp.path())
+        .env("USERPROFILE", temp.path())
+        .args(["list", "--provider", "codex", "--data-dir"])
+        .arg(temp.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Work <user@example.com>"));
+
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .env("HOME", temp.path())
+        .env("USERPROFILE", temp.path())
+        .args([
+            "label",
+            "--provider",
+            "codex",
+            "codex-1",
+            "--clear",
+            "--data-dir",
+        ])
+        .arg(temp.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Cleared label for Codex account user@example.com (codex-1).",
+        ));
+}
+
+#[test]
+fn remove_deletes_account_when_confirmed() {
+    let temp = tempfile::tempdir().expect("temp dir");
+    write_codex_account(temp.path(), "codex-1", "user@example.com");
+
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .env("HOME", temp.path())
+        .env("USERPROFILE", temp.path())
+        .args([
+            "remove",
+            "--provider",
+            "codex",
+            "codex-1",
+            "--yes",
+            "--data-dir",
+        ])
+        .arg(temp.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Removed Codex account user@example.com (codex-1).",
+        ));
+
+    let index = fs::read_to_string(temp.path().join("codex/accounts.json")).expect("index");
+    assert!(!index.contains("codex-1"), "{index}");
+    assert!(!index.contains("user@example.com"), "{index}");
+}
+
+fn write_codex_account(root: &std::path::Path, id: &str, email: &str) {
+    let codex_dir = root.join("codex");
+    let managed_home = codex_dir.join("managed-codex-homes").join(id);
+    fs::create_dir_all(&managed_home).expect("managed home");
+    let index = format!(
+        r#"{{
+  "version": 1,
+  "accounts": [
+    {{
+      "id": "{id}",
+      "email": "{email}",
+      "account_id": "acct-{id}",
+      "plan": "Plus",
+      "managed_home_path": "{}",
+      "created_at": "0",
+      "updated_at": "0",
+      "last_authenticated_at": "0"
+    }}
+  ]
+}}"#,
+        managed_home.display()
+    );
+    fs::create_dir_all(&codex_dir).expect("codex dir");
+    fs::write(codex_dir.join("accounts.json"), index).expect("accounts.json");
 }
 
 #[test]

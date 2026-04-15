@@ -15,6 +15,7 @@ fn codex_account(
     CodexAccountListItem {
         id: id.to_string(),
         email: email.to_string(),
+        label: None,
         plan: Some("Plus".to_string()),
         account_id: Some(format!("acct-{id}")),
         is_active,
@@ -41,6 +42,7 @@ fn gemini_account(
     GeminiAccountListItem {
         id: id.to_string(),
         email: email.to_string(),
+        label: None,
         subject: Some(format!("sub-{id}")),
         auth_type: Some("oauth-personal".to_string()),
         plan: Some("Paid".to_string()),
@@ -70,6 +72,7 @@ fn claude_account(
     ClaudeAccountListItem {
         id: id.to_string(),
         email: email.to_string(),
+        label: None,
         display_name: Some(format!("Claude {id}")),
         plan: Some("Pro".to_string()),
         account_hint: Some(format!("org-{id}")),

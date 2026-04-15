@@ -97,6 +97,7 @@ impl<K: ClaudeCredentialBundleStore, L: ClaudeLiveCredentialStore> ClaudeAccount
                 ClaudeAccountListItem {
                     id: account.id.clone(),
                     email: account.email.clone(),
+                    label: account.label.clone(),
                     display_name: account.display_name.clone(),
                     plan: account.plan.clone(),
                     account_hint: account.account_hint.clone(),
@@ -152,6 +153,15 @@ impl<K: ClaudeCredentialBundleStore, L: ClaudeLiveCredentialStore> ClaudeAccount
         }
 
         Ok(())
+    }
+
+    pub fn set_label(
+        &mut self,
+        account_id: &str,
+        label: Option<String>,
+    ) -> Result<StoredClaudeAccount, String> {
+        let mut store = ClaudeAccountStore::load(&self.paths)?;
+        store.set_label(&self.paths, account_id, label)
     }
 
     pub fn delete_account(&mut self, account_id: &str) -> Result<(), String> {

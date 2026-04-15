@@ -39,6 +39,7 @@ pub struct AccountRow {
     pub provider: Provider,
     pub id: String,
     pub email: String,
+    pub label: Option<String>,
     pub is_active: bool,
     pub summary: String,
     pub needs_relogin: bool,
@@ -49,6 +50,7 @@ pub struct CurrentRow {
     pub provider: Provider,
     pub active_id: Option<String>,
     pub active_email: Option<String>,
+    pub active_label: Option<String>,
     pub summary: String,
     pub needs_relogin: bool,
 }
@@ -108,6 +110,21 @@ pub struct SwitchOutcome {
     pub id: String,
     pub email: String,
     pub already_active: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct RemoveOutcome {
+    pub provider: Provider,
+    pub id: String,
+    pub email: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct LabelOutcome {
+    pub provider: Provider,
+    pub id: String,
+    pub email: String,
+    pub label: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -192,6 +209,7 @@ impl CliFacade {
                 provider: item,
                 active_id: active.map(|row| row.id.clone()),
                 active_email: active.map(|row| row.email.clone()),
+                active_label: active.and_then(|row| row.label.clone()),
                 summary: active
                     .map(|row| row.summary.clone())
                     .unwrap_or_else(|| "-".to_string()),
@@ -211,6 +229,32 @@ impl CliFacade {
             Provider::Codex => self.switch_codex(selection),
             Provider::Claude => self.switch_claude(selection),
             Provider::Gemini => self.switch_gemini(selection),
+        }
+    }
+
+    pub fn remove(
+        &self,
+        provider: Provider,
+        selection: SwitchSelection,
+    ) -> Result<RemoveOutcome, CliError> {
+        match provider {
+            Provider::Codex => self.remove_codex(selection),
+            Provider::Claude => self.remove_claude(selection),
+            Provider::Gemini => self.remove_gemini(selection),
+        }
+    }
+
+    pub fn label(
+        &self,
+        provider: Provider,
+        selection: SwitchSelection,
+        label: Option<String>,
+    ) -> Result<LabelOutcome, CliError> {
+        let label = label.and_then(normalize_label);
+        match provider {
+            Provider::Codex => self.label_codex(selection, label),
+            Provider::Claude => self.label_claude(selection, label),
+            Provider::Gemini => self.label_gemini(selection, label),
         }
     }
 
@@ -416,6 +460,108 @@ impl CliFacade {
         })
     }
 
+    fn remove_codex(&self, selection: SwitchSelection) -> Result<RemoveOutcome, CliError> {
+        let service = CodexAccountService::with_process_runner(self.codex_paths());
+        let accounts = service.list_accounts().map_err(CliError::Provider)?;
+        let selected = select_codex(&accounts, selection)?;
+        ensure_not_active(Provider::Codex, selected.is_active, &selected.email)?;
+        let id = selected.id.clone();
+        let email = selected.email.clone();
+        service.delete_account(&id).map_err(CliError::Provider)?;
+        Ok(RemoveOutcome {
+            provider: Provider::Codex,
+            id,
+            email,
+        })
+    }
+
+    fn remove_claude(&self, selection: SwitchSelection) -> Result<RemoveOutcome, CliError> {
+        let mut service = ClaudeAccountService::with_process_runner(self.claude_paths());
+        let accounts = service.list_accounts().map_err(CliError::Provider)?;
+        let selected = select_claude(&accounts, selection)?;
+        ensure_not_active(Provider::Claude, selected.is_active, &selected.email)?;
+        let id = selected.id.clone();
+        let email = selected.email.clone();
+        service.delete_account(&id).map_err(CliError::Provider)?;
+        Ok(RemoveOutcome {
+            provider: Provider::Claude,
+            id,
+            email,
+        })
+    }
+
+    fn remove_gemini(&self, selection: SwitchSelection) -> Result<RemoveOutcome, CliError> {
+        let service = GeminiAccountService::with_process_runner(self.gemini_paths());
+        let accounts = service.list_accounts().map_err(CliError::Provider)?;
+        let selected = select_gemini(&accounts, selection)?;
+        ensure_not_active(Provider::Gemini, selected.is_active, &selected.email)?;
+        let id = selected.id.clone();
+        let email = selected.email.clone();
+        service.delete_account(&id).map_err(CliError::Provider)?;
+        Ok(RemoveOutcome {
+            provider: Provider::Gemini,
+            id,
+            email,
+        })
+    }
+
+    fn label_codex(
+        &self,
+        selection: SwitchSelection,
+        label: Option<String>,
+    ) -> Result<LabelOutcome, CliError> {
+        let service = CodexAccountService::with_process_runner(self.codex_paths());
+        let accounts = service.list_accounts().map_err(CliError::Provider)?;
+        let selected = select_codex(&accounts, selection)?;
+        let saved = service
+            .set_label(&selected.id, label)
+            .map_err(CliError::Provider)?;
+        Ok(LabelOutcome {
+            provider: Provider::Codex,
+            id: saved.id,
+            email: saved.email,
+            label: saved.label,
+        })
+    }
+
+    fn label_claude(
+        &self,
+        selection: SwitchSelection,
+        label: Option<String>,
+    ) -> Result<LabelOutcome, CliError> {
+        let mut service = ClaudeAccountService::with_process_runner(self.claude_paths());
+        let accounts = service.list_accounts().map_err(CliError::Provider)?;
+        let selected = select_claude(&accounts, selection)?;
+        let saved = service
+            .set_label(&selected.id, label)
+            .map_err(CliError::Provider)?;
+        Ok(LabelOutcome {
+            provider: Provider::Claude,
+            id: saved.id,
+            email: saved.email,
+            label: saved.label,
+        })
+    }
+
+    fn label_gemini(
+        &self,
+        selection: SwitchSelection,
+        label: Option<String>,
+    ) -> Result<LabelOutcome, CliError> {
+        let service = GeminiAccountService::with_process_runner(self.gemini_paths());
+        let accounts = service.list_accounts().map_err(CliError::Provider)?;
+        let selected = select_gemini(&accounts, selection)?;
+        let saved = service
+            .set_label(&selected.id, label)
+            .map_err(CliError::Provider)?;
+        Ok(LabelOutcome {
+            provider: Provider::Gemini,
+            id: saved.id,
+            email: saved.email,
+            label: saved.label,
+        })
+    }
+
     fn provider_doctor(&self, provider: Provider) -> ProviderDoctorRow {
         let cli_path = provider_cli_path(provider).map(|path| path_string(&path));
         let mut issues = Vec::new();
@@ -478,6 +624,22 @@ impl CliFacade {
             self.context.managed_root.clone(),
             self.context.user_home.clone(),
         )
+    }
+}
+
+fn normalize_label(label: String) -> Option<String> {
+    let trimmed = label.trim();
+    (!trimmed.is_empty()).then(|| trimmed.to_string())
+}
+
+fn ensure_not_active(provider: Provider, is_active: bool, email: &str) -> Result<(), CliError> {
+    if is_active {
+        Err(CliError::Usage(format!(
+            "Cannot remove active {} account {email}; switch to another account first",
+            provider_title(provider)
+        )))
+    } else {
+        Ok(())
     }
 }
 
@@ -567,6 +729,7 @@ impl AccountRow {
             provider: Provider::Codex,
             id: item.id,
             email: item.email,
+            label: item.label,
             is_active: item.is_active,
             summary: format_remaining("codex", item.five_hour_remaining_percent),
             needs_relogin: item.needs_relogin.unwrap_or(false),
@@ -578,6 +741,7 @@ impl AccountRow {
             provider: Provider::Claude,
             id: item.id,
             email: item.email,
+            label: item.label,
             is_active: item.is_active,
             summary: format_remaining("claude", item.session_remaining_percent),
             needs_relogin: item.needs_relogin.unwrap_or(false),
@@ -589,6 +753,7 @@ impl AccountRow {
             provider: Provider::Gemini,
             id: item.id,
             email: item.email,
+            label: item.label,
             is_active: item.is_active,
             summary: format_remaining("gemini", item.pro_remaining_percent),
             needs_relogin: item.needs_relogin.unwrap_or(false),

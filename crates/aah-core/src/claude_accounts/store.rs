@@ -60,6 +60,7 @@ impl ClaudeAccountStore {
             StoredClaudeAccount {
                 id: existing.id.clone(),
                 email: identity.email,
+                label: existing.label.clone(),
                 display_name: identity.display_name,
                 plan: identity.plan,
                 account_hint: identity.account_hint,
@@ -73,6 +74,7 @@ impl ClaudeAccountStore {
             StoredClaudeAccount {
                 id: Uuid::new_v4().to_string(),
                 email: identity.email,
+                label: None,
                 display_name: identity.display_name,
                 plan: identity.plan,
                 account_hint: identity.account_hint,
@@ -90,6 +92,25 @@ impl ClaudeAccountStore {
             self.index.accounts.push(saved.clone());
         }
 
+        self.persist(paths)?;
+        Ok(saved)
+    }
+
+    pub fn set_label(
+        &mut self,
+        paths: &ClaudeAccountPaths,
+        account_id: &str,
+        label: Option<String>,
+    ) -> Result<StoredClaudeAccount, String> {
+        let account = self
+            .index
+            .accounts
+            .iter_mut()
+            .find(|account| account.id == account_id)
+            .ok_or_else(|| format!("Claude account {account_id} not found"))?;
+        account.label = label;
+        account.updated_at = timestamp_string();
+        let saved = account.clone();
         self.persist(paths)?;
         Ok(saved)
     }

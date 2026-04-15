@@ -2,6 +2,7 @@ mod output;
 mod tui;
 mod upgrade;
 
+use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::thread;
@@ -56,6 +57,30 @@ enum Commands {
     Refresh {
         #[arg(long, help = "Refresh only one provider")]
         provider: Option<ProviderArg>,
+    },
+    /// Remove a managed account from the shared account pool
+    Remove {
+        #[arg(long, help = "Provider whose account should be removed")]
+        provider: ProviderArg,
+        #[arg(help = "Account email or managed account ID to remove")]
+        selector: String,
+        #[arg(long, help = "Skip the interactive confirmation prompt")]
+        yes: bool,
+    },
+    /// Set or clear a managed account display label
+    Label {
+        #[arg(long, help = "Provider whose account label should change")]
+        provider: ProviderArg,
+        #[arg(help = "Account email or managed account ID to label")]
+        selector: String,
+        #[arg(
+            help = "Display label to show in list and TUI output",
+            required_unless_present = "clear",
+            conflicts_with = "clear"
+        )]
+        label: Option<String>,
+        #[arg(long, help = "Clear the account display label")]
+        clear: bool,
     },
     /// Check local CLI setup and account hub health
     Doctor,
@@ -160,6 +185,29 @@ fn main() -> Result<(), String> {
                 Commands::Refresh { provider } => {
                     output::print_refresh(&facade, provider.map(into_provider), cli.json)
                 }
+                Commands::Remove {
+                    provider,
+                    selector,
+                    yes,
+                } => {
+                    ensure_text_only("remove", cli.json)?;
+                    let provider = into_provider(provider);
+                    if !yes && !confirm_remove(provider, &selector)? {
+                        println!("Remove cancelled.");
+                        return Ok(());
+                    }
+                    output::print_remove(&facade, provider, selector)
+                }
+                Commands::Label {
+                    provider,
+                    selector,
+                    label,
+                    clear,
+                } => {
+                    ensure_text_only("label", cli.json)?;
+                    let label = if clear { None } else { label };
+                    output::print_label(&facade, into_provider(provider), selector, label)
+                }
                 Commands::Tui { snapshot } => tui::run_tui(&facade, snapshot),
                 Commands::Relay { command } => {
                     handle_relay_command(&facade, command, cli.json, cli.data_dir)
@@ -191,6 +239,26 @@ fn ensure_text_only(command: &str, json: bool) -> Result<(), String> {
     }
 }
 
+fn confirm_remove(provider: Provider, selector: &str) -> Result<bool, String> {
+    print!(
+        "Remove {} account {} from the account pool? [y/N] ",
+        provider_title(provider),
+        selector
+    );
+    io::stdout()
+        .flush()
+        .map_err(|error| format!("failed to write prompt: {error}"))?;
+
+    let mut answer = String::new();
+    io::stdin()
+        .read_line(&mut answer)
+        .map_err(|error| format!("failed to read confirmation: {error}"))?;
+    Ok(matches!(
+        answer.trim().to_ascii_lowercase().as_str(),
+        "y" | "yes"
+    ))
+}
+
 fn generate_completion(shell: CompletionShell) {
     let mut command = Cli::command();
     let generator: clap_complete::Shell = shell.into();
@@ -214,6 +282,14 @@ fn into_provider(provider: ProviderArg) -> Provider {
         ProviderArg::Codex => Provider::Codex,
         ProviderArg::Claude => Provider::Claude,
         ProviderArg::Gemini => Provider::Gemini,
+    }
+}
+
+fn provider_title(provider: Provider) -> &'static str {
+    match provider {
+        Provider::Codex => "Codex",
+        Provider::Claude => "Claude",
+        Provider::Gemini => "Gemini",
     }
 }
 

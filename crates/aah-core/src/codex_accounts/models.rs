@@ -11,6 +11,8 @@ pub struct CodexAccountIdentity {
 pub struct StoredCodexAccount {
     pub id: String,
     pub email: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
     pub account_id: Option<String>,
     pub plan: Option<String>,
     pub managed_home_path: String,
@@ -24,6 +26,7 @@ impl StoredCodexAccount {
         Self {
             id: format!("test-{}", email.to_lowercase()),
             email: email.to_lowercase(),
+            label: None,
             account_id: account_id.map(str::to_string),
             plan: Some("Plus".to_string()),
             managed_home_path: "/tmp/test-home".to_string(),
@@ -38,6 +41,7 @@ impl StoredCodexAccount {
 pub struct CodexAccountListItem {
     pub id: String,
     pub email: String,
+    pub label: Option<String>,
     pub plan: Option<String>,
     pub account_id: Option<String>,
     pub is_active: bool,
