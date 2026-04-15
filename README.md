@@ -9,7 +9,7 @@
 - **桌面 App 模式**：用图形界面统一管理账号、切换系统当前凭证、查看 quota / usage、配置自动切换和本地中转服务。
 - **CLI 模式**：安装 `aah` 后直接在终端里完成账号查看、切换、标记、删除、诊断、导入导出、刷新和 relay 管理；CLI 和桌面 App 共用同一个账号池与 relay 状态。
 
-- 下载地址：[Latest Release](https://github.com/murongg/ai-accounts-hub/releases/latest)
+- 下载地址：[Latest Release](https://github.com/murongg/ai-accounts-hub/releases)
 - 项目仓库：[murongg/ai-accounts-hub](https://github.com/murongg/ai-accounts-hub)
 
 > 当前体验以 macOS 为主。原生 menubar / 状态栏能力仅在 macOS 可用；仓库包含其他平台的构建链路，但整体使用体验以 macOS 为准。
@@ -135,7 +135,7 @@
 
 如果你只想使用桌面应用，直接从 Releases 下载即可：
 
-- [下载最新版本](https://github.com/murongg/ai-accounts-hub/releases/latest)
+- [下载最新版本](https://github.com/murongg/ai-accounts-hub/releases)
 
 ### CLI 模式
 

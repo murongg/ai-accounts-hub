@@ -30,6 +30,12 @@ test("CLI npm publish job configures npmjs registry authentication", () => {
   assert.match(setupNode[1], /scope:\s*"@murongg"/);
 });
 
+test("CLI releases never become the repository latest release", () => {
+  const publishJob = jobBlock("publish_cli");
+
+  assert.match(publishJob, /make_latest:\s*false/);
+});
+
 test("ordinary CI does not run for every push", () => {
   assert.doesNotMatch(ciWorkflow, /\n\s+push:/);
   assert.match(ciWorkflow, /\n\s+pull_request:/);

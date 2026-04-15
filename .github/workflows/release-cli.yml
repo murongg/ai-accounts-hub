@@ -141,6 +141,7 @@ jobs:
           tag_name: ${{ env.RELEASE_TAG }}
           name: AI Accounts Hub CLI ${{ env.RELEASE_TAG }}
           prerelease: ${{ contains(env.RELEASE_TAG, '-alpha') || contains(env.RELEASE_TAG, '-beta') || contains(env.RELEASE_TAG, '-rc') }}
+          make_latest: false
           overwrite_files: true
           fail_on_unmatched_files: true
           files: cli-assets/*

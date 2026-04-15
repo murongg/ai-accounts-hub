@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { selectLatestAppReleaseTag } from "./releases.ts";
+import { selectLatestAppRelease, selectLatestAppReleaseTag } from "./releases.ts";
 
 test("selectLatestAppReleaseTag skips CLI releases", () => {
   const tag = selectLatestAppReleaseTag([
@@ -21,4 +21,16 @@ test("selectLatestAppReleaseTag ignores drafts and prereleases", () => {
   ]);
 
   assert.equal(tag, "v0.3.19");
+});
+
+test("selectLatestAppRelease returns the matching app release object", () => {
+  const release = selectLatestAppRelease([
+    { tag_name: "cli-v0.1.8", assets: [{ name: "cli" }] },
+    { tag_name: "v0.3.20", assets: [{ name: "app" }] },
+  ]);
+
+  assert.deepEqual(release, {
+    tag_name: "v0.3.20",
+    assets: [{ name: "app" }],
+  });
 });

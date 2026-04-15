@@ -1,11 +1,12 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { selectLatestAppRelease } from '@/lib/releases'
 
 export const GITHUB_URL = 'https://github.com/murongg/ai-accounts-hub'
-export const RELEASES_URL = `${GITHUB_URL}/releases/latest`
+export const RELEASES_URL = `${GITHUB_URL}/releases`
 
-const RELEASES_API = 'https://api.github.com/repos/murongg/ai-accounts-hub/releases/latest'
+const RELEASES_API = 'https://api.github.com/repos/murongg/ai-accounts-hub/releases?per_page=100'
 
 type Arch = 'arm' | 'x64'
 type Platform = 'macos' | 'windows' | 'linux' | 'other'
@@ -64,8 +65,16 @@ async function fetchLatestRelease(): Promise<{ version: string; assets: ReleaseA
       next: { revalidate: 3600 },
     })
     if (!res.ok) return null
-    const data = await res.json()
-    return { version: data.tag_name, assets: data.assets ?? [] }
+    const releases = await res.json()
+    if (!Array.isArray(releases)) return null
+
+    const release = selectLatestAppRelease(releases)
+    if (!release || typeof release.tag_name !== 'string') return null
+
+    return {
+      version: release.tag_name,
+      assets: Array.isArray(release.assets) ? (release.assets as ReleaseAsset[]) : [],
+    }
   } catch {
     return null
   }
