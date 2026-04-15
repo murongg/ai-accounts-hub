@@ -140,6 +140,7 @@ impl GeminiAccountService {
                 GeminiAccountListItem {
                     id: account.id.clone(),
                     email: account.email.clone(),
+                    label: account.label.clone(),
                     subject: account.subject.clone(),
                     auth_type: account.auth_type.clone(),
                     plan: usage.and_then(|snapshot| snapshot.plan.clone()),
@@ -207,6 +208,15 @@ impl GeminiAccountService {
         )?;
 
         Ok(())
+    }
+
+    pub fn set_label(
+        &self,
+        account_id: &str,
+        label: Option<String>,
+    ) -> Result<StoredGeminiAccount, String> {
+        let mut store = GeminiAccountStore::load(&self.paths)?;
+        store.set_label(&self.paths, account_id, label)
     }
 
     pub fn delete_account(&self, account_id: &str) -> Result<(), String> {

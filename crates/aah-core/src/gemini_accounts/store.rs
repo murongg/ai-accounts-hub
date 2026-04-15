@@ -60,6 +60,7 @@ impl GeminiAccountStore {
             StoredGeminiAccount {
                 id: existing.id.clone(),
                 email: identity.email,
+                label: existing.label.clone(),
                 subject: identity.subject,
                 auth_type: identity.auth_type,
                 managed_home_path: managed_home_path.display().to_string(),
@@ -71,6 +72,7 @@ impl GeminiAccountStore {
             StoredGeminiAccount {
                 id: Uuid::new_v4().to_string(),
                 email: identity.email,
+                label: None,
                 subject: identity.subject,
                 auth_type: identity.auth_type,
                 managed_home_path: managed_home_path.display().to_string(),
@@ -86,6 +88,25 @@ impl GeminiAccountStore {
             self.index.accounts.push(saved.clone());
         }
 
+        self.persist(paths)?;
+        Ok(saved)
+    }
+
+    pub fn set_label(
+        &mut self,
+        paths: &GeminiAccountPaths,
+        account_id: &str,
+        label: Option<String>,
+    ) -> Result<StoredGeminiAccount, String> {
+        let account = self
+            .index
+            .accounts
+            .iter_mut()
+            .find(|account| account.id == account_id)
+            .ok_or_else(|| format!("Gemini account {account_id} not found"))?;
+        account.label = label;
+        account.updated_at = timestamp_string();
+        let saved = account.clone();
         self.persist(paths)?;
         Ok(saved)
     }

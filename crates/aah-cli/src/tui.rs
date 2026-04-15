@@ -297,7 +297,10 @@ fn render_current(
     let rows = current.iter().map(|row| {
         Row::new(vec![
             Cell::from(provider_label(row.provider)),
-            Cell::from(row.active_email.clone().unwrap_or_else(|| "-".to_string())),
+            Cell::from(match row.active_email.as_deref() {
+                Some(email) => account_display(row.active_label.as_deref(), email),
+                None => "-".to_string(),
+            }),
             Cell::from(row.summary.clone()),
         ])
     });
@@ -340,7 +343,7 @@ fn render_accounts(frame: &mut Frame<'_>, area: Rect, accounts: &[AccountRow], s
                 };
                 let mut table_row = Row::new(vec![
                     Cell::from(provider_label(row.provider)),
-                    Cell::from(row.email.clone()),
+                    Cell::from(account_display(row.label.as_deref(), &row.email)),
                     Cell::from(state),
                     Cell::from(row.summary.clone()),
                 ]);
@@ -410,5 +413,12 @@ fn provider_title(provider: Provider) -> &'static str {
         Provider::Codex => "Codex",
         Provider::Claude => "Claude",
         Provider::Gemini => "Gemini",
+    }
+}
+
+fn account_display(label: Option<&str>, email: &str) -> String {
+    match label {
+        Some(label) => format!("{label} <{email}>"),
+        None => email.to_string(),
     }
 }

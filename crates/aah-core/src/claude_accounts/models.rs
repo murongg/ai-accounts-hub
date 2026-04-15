@@ -12,6 +12,8 @@ pub struct ClaudeAccountIdentity {
 pub struct StoredClaudeAccount {
     pub id: String,
     pub email: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
     pub display_name: Option<String>,
     pub plan: Option<String>,
     pub account_hint: Option<String>,
@@ -27,6 +29,7 @@ impl StoredClaudeAccount {
         Self {
             id: format!("test-{}", email.to_lowercase()),
             email: email.to_lowercase(),
+            label: None,
             display_name: Some("Test Claude".to_string()),
             plan: Some("Pro".to_string()),
             account_hint: account_hint.map(str::to_string),
@@ -43,6 +46,7 @@ impl StoredClaudeAccount {
 pub struct ClaudeAccountListItem {
     pub id: String,
     pub email: String,
+    pub label: Option<String>,
     pub display_name: Option<String>,
     pub plan: Option<String>,
     pub account_hint: Option<String>,

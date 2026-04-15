@@ -11,6 +11,8 @@ pub struct GeminiAccountIdentity {
 pub struct StoredGeminiAccount {
     pub id: String,
     pub email: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
     pub subject: Option<String>,
     pub auth_type: Option<String>,
     pub managed_home_path: String,
@@ -24,6 +26,7 @@ impl StoredGeminiAccount {
         Self {
             id: format!("test-{}", email.to_lowercase()),
             email: email.to_lowercase(),
+            label: None,
             subject: subject.map(str::to_string),
             auth_type: Some("oauth-personal".to_string()),
             managed_home_path: "/tmp/test-home".to_string(),
@@ -38,6 +41,7 @@ impl StoredGeminiAccount {
 pub struct GeminiAccountListItem {
     pub id: String,
     pub email: String,
+    pub label: Option<String>,
     pub subject: Option<String>,
     pub auth_type: Option<String>,
     pub plan: Option<String>,

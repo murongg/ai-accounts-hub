@@ -121,6 +121,7 @@ impl CodexAccountService {
                 CodexAccountListItem {
                     id: account.id.clone(),
                     email: account.email.clone(),
+                    label: account.label.clone(),
                     plan: usage
                         .and_then(|snapshot| snapshot.plan.clone())
                         .or_else(|| account.plan.clone()),
@@ -177,6 +178,15 @@ impl CodexAccountService {
         let bytes = fs::read(&managed_auth_path)
             .map_err(|error| format!("failed to read managed auth.json: {error}"))?;
         atomic_write(&self.paths.system_auth_path, &bytes)
+    }
+
+    pub fn set_label(
+        &self,
+        account_id: &str,
+        label: Option<String>,
+    ) -> Result<StoredCodexAccount, String> {
+        let mut store = CodexAccountStore::load(&self.paths)?;
+        store.set_label(&self.paths, account_id, label)
     }
 
     pub fn delete_account(&self, account_id: &str) -> Result<(), String> {
@@ -241,6 +251,7 @@ mod tests {
         CodexAccountListItem {
             id: id.to_string(),
             email: format!("{id}@example.com"),
+            label: None,
             plan: Some("Plus".to_string()),
             account_id: Some(format!("acct-{id}")),
             is_active,
