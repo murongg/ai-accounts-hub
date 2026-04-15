@@ -4,18 +4,21 @@ use crate::app_settings::models::RelaySettings as AppRelaySettings;
 use crate::app_settings::store::{load_app_settings, save_app_settings};
 use crate::bootstrap::BootstrapContext;
 use crate::claude_accounts::{
+    cli::resolve_claude_binary,
     models::{ClaudeAccountListItem, StoredClaudeAccount},
     paths::ClaudeAccountPaths,
     service::ClaudeAccountService,
 };
 use crate::claude_usage::service::ClaudeUsageService;
 use crate::codex_accounts::{
+    cli::resolve_codex_binary,
     models::{CodexAccountListItem, StoredCodexAccount},
     paths::CodexAccountPaths,
     service::CodexAccountService,
 };
 use crate::codex_usage::service::CodexUsageService;
 use crate::gemini_accounts::{
+    cli::resolve_gemini_binary,
     models::{GeminiAccountListItem, StoredGeminiAccount},
     paths::GeminiAccountPaths,
     service::GeminiAccountService,
@@ -55,6 +58,40 @@ pub struct RefreshRow {
     pub provider: Provider,
     pub ok: bool,
     pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct HubPaths {
+    pub managed_root: String,
+    pub user_home: String,
+    pub rows: Vec<PathRow>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PathRow {
+    pub scope: String,
+    pub name: String,
+    pub path: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DoctorReport {
+    pub managed_root: String,
+    pub user_home: String,
+    pub relay: Option<RelayRuntimeStatus>,
+    pub relay_error: Option<String>,
+    pub providers: Vec<ProviderDoctorRow>,
+    pub import_warnings: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ProviderDoctorRow {
+    pub provider: Provider,
+    pub cli_path: Option<String>,
+    pub account_count: usize,
+    pub active_email: Option<String>,
+    pub needs_relogin_count: usize,
+    pub issues: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -234,6 +271,57 @@ impl CliFacade {
         Ok(rows)
     }
 
+    pub fn paths(&self) -> HubPaths {
+        let codex = self.codex_paths();
+        let claude = self.claude_paths();
+        let gemini = self.gemini_paths();
+        HubPaths {
+            managed_root: path_string(&self.context.managed_root),
+            user_home: path_string(&self.context.user_home),
+            rows: vec![
+                path_row("codex", "data", &codex.codex_data_dir),
+                path_row("codex", "accounts", &codex.account_index_path),
+                path_row("codex", "usage", &codex.usage_snapshot_path),
+                path_row("codex", "managed homes", &codex.managed_homes_dir),
+                path_row("codex", "live auth", &codex.system_auth_path),
+                path_row("claude", "data", &claude.claude_data_dir),
+                path_row("claude", "accounts", &claude.metadata_index_path),
+                path_row("claude", "usage", &claude.usage_snapshot_path),
+                path_row("claude", "managed bundles", &claude.managed_bundle_dir),
+                path_row(
+                    "claude",
+                    "live credentials",
+                    &claude.system_credentials_path,
+                ),
+                path_row("claude", "live config", &claude.system_global_config_path),
+                path_row("gemini", "data", &gemini.gemini_data_dir),
+                path_row("gemini", "accounts", &gemini.account_index_path),
+                path_row("gemini", "usage", &gemini.usage_snapshot_path),
+                path_row("gemini", "managed homes", &gemini.managed_homes_dir),
+                path_row("gemini", "live config", &gemini.system_gemini_dir),
+            ],
+        }
+    }
+
+    pub fn doctor(&self) -> DoctorReport {
+        let (relay, relay_error) = match self.relay_status() {
+            Ok(status) => (Some(status), None),
+            Err(error) => (None, Some(error.to_string())),
+        };
+
+        DoctorReport {
+            managed_root: path_string(&self.context.managed_root),
+            user_home: path_string(&self.context.user_home),
+            relay,
+            relay_error,
+            providers: [Provider::Codex, Provider::Claude, Provider::Gemini]
+                .into_iter()
+                .map(|provider| self.provider_doctor(provider))
+                .collect(),
+            import_warnings: self.context.import_warnings.clone(),
+        }
+    }
+
     pub fn relay_status(&self) -> Result<RelayRuntimeStatus, CliError> {
         let codex_paths = self.codex_paths();
         let settings = load_app_settings(&codex_paths).map_err(CliError::Environment)?;
@@ -328,6 +416,49 @@ impl CliFacade {
         })
     }
 
+    fn provider_doctor(&self, provider: Provider) -> ProviderDoctorRow {
+        let cli_path = provider_cli_path(provider).map(|path| path_string(&path));
+        let mut issues = Vec::new();
+        if cli_path.is_none() {
+            issues.push(format!("{} CLI not found", provider_title(provider)));
+        }
+
+        match self.list(Some(provider)) {
+            Ok(accounts) => {
+                let needs_relogin_count = accounts
+                    .iter()
+                    .filter(|account| account.needs_relogin)
+                    .count();
+                if needs_relogin_count > 0 {
+                    issues.push(format!("{needs_relogin_count} account(s) need relogin"));
+                }
+
+                ProviderDoctorRow {
+                    provider,
+                    cli_path,
+                    account_count: accounts.len(),
+                    active_email: accounts
+                        .iter()
+                        .find(|account| account.is_active)
+                        .map(|account| account.email.clone()),
+                    needs_relogin_count,
+                    issues,
+                }
+            }
+            Err(error) => {
+                issues.push(format!("failed to inspect accounts: {error}"));
+                ProviderDoctorRow {
+                    provider,
+                    cli_path,
+                    account_count: 0,
+                    active_email: None,
+                    needs_relogin_count: 0,
+                    issues,
+                }
+            }
+        }
+    }
+
     fn codex_paths(&self) -> CodexAccountPaths {
         CodexAccountPaths::from_roots(
             self.context.managed_root.clone(),
@@ -347,6 +478,34 @@ impl CliFacade {
             self.context.managed_root.clone(),
             self.context.user_home.clone(),
         )
+    }
+}
+
+fn path_row(scope: &str, name: &str, path: &std::path::Path) -> PathRow {
+    PathRow {
+        scope: scope.to_string(),
+        name: name.to_string(),
+        path: path_string(path),
+    }
+}
+
+fn path_string(path: &std::path::Path) -> String {
+    path.display().to_string()
+}
+
+fn provider_cli_path(provider: Provider) -> Option<std::path::PathBuf> {
+    match provider {
+        Provider::Codex => resolve_codex_binary(),
+        Provider::Claude => resolve_claude_binary(),
+        Provider::Gemini => resolve_gemini_binary(),
+    }
+}
+
+fn provider_title(provider: Provider) -> &'static str {
+    match provider {
+        Provider::Codex => "Codex",
+        Provider::Claude => "Claude",
+        Provider::Gemini => "Gemini",
     }
 }
 

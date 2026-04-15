@@ -125,6 +125,57 @@ pub fn print_refresh(
     Ok(())
 }
 
+pub fn print_paths(facade: &CliFacade) {
+    let paths = facade.paths();
+    println!("managed root: {}", paths.managed_root);
+    println!("user home: {}", paths.user_home);
+    for row in paths.rows {
+        println!("{} {}: {}", row.scope, row.name, row.path);
+    }
+}
+
+pub fn print_doctor(facade: &CliFacade) {
+    let report = facade.doctor();
+    println!("AAH doctor");
+    println!("managed root: {}", report.managed_root);
+    println!("user home: {}", report.user_home);
+    match (report.relay, report.relay_error) {
+        (Some(status), _) => {
+            println!(
+                "relay: {} ({})",
+                if status.running { "running" } else { "stopped" },
+                status.codex_base_url
+            );
+        }
+        (None, Some(error)) => println!("relay: warn ({error})"),
+        (None, None) => println!("relay: warn (status unavailable)"),
+    }
+
+    println!("providers:");
+    for provider in report.providers {
+        let state = if provider.issues.is_empty() {
+            "ok"
+        } else {
+            "warn"
+        };
+        println!(
+            "{}: {} accounts={}, active={}, cli={}",
+            provider_label(provider.provider),
+            state,
+            provider.account_count,
+            provider.active_email.unwrap_or_else(|| "-".to_string()),
+            provider.cli_path.unwrap_or_else(|| "not found".to_string())
+        );
+        for issue in provider.issues {
+            println!("  - {issue}");
+        }
+    }
+
+    for warning in report.import_warnings {
+        println!("import warning: {warning}");
+    }
+}
+
 pub fn print_relay_status(facade: &CliFacade, json: bool) -> Result<(), String> {
     let status = facade.relay_status().map_err(|error| error.to_string())?;
     if json {

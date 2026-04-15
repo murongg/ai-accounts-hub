@@ -46,7 +46,7 @@ impl CodexLoginRunner for ProcessCodexLoginRunner {
     }
 }
 
-fn resolve_codex_binary() -> Option<PathBuf> {
+pub(crate) fn resolve_codex_binary() -> Option<PathBuf> {
     resolve_binary(&CODEX_BINARY_RESOLVER)
 }
 
