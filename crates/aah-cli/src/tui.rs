@@ -13,7 +13,7 @@ use crossterm::terminal::{
 use ratatui::backend::{Backend, CrosstermBackend, TestBackend};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span};
+use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Table};
 use ratatui::{Frame, Terminal};
 
@@ -661,7 +661,7 @@ fn render_detail(frame: &mut Frame<'_>, area: Rect, account: Option<&AccountRow>
             if !account.quota_rows.is_empty() || account.quota_meta.is_some() {
                 lines.push(Line::from("quotas:"));
                 for quota in &account.quota_rows {
-                    lines.push(Line::from(format!("  {}", quota_display(quota))));
+                    lines.push(Line::from(format!("  {}", quota_display_plain(quota))));
                 }
                 if let Some(meta) = &account.quota_meta {
                     lines.push(Line::from(format!("  {meta}")));
@@ -817,54 +817,96 @@ fn account_display(label: Option<&str>, email: &str) -> String {
     }
 }
 
-fn quota_cell(account: &AccountRow) -> String {
+fn quota_cell(account: &AccountRow) -> Text<'static> {
     let mut lines = if account.quota_rows.is_empty() {
-        vec![account.summary.clone()]
+        vec![Line::from(account.summary.clone())]
     } else {
         account
             .quota_rows
             .iter()
-            .map(quota_display)
+            .map(quota_line)
             .collect::<Vec<_>>()
     };
     if let Some(meta) = &account.quota_meta {
-        lines.push(meta.clone());
+        lines.push(Line::from(vec![Span::styled(
+            format!("• {meta}"),
+            Style::default().fg(Color::DarkGray),
+        )]));
     }
-    lines.join("\n")
+    Text::from(lines)
 }
 
-fn quota_display(quota: &AccountQuotaRow) -> String {
+fn quota_line(quota: &AccountQuotaRow) -> Line<'static> {
     let percent = quota.remaining_percent.map(clamp_percent);
-    let bar = progress_bar(percent.unwrap_or(0));
-    let percent_label = percent
-        .map(|percent| format!("{percent}%"))
-        .unwrap_or_else(|| "waiting first sync".to_string());
-    let reset_label = quota
+    let tone = percent.map(quota_tone).unwrap_or(Color::DarkGray);
+    let (filled, empty) = progress_bar_segments(percent.unwrap_or(0));
+    let percent_label = match percent {
+        Some(percent) => format!("{percent:>3}%"),
+        None => "sync".to_string(),
+    };
+    let refresh_label = quota
         .remaining_percent
-        .map(|_| {
-            format!(
-                "reset {}",
-                format_refresh_countdown(quota.refresh_at.as_deref())
-            )
-        })
-        .unwrap_or_else(|| "reset --:--".to_string());
+        .map(|_| format_refresh_countdown(quota.refresh_at.as_deref()))
+        .unwrap_or_else(|| "--:--".to_string());
+
+    Line::from(vec![
+        Span::styled(
+            format!("{:<10}", quota.label),
+            Style::default().fg(Color::Gray),
+        ),
+        Span::raw(" "),
+        Span::styled(
+            format!("{percent_label:>4}"),
+            Style::default().fg(tone).add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("  "),
+        Span::styled(filled, Style::default().fg(tone)),
+        Span::styled(empty, Style::default().fg(Color::DarkGray)),
+        Span::styled("  ↻ ", Style::default().fg(Color::DarkGray)),
+        Span::styled(refresh_label, Style::default().fg(Color::Gray)),
+    ])
+}
+
+fn quota_display_plain(quota: &AccountQuotaRow) -> String {
+    let percent = quota.remaining_percent.map(clamp_percent);
+    let (filled, empty) = progress_bar_segments(percent.unwrap_or(0));
+    let percent_label = percent
+        .map(|percent| format!("{percent:>3}%"))
+        .unwrap_or_else(|| "sync".to_string());
+    let refresh_label = quota
+        .remaining_percent
+        .map(|_| format_refresh_countdown(quota.refresh_at.as_deref()))
+        .unwrap_or_else(|| "--:--".to_string());
 
     format!(
-        "{} [{}] {} {}",
-        quota.label, bar, percent_label, reset_label
+        "{:<10} {:>4}  {}{}  ↻ {}",
+        quota.label, percent_label, filled, empty, refresh_label
     )
 }
 
-fn progress_bar(percent: u8) -> String {
+fn progress_bar_segments(percent: u8) -> (String, String) {
     const WIDTH: u8 = 10;
-    let filled = ((percent as u16 * WIDTH as u16) + 50) / 100;
+    let mut filled = ((percent as u16 * WIDTH as u16) + 50) / 100;
+    if percent > 0 {
+        filled = filled.max(1);
+    }
     let filled = filled.min(WIDTH as u16) as usize;
     let empty = WIDTH as usize - filled;
-    format!("{}{}", "#".repeat(filled), "-".repeat(empty))
+    ("▰".repeat(filled), "▱".repeat(empty))
 }
 
 fn clamp_percent(percent: u8) -> u8 {
     percent.min(100)
+}
+
+fn quota_tone(percent: u8) -> Color {
+    if percent <= 10 {
+        Color::Red
+    } else if percent <= 30 {
+        Color::Yellow
+    } else {
+        Color::Green
+    }
 }
 
 fn account_row_height(account: &AccountRow) -> u16 {
@@ -959,10 +1001,11 @@ mod tests {
         let snapshot = render_snapshot(&model).expect("snapshot");
 
         assert!(snapshot.contains("5h"));
-        assert!(snapshot.contains("[########--]"));
+        assert!(snapshot.contains("▰▰▰▰▰▰▰▰▱▱"));
         assert!(snapshot.contains("82%"));
         assert!(snapshot.contains("Weekly"));
-        assert!(snapshot.contains("reset"));
+        assert!(snapshot.contains("↻"));
+        assert!(!snapshot.contains("[########--]"));
         assert!(snapshot.contains("Credits 12.5"));
     }
 
