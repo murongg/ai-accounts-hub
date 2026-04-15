@@ -80,6 +80,14 @@ fn scriptable_subcommand_help_has_descriptions() {
             "Set or clear a managed account display label",
         ),
         (
+            ["export", "--help"].as_slice(),
+            "Export safe account metadata without credentials",
+        ),
+        (
+            ["import", "--help"].as_slice(),
+            "Import safe account metadata onto existing accounts",
+        ),
+        (
             ["doctor", "--help"].as_slice(),
             "Check local CLI setup and account hub health",
         ),
@@ -144,6 +152,102 @@ fn upgrade_rejects_global_json_output() {
         .stderr(predicate::str::contains(
             "--json is not supported for upgrade",
         ));
+}
+
+#[test]
+fn export_writes_safe_account_metadata_without_credentials() {
+    let temp = tempfile::tempdir().expect("temp dir");
+    let output = temp.path().join("accounts-export.json");
+    write_codex_account(temp.path(), "codex-1", "user@example.com");
+
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .env("HOME", temp.path())
+        .env("USERPROFILE", temp.path())
+        .args([
+            "label",
+            "--provider",
+            "codex",
+            "codex-1",
+            "Work",
+            "--data-dir",
+        ])
+        .arg(temp.path())
+        .assert()
+        .success();
+
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .env("HOME", temp.path())
+        .env("USERPROFILE", temp.path())
+        .args(["export", "--output"])
+        .arg(&output)
+        .args(["--data-dir"])
+        .arg(temp.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Exported metadata for 1 account(s)",
+        ));
+
+    let exported = fs::read_to_string(output).expect("exported metadata");
+    assert!(exported.contains(r#""provider": "codex""#), "{exported}");
+    assert!(exported.contains(r#""label": "Work""#), "{exported}");
+    assert!(!exported.contains("managed_home_path"), "{exported}");
+    assert!(!exported.contains("credential"), "{exported}");
+    assert!(!exported.contains("token"), "{exported}");
+}
+
+#[test]
+fn import_applies_labels_to_existing_accounts_only() {
+    let temp = tempfile::tempdir().expect("temp dir");
+    let input = temp.path().join("accounts-import.json");
+    write_codex_account(temp.path(), "codex-1", "user@example.com");
+    fs::write(
+        &input,
+        r#"{
+  "version": 1,
+  "accounts": [
+    {
+      "provider": "codex",
+      "id": "codex-1",
+      "email": "user@example.com",
+      "label": "Imported"
+    },
+    {
+      "provider": "gemini",
+      "id": "missing",
+      "email": "missing@example.com",
+      "label": "Skipped"
+    }
+  ]
+}"#,
+    )
+    .expect("import metadata");
+
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .env("HOME", temp.path())
+        .env("USERPROFILE", temp.path())
+        .args(["import"])
+        .arg(&input)
+        .args(["--data-dir"])
+        .arg(temp.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains(
+            "Imported metadata for 1 account(s); skipped 1.",
+        ));
+
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .env("HOME", temp.path())
+        .env("USERPROFILE", temp.path())
+        .args(["list", "--provider", "codex", "--data-dir"])
+        .arg(temp.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Imported <user@example.com>"));
 }
 
 #[test]

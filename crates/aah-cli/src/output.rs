@@ -1,5 +1,9 @@
+use std::path::Path;
+
 use aah_core::app_settings::models::RelaySettings;
-use aah_core::cli_facade::{AddOutcome, CliFacade, Provider, SwitchSelection};
+use aah_core::cli_facade::{
+    AccountMetadataExport, AddOutcome, CliFacade, Provider, SwitchSelection,
+};
 use aah_core::relay::RelayRuntimeStatus;
 
 pub fn print_list(
@@ -143,6 +147,43 @@ pub fn print_label(
             outcome.email,
             outcome.id
         ),
+    }
+    Ok(())
+}
+
+pub fn print_export(facade: &CliFacade, output: &Path) -> Result<(), String> {
+    let metadata = facade
+        .export_metadata()
+        .map_err(|error| error.to_string())?;
+    let bytes = serde_json::to_vec_pretty(&metadata).map_err(|error| error.to_string())?;
+    std::fs::write(output, bytes)
+        .map_err(|error| format!("failed to write {}: {error}", output.display()))?;
+    println!(
+        "Exported metadata for {} account(s) to {}. Credentials were not exported.",
+        metadata.accounts.len(),
+        output.display()
+    );
+    Ok(())
+}
+
+pub fn print_import(facade: &CliFacade, input: &Path) -> Result<(), String> {
+    let text = std::fs::read_to_string(input)
+        .map_err(|error| format!("failed to read {}: {error}", input.display()))?;
+    let metadata: AccountMetadataExport = serde_json::from_str(&text)
+        .map_err(|error| format!("failed to parse metadata: {error}"))?;
+    let outcome = facade
+        .import_metadata(metadata)
+        .map_err(|error| error.to_string())?;
+    println!(
+        "Imported metadata for {} account(s); skipped {}.",
+        outcome.imported_count,
+        outcome.skipped.len()
+    );
+    for skipped in outcome.skipped {
+        println!(
+            "Skipped {} account {} ({}): {}",
+            skipped.provider, skipped.email, skipped.id, skipped.reason
+        );
     }
     Ok(())
 }

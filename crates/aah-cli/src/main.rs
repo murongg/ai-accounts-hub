@@ -82,6 +82,16 @@ enum Commands {
         #[arg(long, help = "Clear the account display label")]
         clear: bool,
     },
+    /// Export safe account metadata without credentials
+    Export {
+        #[arg(short, long, help = "File to write safe account metadata to")]
+        output: PathBuf,
+    },
+    /// Import safe account metadata onto existing accounts
+    Import {
+        #[arg(help = "Safe account metadata file to import")]
+        input: PathBuf,
+    },
     /// Check local CLI setup and account hub health
     Doctor,
     /// Show account hub data and provider paths
@@ -207,6 +217,14 @@ fn main() -> Result<(), String> {
                     ensure_text_only("label", cli.json)?;
                     let label = if clear { None } else { label };
                     output::print_label(&facade, into_provider(provider), selector, label)
+                }
+                Commands::Export { output } => {
+                    ensure_text_only("export", cli.json)?;
+                    output::print_export(&facade, &output)
+                }
+                Commands::Import { input } => {
+                    ensure_text_only("import", cli.json)?;
+                    output::print_import(&facade, &input)
                 }
                 Commands::Tui { snapshot } => tui::run_tui(&facade, snapshot),
                 Commands::Relay { command } => {
