@@ -1,4 +1,4 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use crate::app_settings::models::RelaySettings as AppRelaySettings;
 use crate::app_settings::store::{load_app_settings, save_app_settings};
@@ -88,6 +88,35 @@ pub struct LabelOutcome {
     pub id: String,
     pub email: String,
     pub label: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccountMetadataExport {
+    pub version: u8,
+    pub accounts: Vec<AccountMetadataItem>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AccountMetadataItem {
+    pub provider: String,
+    pub id: String,
+    pub email: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ImportMetadataOutcome {
+    pub imported_count: usize,
+    pub skipped: Vec<ImportMetadataSkip>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct ImportMetadataSkip {
+    pub provider: String,
+    pub id: String,
+    pub email: String,
+    pub reason: String,
 }
 
 #[derive(Debug, Clone)]
@@ -219,6 +248,69 @@ impl CliFacade {
             Provider::Claude => self.label_claude(selection, label),
             Provider::Gemini => self.label_gemini(selection, label),
         }
+    }
+
+    pub fn export_metadata(&self) -> Result<AccountMetadataExport, CliError> {
+        let accounts = self
+            .list(None)?
+            .into_iter()
+            .map(|row| AccountMetadataItem {
+                provider: provider_label(row.provider).to_string(),
+                id: row.id,
+                email: row.email,
+                label: row.label,
+            })
+            .collect();
+
+        Ok(AccountMetadataExport {
+            version: 1,
+            accounts,
+        })
+    }
+
+    pub fn import_metadata(
+        &self,
+        metadata: AccountMetadataExport,
+    ) -> Result<ImportMetadataOutcome, CliError> {
+        if metadata.version != 1 {
+            return Err(CliError::Usage(format!(
+                "unsupported metadata export version {}",
+                metadata.version
+            )));
+        }
+
+        let mut imported_count = 0;
+        let mut skipped = Vec::new();
+        for item in metadata.accounts {
+            let Some(provider) = parse_provider_label(&item.provider) else {
+                skipped.push(skip_item(item, "unknown provider"));
+                continue;
+            };
+
+            let accounts = self.list(Some(provider))?;
+            let matched_id = accounts
+                .iter()
+                .find(|account| {
+                    account.id == item.id || account.email.eq_ignore_ascii_case(&item.email)
+                })
+                .map(|account| account.id.clone());
+            let Some(matched_id) = matched_id else {
+                skipped.push(skip_item(item, "account not found"));
+                continue;
+            };
+
+            self.label(
+                provider,
+                SwitchSelection::Id(matched_id),
+                item.label.clone(),
+            )?;
+            imported_count += 1;
+        }
+
+        Ok(ImportMetadataOutcome {
+            imported_count,
+            skipped,
+        })
     }
 
     pub fn add(&self, provider: Provider) -> Result<AddOutcome, CliError> {
@@ -517,6 +609,32 @@ fn provider_title(provider: Provider) -> &'static str {
         Provider::Codex => "Codex",
         Provider::Claude => "Claude",
         Provider::Gemini => "Gemini",
+    }
+}
+
+fn provider_label(provider: Provider) -> &'static str {
+    match provider {
+        Provider::Codex => "codex",
+        Provider::Claude => "claude",
+        Provider::Gemini => "gemini",
+    }
+}
+
+fn parse_provider_label(provider: &str) -> Option<Provider> {
+    match provider.trim().to_ascii_lowercase().as_str() {
+        "codex" => Some(Provider::Codex),
+        "claude" => Some(Provider::Claude),
+        "gemini" => Some(Provider::Gemini),
+        _ => None,
+    }
+}
+
+fn skip_item(item: AccountMetadataItem, reason: &str) -> ImportMetadataSkip {
+    ImportMetadataSkip {
+        provider: item.provider,
+        id: item.id,
+        email: item.email,
+        reason: reason.to_string(),
     }
 }
 
