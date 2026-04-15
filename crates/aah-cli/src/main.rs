@@ -30,25 +30,31 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Start a provider login flow and add the account to the managed pool
     Add {
-        #[arg(long)]
+        #[arg(long, help = "Provider to add")]
         provider: ProviderArg,
     },
+    /// List managed accounts in the shared account pool
     List {
-        #[arg(long)]
+        #[arg(long, help = "Filter accounts by provider")]
         provider: Option<ProviderArg>,
     },
+    /// Show the currently active account for each provider
     Current {
-        #[arg(long)]
+        #[arg(long, help = "Filter active accounts by provider")]
         provider: Option<ProviderArg>,
     },
+    /// Switch the active account for a provider
     Switch {
-        #[arg(long)]
+        #[arg(long, help = "Provider whose active account should change")]
         provider: ProviderArg,
+        #[arg(help = "Account email or managed account ID to activate")]
         selector: String,
     },
+    /// Refresh usage and account status for managed accounts
     Refresh {
-        #[arg(long)]
+        #[arg(long, help = "Refresh only one provider")]
         provider: Option<ProviderArg>,
     },
     /// Upgrade the installed CLI
@@ -58,6 +64,7 @@ enum Commands {
         #[arg(long, hide = true)]
         snapshot: bool,
     },
+    /// Manage the local relay server
     Relay {
         #[command(subcommand)]
         command: RelayCommands,
@@ -71,13 +78,18 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum RelayCommands {
+    /// Show local relay runtime status
     Status,
+    /// Start the local relay server
     Start {
-        #[arg(long)]
+        #[arg(long, help = "Port to bind the relay server to")]
         port: Option<u16>,
     },
+    /// Stop the local relay server
     Stop,
+    /// Persist the relay port setting
     SetPort {
+        #[arg(help = "Port to persist for future relay starts")]
         port: u16,
     },
 }

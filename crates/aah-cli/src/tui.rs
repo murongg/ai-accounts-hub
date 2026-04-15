@@ -214,6 +214,7 @@ fn render(frame: &mut Frame<'_>, model: &TuiModel) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(5),
+            Constraint::Length(3),
             Constraint::Length(7),
             Constraint::Min(9),
             Constraint::Length(4),
@@ -221,9 +222,10 @@ fn render(frame: &mut Frame<'_>, model: &TuiModel) {
         .split(frame.area());
 
     render_header(frame, chunks[0], model);
-    render_current(frame, chunks[1], &model.current, model.filter);
-    render_accounts(frame, chunks[2], &model.accounts, model.selected);
-    render_footer(frame, chunks[3], &model.status);
+    render_provider_tabs(frame, chunks[1], model.filter);
+    render_current(frame, chunks[2], &model.current, model.filter);
+    render_accounts(frame, chunks[3], &model.accounts, model.selected);
+    render_footer(frame, chunks[4], &model.status);
 }
 
 fn render_header(frame: &mut Frame<'_>, area: Rect, model: &TuiModel) {
@@ -242,6 +244,48 @@ fn render_header(frame: &mut Frame<'_>, area: Rect, model: &TuiModel) {
     ])
     .block(Block::default().borders(Borders::ALL).title("aah tui"));
     frame.render_widget(header, area);
+}
+
+fn render_provider_tabs(frame: &mut Frame<'_>, area: Rect, filter: Option<Provider>) {
+    let tabs = Paragraph::new(Line::from(vec![
+        provider_tab_span("1 Codex", filter == Some(Provider::Codex)),
+        Span::raw("  "),
+        provider_tab_span("2 Claude", filter == Some(Provider::Claude)),
+        Span::raw("  "),
+        provider_tab_span("3 Gemini", filter == Some(Provider::Gemini)),
+        Span::raw("    "),
+        Span::styled(
+            "a All",
+            if filter.is_none() {
+                Style::default()
+                    .fg(Color::Black)
+                    .bg(Color::Gray)
+                    .add_modifier(Modifier::BOLD)
+            } else {
+                Style::default().fg(Color::DarkGray)
+            },
+        ),
+    ]))
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title("Provider tabs"),
+    );
+    frame.render_widget(tabs, area);
+}
+
+fn provider_tab_span(label: &'static str, active: bool) -> Span<'static> {
+    if active {
+        Span::styled(
+            format!(" {label} "),
+            Style::default()
+                .fg(Color::Black)
+                .bg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )
+    } else {
+        Span::styled(format!(" {label} "), Style::default().fg(Color::Cyan))
+    }
 }
 
 fn render_current(
@@ -329,7 +373,9 @@ fn render_accounts(frame: &mut Frame<'_>, area: Rect, accounts: &[AccountRow], s
 fn render_footer(frame: &mut Frame<'_>, area: Rect, status: &str) {
     let footer = Paragraph::new(vec![
         Line::from(status.to_string()),
-        Line::from("up/down/j/k select | Enter switch | r refresh | 1/2/3/a filter | q/Esc quit"),
+        Line::from(
+            "up/down/j/k select | Enter switch | r refresh | 1 Codex | 2 Claude | 3 Gemini | a All | q/Esc quit",
+        ),
     ])
     .style(Style::default().fg(Color::DarkGray))
     .block(Block::default().borders(Borders::ALL).title("Status"));
