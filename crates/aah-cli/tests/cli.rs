@@ -49,6 +49,28 @@ fn add_help_lists_provider_flag() {
 }
 
 #[test]
+fn upgrade_help_describes_self_update_command() {
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .args(["upgrade", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Upgrade the installed CLI"));
+}
+
+#[test]
+fn upgrade_rejects_global_json_output() {
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .args(["--json", "upgrade"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "--json is not supported for upgrade",
+        ));
+}
+
+#[test]
 fn relay_help_lists_runtime_and_config_commands() {
     Command::cargo_bin("aah")
         .expect("binary")

@@ -171,10 +171,13 @@ aah add --provider codex
 aah list
 aah current
 aah refresh
+aah upgrade
 aah switch --provider codex user@example.com
 ```
 
 `aah add --provider ...` 会启动对应 provider 的登录流程，把账号加入应用自己的账号池，但不会自动切换当前系统 CLI 正在使用的活跃账号。
+
+`aah upgrade` 会检查最新的 `cli-vX.Y.Z` CLI Release，自动识别当前 CLI 的安装方式，并在安全时直接升级。对于还没有安装元数据的旧版本安装，它可能会先输出一条手动升级命令，而不是直接覆盖当前安装。
 
 按 provider 过滤：
 

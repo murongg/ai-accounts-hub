@@ -49,10 +49,13 @@ aah add --provider codex
 aah list
 aah current
 aah refresh
+aah upgrade
 aah switch --provider codex user@example.com
 ```
 
 `aah add --provider ...` starts the provider's login flow, stores the account in the managed account pool, and leaves the current active CLI account unchanged.
+
+`aah upgrade` checks the latest `cli-vX.Y.Z` release, auto-detects how the CLI was installed, and upgrades in place when safe. On older installs that do not have install metadata yet, it may print a one-line manual upgrade command instead of upgrading directly.
 
 Filter by provider:
 
