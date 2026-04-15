@@ -1,5 +1,5 @@
 use aah_core::app_settings::models::RelaySettings;
-use aah_core::cli_facade::{CliFacade, Provider, SwitchSelection};
+use aah_core::cli_facade::{AddOutcome, CliFacade, Provider, SwitchSelection};
 use aah_core::relay::RelayRuntimeStatus;
 
 pub fn print_list(
@@ -27,6 +27,19 @@ pub fn print_list(
                 row.summary
             );
         }
+    }
+    Ok(())
+}
+
+pub fn print_add(facade: &CliFacade, provider: Provider, json: bool) -> Result<(), String> {
+    let outcome = facade.add(provider).map_err(|error| error.to_string())?;
+    if json {
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&outcome).map_err(|error| error.to_string())?
+        );
+    } else {
+        println!("{}", add_message(&outcome));
     }
     Ok(())
 }
@@ -164,5 +177,33 @@ fn provider_title(provider: Provider) -> &'static str {
         Provider::Codex => "Codex",
         Provider::Claude => "Claude",
         Provider::Gemini => "Gemini",
+    }
+}
+
+fn add_message(outcome: &AddOutcome) -> String {
+    format!(
+        "Added {} account {} ({}) to the account pool. Current active account was not changed.",
+        provider_title(outcome.provider),
+        outcome.email,
+        outcome.id
+    )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn add_message_mentions_account_pool_and_no_activation() {
+        let message = add_message(&AddOutcome {
+            provider: Provider::Codex,
+            id: "codex-123".to_string(),
+            email: "user@example.com".to_string(),
+            activated: false,
+        });
+
+        assert!(message.contains("Added Codex account user@example.com (codex-123)"));
+        assert!(message.contains("account pool"));
+        assert!(message.contains("not changed"));
     }
 }

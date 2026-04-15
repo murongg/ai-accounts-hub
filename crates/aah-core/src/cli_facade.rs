@@ -4,15 +4,21 @@ use crate::app_settings::models::RelaySettings as AppRelaySettings;
 use crate::app_settings::store::{load_app_settings, save_app_settings};
 use crate::bootstrap::BootstrapContext;
 use crate::claude_accounts::{
-    models::ClaudeAccountListItem, paths::ClaudeAccountPaths, service::ClaudeAccountService,
+    models::{ClaudeAccountListItem, StoredClaudeAccount},
+    paths::ClaudeAccountPaths,
+    service::ClaudeAccountService,
 };
 use crate::claude_usage::service::ClaudeUsageService;
 use crate::codex_accounts::{
-    models::CodexAccountListItem, paths::CodexAccountPaths, service::CodexAccountService,
+    models::{CodexAccountListItem, StoredCodexAccount},
+    paths::CodexAccountPaths,
+    service::CodexAccountService,
 };
 use crate::codex_usage::service::CodexUsageService;
 use crate::gemini_accounts::{
-    models::GeminiAccountListItem, paths::GeminiAccountPaths, service::GeminiAccountService,
+    models::{GeminiAccountListItem, StoredGeminiAccount},
+    paths::GeminiAccountPaths,
+    service::GeminiAccountService,
 };
 use crate::gemini_usage::service::GeminiUsageService;
 use crate::relay::registry::{shared_runtime_status, stop_shared_runtime, RelayRegistryPaths};
@@ -49,6 +55,14 @@ pub struct RefreshRow {
     pub provider: Provider,
     pub ok: bool,
     pub message: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct AddOutcome {
+    pub provider: Provider,
+    pub id: String,
+    pub email: String,
+    pub activated: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -160,6 +174,32 @@ impl CliFacade {
             Provider::Codex => self.switch_codex(selection),
             Provider::Claude => self.switch_claude(selection),
             Provider::Gemini => self.switch_gemini(selection),
+        }
+    }
+
+    pub fn add(&self, provider: Provider) -> Result<AddOutcome, CliError> {
+        match provider {
+            Provider::Codex => {
+                let service = CodexAccountService::with_process_runner(self.codex_paths());
+                service
+                    .start_login()
+                    .map(AddOutcome::from_codex)
+                    .map_err(CliError::Provider)
+            }
+            Provider::Claude => {
+                let mut service = ClaudeAccountService::with_process_runner(self.claude_paths());
+                service
+                    .start_login()
+                    .map(AddOutcome::from_claude)
+                    .map_err(CliError::Provider)
+            }
+            Provider::Gemini => {
+                let service = GeminiAccountService::with_process_runner(self.gemini_paths());
+                service
+                    .start_login()
+                    .map(AddOutcome::from_gemini)
+                    .map_err(CliError::Provider)
+            }
         }
     }
 
@@ -397,9 +437,79 @@ impl AccountRow {
     }
 }
 
+impl AddOutcome {
+    fn from_codex(account: StoredCodexAccount) -> Self {
+        Self {
+            provider: Provider::Codex,
+            id: account.id,
+            email: account.email,
+            activated: false,
+        }
+    }
+
+    fn from_claude(account: StoredClaudeAccount) -> Self {
+        Self {
+            provider: Provider::Claude,
+            id: account.id,
+            email: account.email,
+            activated: false,
+        }
+    }
+
+    fn from_gemini(account: StoredGeminiAccount) -> Self {
+        Self {
+            provider: Provider::Gemini,
+            id: account.id,
+            email: account.email,
+            activated: false,
+        }
+    }
+}
+
 fn format_remaining(label: &str, remaining_percent: Option<u8>) -> String {
     match remaining_percent {
         Some(percent) => format!("{label} {percent}%"),
         None => "-".to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::claude_accounts::models::StoredClaudeAccount;
+    use crate::codex_accounts::models::StoredCodexAccount;
+    use crate::gemini_accounts::models::StoredGeminiAccount;
+
+    #[test]
+    fn add_outcome_from_codex_account_marks_not_activated() {
+        let outcome =
+            AddOutcome::from_codex(StoredCodexAccount::new_for_tests("user@example.com", None));
+
+        assert_eq!(outcome.provider, Provider::Codex);
+        assert_eq!(outcome.id, "test-user@example.com");
+        assert_eq!(outcome.email, "user@example.com");
+        assert!(!outcome.activated);
+    }
+
+    #[test]
+    fn add_outcome_from_claude_account_marks_not_activated() {
+        let outcome =
+            AddOutcome::from_claude(StoredClaudeAccount::new_for_tests("user@example.com", None));
+
+        assert_eq!(outcome.provider, Provider::Claude);
+        assert_eq!(outcome.id, "test-user@example.com");
+        assert_eq!(outcome.email, "user@example.com");
+        assert!(!outcome.activated);
+    }
+
+    #[test]
+    fn add_outcome_from_gemini_account_marks_not_activated() {
+        let outcome =
+            AddOutcome::from_gemini(StoredGeminiAccount::new_for_tests("user@example.com", None));
+
+        assert_eq!(outcome.provider, Provider::Gemini);
+        assert_eq!(outcome.id, "test-user@example.com");
+        assert_eq!(outcome.email, "user@example.com");
+        assert!(!outcome.activated);
     }
 }

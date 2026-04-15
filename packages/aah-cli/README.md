@@ -31,11 +31,14 @@ TUI shortcuts:
 Run script-friendly commands:
 
 ```bash
+aah add --provider codex
 aah list
 aah current
 aah refresh
 aah switch --provider codex user@example.com
 ```
+
+`aah add --provider ...` starts the provider's login flow, stores the account in the managed account pool, and leaves the current active CLI account unchanged.
 
 Filter by provider:
 

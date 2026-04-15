@@ -29,6 +29,10 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    Add {
+        #[arg(long)]
+        provider: ProviderArg,
+    },
     List {
         #[arg(long)]
         provider: Option<ProviderArg>,
@@ -88,6 +92,7 @@ fn main() -> Result<(), String> {
     let facade = CliFacade::new(context);
 
     match cli.command {
+        Commands::Add { provider } => output::print_add(&facade, into_provider(provider), cli.json),
         Commands::List { provider } => {
             output::print_list(&facade, provider.map(into_provider), cli.json)
         }
