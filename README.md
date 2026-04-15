@@ -7,7 +7,7 @@
 你可以把它当成两种模式来用：
 
 - **桌面 App 模式**：用图形界面统一管理账号、切换系统当前凭证、查看 quota / usage、配置自动切换和本地中转服务。
-- **CLI 模式**：安装 `aah` 后直接在终端里完成账号查看、切换、刷新和 relay 管理；CLI 和桌面 App 共用同一个账号池与 relay 状态。
+- **CLI 模式**：安装 `aah` 后直接在终端里完成账号查看、切换、标记、删除、诊断、导入导出、刷新和 relay 管理；CLI 和桌面 App 共用同一个账号池与 relay 状态。
 
 - 下载地址：[Latest Release](https://github.com/murongg/ai-accounts-hub/releases/latest)
 - 项目仓库：[murongg/ai-accounts-hub](https://github.com/murongg/ai-accounts-hub)
@@ -50,9 +50,10 @@
 
 适合已经长期在终端里工作，但又不想手动维护账号文件的人：
 
-- 用 `aah list/current/switch/refresh` 管理账号
-- 用 TUI 进行交互式切换
-- 用 JSON 输出做脚本集成
+- 用 `aah add/list/current/switch/refresh` 管理账号
+- 用 `aah label/remove` 维护账号显示名和账号池
+- 用 TUI 的 `Codex` / `Claude` / `Gemini` provider tabs 进行交互式切换
+- 用 JSON 输出做脚本集成，也可以用 `aah doctor` / `aah paths` 排查环境
 - 用 `aah relay ...` 管理本地中转
 - 与桌面 App 共享同一份账号池、配置和 relay 运行状态
 
@@ -65,6 +66,8 @@
 - 后台定时刷新各 provider 配额快照
 - 在主账号不可用或主配额耗尽时自动切换到可用账号
 - 可选启动本地 `Codex` relay，并在桌面端与 CLI 之间共享同一个 relay 实例
+- CLI 支持账号 label、删除、交互式 TUI、环境诊断、路径查看、shell completion 和自升级
+- CLI 支持安全 metadata 导入导出，只迁移账号显示名等元数据，不导出 token 或凭证文件
 - 设置页支持语言、主题、自动切换、刷新间隔、数据目录管理
 - 内置桌面自动更新
 - macOS 原生 menubar / 状态栏快速查看和切换
@@ -152,7 +155,7 @@ curl -fsSL https://raw.githubusercontent.com/murongg/ai-accounts-hub/main/script
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/murongg/ai-accounts-hub/main/scripts/install-aah.sh -o install-aah.sh
-AAH_VERSION=0.1.3 sh install-aah.sh
+AAH_VERSION=0.1.5 sh install-aah.sh
 AAH_INSTALL_DIR=/usr/local/bin sh install-aah.sh
 ```
 
@@ -162,7 +165,7 @@ AAH_INSTALL_DIR=/usr/local/bin sh install-aah.sh
 aah tui
 ```
 
-在 TUI 里可以用 `up/down` 或 `j/k` 选择账号，`Enter` 切换账号，`r` 刷新 quota，`1/2/3/a` 切换 provider 过滤，`q` 或 `Esc` 退出。
+在 TUI 里可以用 `1 Codex` / `2 Claude` / `3 Gemini` / `a All` provider tabs 过滤账号；用 `up/down` 或 `j/k` 选择账号，`Enter` 切换账号，`r` 刷新 quota，`q` 或 `Esc` 退出。
 
 常用命令：
 
@@ -171,11 +174,49 @@ aah add --provider codex
 aah list
 aah current
 aah refresh
-aah upgrade
 aah switch --provider codex user@example.com
+aah label --provider codex user@example.com Work
+aah remove --provider codex user@example.com
+aah doctor
+aah paths
+aah upgrade
 ```
 
 `aah add --provider ...` 会启动对应 provider 的登录流程，把账号加入应用自己的账号池，但不会自动切换当前系统 CLI 正在使用的活跃账号。
+
+`aah switch/remove/label` 的账号选择器既可以传账号 email，也可以传托管账号 ID。`aah remove` 默认会交互确认；脚本里可以加 `--yes` 跳过确认。
+
+账号显示名：
+
+```bash
+aah label --provider codex user@example.com Work
+aah label --provider codex user@example.com --clear
+```
+
+安全导入导出账号元数据：
+
+```bash
+aah export --output accounts-metadata.json
+aah import accounts-metadata.json
+```
+
+`aah export` 只导出 provider、账号 ID、email、label 等安全元数据，不导出 `auth.json`、OAuth token、Claude credentials 或 Gemini 凭证文件。`aah import` 只会把 metadata 应用到本机已经存在的托管账号；找不到匹配账号时会跳过，不会凭空创建账号或恢复凭证。
+
+诊断和路径：
+
+```bash
+aah doctor
+aah paths
+```
+
+`aah doctor` 会检查 managed root、user home、relay 状态、provider CLI 是否可发现、账号数量、当前活跃账号和 relogin 风险。`aah paths` 会输出当前数据目录以及各 provider 被接管的账号、usage、live 配置路径，适合排查 `--data-dir` 和迁移问题。
+
+生成 shell completion：
+
+```bash
+aah completion zsh > ~/.zfunc/_aah
+aah completion fish > ~/.config/fish/completions/aah.fish
+```
 
 `aah upgrade` 会检查最新的 `cli-vX.Y.Z` CLI Release，自动识别当前 CLI 的安装方式，并在安全时直接升级。对于还没有安装元数据的旧版本安装，它可能会先输出一条手动升级命令，而不是直接覆盖当前安装。
 
@@ -190,9 +231,14 @@ aah refresh --provider gemini
 输出 JSON，适合脚本集成：
 
 ```bash
+aah add --provider codex --json
 aah list --json
 aah current --json
+aah refresh --json
+aah relay status --json
 ```
+
+`--json` 只用于稳定的脚本输出命令。交互式或会写文件/修改账号池的命令，例如 `upgrade`、`tui`、`remove`、`label`、`export`、`import`、`doctor`、`paths` 和 `completion`，会保持人类可读输出。
 
 管理本地 relay：
 
