@@ -5,7 +5,7 @@ use std::process::Command;
 
 const SHELL_BINARY_START_MARKER: &str = "__AIHUB_CLI_BINARY_START__";
 const SHELL_BINARY_END_MARKER: &str = "__AIHUB_CLI_BINARY_END__";
-const COMMAND_WRAPPER_SUFFIXES: &[&str] = &["", ".exe", ".cmd", ".bat"];
+const COMMAND_WRAPPER_SUFFIXES: &[&str] = &[".exe", ".cmd", ".bat"];
 const WINDOWS_ENV_INSTALL_DIRS: &[(&str, &str)] = &[
     ("APPDATA", "npm"),
     ("LOCALAPPDATA", "pnpm"),
@@ -124,21 +124,28 @@ fn resolve_in_dir(dir: &Path, binary_name: &str) -> Option<PathBuf> {
 }
 
 fn command_candidate_paths(base: PathBuf) -> Vec<PathBuf> {
-    let mut candidates = Vec::with_capacity(COMMAND_WRAPPER_SUFFIXES.len());
-    let base_string = base.to_string_lossy().to_ascii_lowercase();
+    if matches_known_wrapper_extension(&base) {
+        return vec![base];
+    }
 
+    let mut candidates = Vec::with_capacity(COMMAND_WRAPPER_SUFFIXES.len() + 1);
     for suffix in COMMAND_WRAPPER_SUFFIXES {
-        if suffix.is_empty() || base_string.ends_with(suffix) {
-            candidates.push(base.clone());
-            continue;
-        }
-
         let mut candidate = base.as_os_str().to_os_string();
         candidate.push(suffix);
         candidates.push(PathBuf::from(candidate));
     }
-
+    candidates.push(base);
     candidates
+}
+
+fn matches_known_wrapper_extension(path: &Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| {
+            COMMAND_WRAPPER_SUFFIXES
+                .iter()
+                .any(|suffix| extension.eq_ignore_ascii_case(suffix.trim_start_matches('.')))
+        })
 }
 
 fn resolve_binary_from_login_shell(binary_name: &str) -> Option<PathBuf> {
@@ -244,6 +251,22 @@ more noise
         };
 
         let resolved = resolve_binary_from(&config, Some(path_var), None, None);
+
+        assert_eq!(resolved, Some(codex_cmd));
+    }
+
+    #[test]
+    fn resolves_windows_cmd_wrapper_before_extensionless_shim_from_path() {
+        let temp = temp_test_dir("resolver-windows-path-prefers-cmd");
+        let bin_dir = temp.join("AppData/Roaming/npm");
+        let codex_shim = bin_dir.join("codex");
+        let codex_cmd = bin_dir.join("codex.cmd");
+        fs::create_dir_all(&bin_dir).unwrap();
+        fs::write(&codex_shim, "#!/bin/sh\n").unwrap();
+        fs::write(&codex_cmd, "@echo off\r\n").unwrap();
+        let path_var = std::env::join_paths([bin_dir]).unwrap();
+
+        let resolved = resolve_binary_from(&test_resolver("codex"), Some(path_var), None, None);
 
         assert_eq!(resolved, Some(codex_cmd));
     }

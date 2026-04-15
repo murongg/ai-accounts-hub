@@ -10,6 +10,20 @@ npm install -g @murongg/aah-cli
 
 The npm package has its own standalone CLI version and downloads the matching prebuilt native binary from the `cli-vX.Y.Z` GitHub Release during installation.
 
+On macOS or Linux, you can install the standalone Release binary without npm:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/murongg/ai-accounts-hub/main/scripts/install-aah.sh | sh
+```
+
+Pin a version or install into another directory:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/murongg/ai-accounts-hub/main/scripts/install-aah.sh -o install-aah.sh
+AAH_VERSION=0.1.3 sh install-aah.sh
+AAH_INSTALL_DIR=/usr/local/bin sh install-aah.sh
+```
+
 Publishing from GitHub Actions requires the repository secret `NPM_TOKEN` to be an npm Automation token when the npm account has publish 2FA enabled. A regular publish token will fail with `EOTP` because CI cannot provide a one-time password.
 
 ## Usage
