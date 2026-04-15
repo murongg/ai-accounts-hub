@@ -722,9 +722,9 @@ fn render_accounts(frame: &mut Frame<'_>, area: Rect, accounts: &[AccountRow], s
         rows,
         [
             Constraint::Length(12),
-            Constraint::Percentage(28),
-            Constraint::Length(8),
-            Constraint::Percentage(52),
+            Constraint::Percentage(34),
+            Constraint::Length(10),
+            Constraint::Percentage(44),
         ],
     )
     .header(Row::new(["Provider", "Account", "State", "Quota"]).style(header_style()))
@@ -830,7 +830,7 @@ fn quota_cell(account: &AccountRow) -> Text<'static> {
     if let Some(meta) = &account.quota_meta {
         lines.push(Line::from(vec![Span::styled(
             format!("• {meta}"),
-            Style::default().add_modifier(Modifier::DIM),
+            Style::default().fg(Color::DarkGray),
         )]));
     }
     Text::from(lines)
@@ -844,22 +844,26 @@ fn quota_line(quota: &AccountQuotaRow) -> Line<'static> {
         Some(percent) => format!("{percent:>3}%"),
         None => "sync".to_string(),
     };
-    let refresh_label = compact_refresh_label(quota);
+    let refresh_label = quota
+        .remaining_percent
+        .map(|_| format_refresh_countdown(quota.refresh_at.as_deref()))
+        .unwrap_or_else(|| "--:--".to_string());
 
     Line::from(vec![
         Span::styled(
-            format!("{} ", quota.label),
-            Style::default().add_modifier(Modifier::BOLD),
+            format!("{:<10}", quota.label),
+            Style::default().fg(Color::Black),
         ),
+        Span::raw(" "),
         Span::styled(
-            percent_label,
+            format!("{percent_label:>4}"),
             Style::default().fg(tone).add_modifier(Modifier::BOLD),
         ),
-        Span::raw(" "),
+        Span::raw("  "),
         Span::styled(filled, Style::default().fg(tone)),
-        Span::styled(empty, Style::default().add_modifier(Modifier::DIM)),
-        Span::raw(" "),
-        Span::styled(refresh_label, Style::default().add_modifier(Modifier::DIM)),
+        Span::styled(empty, Style::default().fg(Color::DarkGray)),
+        Span::styled("  ↻ ", Style::default().fg(Color::DarkGray)),
+        Span::styled(refresh_label, Style::default().fg(Color::DarkGray)),
     ])
 }
 
@@ -869,16 +873,19 @@ fn quota_display_plain(quota: &AccountQuotaRow) -> String {
     let percent_label = percent
         .map(|percent| format!("{percent:>3}%"))
         .unwrap_or_else(|| "sync".to_string());
-    let refresh_label = compact_refresh_label(quota);
+    let refresh_label = quota
+        .remaining_percent
+        .map(|_| format_refresh_countdown(quota.refresh_at.as_deref()))
+        .unwrap_or_else(|| "--:--".to_string());
 
     format!(
-        "{} {} {}{} {}",
+        "{:<10} {:>4}  {}{}  ↻ {}",
         quota.label, percent_label, filled, empty, refresh_label
     )
 }
 
 fn progress_bar_segments(percent: u8) -> (String, String) {
-    const WIDTH: u8 = 6;
+    const WIDTH: u8 = 10;
     let mut filled = ((percent as u16 * WIDTH as u16) + 50) / 100;
     if percent > 0 {
         filled = filled.max(1);
@@ -890,13 +897,6 @@ fn progress_bar_segments(percent: u8) -> (String, String) {
 
 fn clamp_percent(percent: u8) -> u8 {
     percent.min(100)
-}
-
-fn compact_refresh_label(quota: &AccountQuotaRow) -> String {
-    quota
-        .remaining_percent
-        .map(|_| format_refresh_countdown(quota.refresh_at.as_deref()).replace(' ', ""))
-        .unwrap_or_else(|| "--:--".to_string())
 }
 
 fn quota_tone(percent: u8) -> Color {
@@ -1001,12 +1001,30 @@ mod tests {
         let snapshot = render_snapshot(&model).expect("snapshot");
 
         assert!(snapshot.contains("5h"));
-        assert!(snapshot.contains("▰▰▰▰▰▱"));
+        assert!(snapshot.contains("▰▰▰▰▰▰▰▰▱▱"));
         assert!(snapshot.contains("82%"));
         assert!(snapshot.contains("Weekly"));
+        assert!(snapshot.contains("↻"));
         assert!(!snapshot.contains("[########--]"));
-        assert!(!snapshot.contains("↻"));
         assert!(snapshot.contains("Credits 12.5"));
+    }
+
+    #[test]
+    fn quota_line_uses_readable_text_colors() {
+        let line = quota_line(&quota("5h", Some(82), Some("1800000000")));
+
+        assert_eq!(line.spans[0].style.fg, Some(Color::Black));
+        assert_eq!(
+            line.spans.last().and_then(|span| span.style.fg),
+            Some(Color::DarkGray)
+        );
+        assert!(!line
+            .spans
+            .last()
+            .expect("refresh span")
+            .style
+            .add_modifier
+            .contains(Modifier::DIM));
     }
 
     #[test]
