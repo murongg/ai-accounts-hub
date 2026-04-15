@@ -93,7 +93,10 @@ enum Commands {
         input: PathBuf,
     },
     /// Check local CLI setup and account hub health
-    Doctor,
+    Doctor {
+        #[arg(long, help = "Apply safe automatic repairs for common local issues")]
+        fix: bool,
+    },
     /// Show account hub data and provider paths
     Paths,
     /// Generate shell completion scripts
@@ -163,11 +166,15 @@ fn main() -> Result<(), String> {
             generate_completion(shell);
             Ok(())
         }
-        Commands::Doctor => {
+        Commands::Doctor { fix } => {
             ensure_text_only("doctor", cli.json)?;
             let facade = diagnostic_facade(cli.data_dir)?;
-            output::print_doctor(&facade);
-            Ok(())
+            if fix {
+                output::print_doctor_fix(&facade)
+            } else {
+                output::print_doctor(&facade);
+                Ok(())
+            }
         }
         Commands::Paths => {
             ensure_text_only("paths", cli.json)?;
@@ -232,7 +239,7 @@ fn main() -> Result<(), String> {
                 }
                 Commands::RelayHost { port } => run_relay_host(cli.data_dir, port),
                 Commands::Upgrade => unreachable!("upgrade handled before bootstrap"),
-                Commands::Doctor => unreachable!("doctor handled before account import"),
+                Commands::Doctor { .. } => unreachable!("doctor handled before account import"),
                 Commands::Paths => unreachable!("paths handled before account import"),
                 Commands::Completion { .. } => unreachable!("completion handled before bootstrap"),
             }

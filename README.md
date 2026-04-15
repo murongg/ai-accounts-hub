@@ -206,10 +206,11 @@ aah import accounts-metadata.json
 
 ```bash
 aah doctor
+aah doctor --fix
 aah paths
 ```
 
-`aah doctor` 会检查 managed root、user home、relay 状态、provider CLI 是否可发现、账号数量、当前活跃账号和 relogin 风险。`aah paths` 会输出当前数据目录以及各 provider 被接管的账号、usage、live 配置路径，适合排查 `--data-dir` 和迁移问题。
+`aah doctor` 会检查 managed root、user home、relay 状态、provider CLI 是否可发现、账号数量、当前活跃账号和 relogin 风险。`aah doctor --fix` 会执行安全自动修复：补创建缺失的数据目录、规范化迁移后的托管账号路径、清理损坏或过期的 relay runtime 记录；它不会覆盖凭证、删除账号或自动重新登录。`aah paths` 会输出当前数据目录以及各 provider 被接管的账号、usage、live 配置路径，适合排查 `--data-dir` 和迁移问题。
 
 生成 shell completion：
 

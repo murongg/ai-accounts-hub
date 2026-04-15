@@ -24,7 +24,11 @@ use crate::gemini_accounts::{
     service::GeminiAccountService,
 };
 use crate::gemini_usage::service::GeminiUsageService;
-use crate::relay::registry::{shared_runtime_status, stop_shared_runtime, RelayRegistryPaths};
+use crate::managed_root::{normalize_managed_root_metadata, ManagedRoot};
+use crate::relay::registry::{
+    load_runtime_record, remove_runtime_record, shared_runtime_status, stop_shared_runtime,
+    RelayRegistryPaths,
+};
 use crate::relay::RelayRuntimeStatus;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -94,6 +98,20 @@ pub struct ProviderDoctorRow {
     pub active_email: Option<String>,
     pub needs_relogin_count: usize,
     pub issues: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DoctorFixReport {
+    pub managed_root: String,
+    pub user_home: String,
+    pub fixes: Vec<DoctorFixRow>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct DoctorFixRow {
+    pub name: String,
+    pub status: String,
+    pub message: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -458,6 +476,19 @@ impl CliFacade {
         }
     }
 
+    pub fn doctor_fix(&self) -> Result<DoctorFixReport, CliError> {
+        let mut fixes = Vec::new();
+        fixes.push(self.fix_managed_directories()?);
+        fixes.push(self.fix_account_paths()?);
+        fixes.push(self.fix_relay_runtime()?);
+
+        Ok(DoctorFixReport {
+            managed_root: path_string(&self.context.managed_root),
+            user_home: path_string(&self.context.user_home),
+            fixes,
+        })
+    }
+
     pub fn relay_status(&self) -> Result<RelayRuntimeStatus, CliError> {
         let codex_paths = self.codex_paths();
         let settings = load_app_settings(&codex_paths).map_err(CliError::Environment)?;
@@ -550,6 +581,113 @@ impl CliFacade {
             email,
             already_active,
         })
+    }
+
+    fn fix_managed_directories(&self) -> Result<DoctorFixRow, CliError> {
+        let paths = [
+            self.codex_paths().codex_data_dir,
+            self.codex_paths().managed_homes_dir,
+            self.claude_paths().claude_data_dir,
+            self.claude_paths().managed_bundle_dir,
+            self.gemini_paths().gemini_data_dir,
+            self.gemini_paths().managed_homes_dir,
+            RelayRegistryPaths::from_managed_root(&self.context.managed_root).relay_dir,
+        ];
+        let missing_before = paths.iter().filter(|path| !path.exists()).count();
+
+        self.codex_paths()
+            .ensure_dirs()
+            .map_err(CliError::Environment)?;
+        self.claude_paths()
+            .ensure_dirs()
+            .map_err(CliError::Environment)?;
+        self.gemini_paths()
+            .ensure_dirs()
+            .map_err(CliError::Environment)?;
+        RelayRegistryPaths::from_managed_root(&self.context.managed_root)
+            .ensure_dirs()
+            .map_err(CliError::Environment)?;
+
+        let status = if missing_before > 0 {
+            "fixed"
+        } else {
+            "checked"
+        };
+        Ok(doctor_fix_row(
+            "managed directories",
+            status,
+            if missing_before > 0 {
+                format!("created {missing_before} missing managed directory/directories")
+            } else {
+                "managed directories already exist".to_string()
+            },
+        ))
+    }
+
+    fn fix_account_paths(&self) -> Result<DoctorFixRow, CliError> {
+        let tracked = [
+            self.codex_paths().account_index_path,
+            self.gemini_paths().account_index_path,
+        ];
+        let before = tracked
+            .iter()
+            .map(|path| std::fs::read_to_string(path).ok())
+            .collect::<Vec<_>>();
+        normalize_managed_root_metadata(&ManagedRoot {
+            root: self.context.managed_root.clone(),
+            user_home: self.context.user_home.clone(),
+        })
+        .map_err(CliError::Environment)?;
+        let after = tracked
+            .iter()
+            .map(|path| std::fs::read_to_string(path).ok())
+            .collect::<Vec<_>>();
+        let changed = before != after;
+
+        Ok(doctor_fix_row(
+            "account paths",
+            if changed { "fixed" } else { "checked" },
+            if changed {
+                "normalized stale managed account paths".to_string()
+            } else {
+                "managed account paths already normalized".to_string()
+            },
+        ))
+    }
+
+    fn fix_relay_runtime(&self) -> Result<DoctorFixRow, CliError> {
+        let codex_paths = self.codex_paths();
+        let settings = load_app_settings(&codex_paths).map_err(CliError::Environment)?;
+        let registry_paths = RelayRegistryPaths::from_managed_root(&self.context.managed_root);
+        registry_paths
+            .ensure_dirs()
+            .map_err(CliError::Environment)?;
+
+        let existed_before = registry_paths.runtime_path.exists();
+        match load_runtime_record(&registry_paths) {
+            Err(_) => {
+                remove_runtime_record(&registry_paths).map_err(CliError::Environment)?;
+                Ok(doctor_fix_row(
+                    "relay runtime",
+                    "fixed",
+                    "removed invalid relay runtime record",
+                ))
+            }
+            Ok(record) => {
+                let _ = shared_runtime_status(&settings.relay, &registry_paths, None);
+                let removed_stale =
+                    existed_before && record.is_some() && !registry_paths.runtime_path.exists();
+                Ok(doctor_fix_row(
+                    "relay runtime",
+                    if removed_stale { "fixed" } else { "checked" },
+                    if removed_stale {
+                        "removed stale relay runtime record".to_string()
+                    } else {
+                        "relay runtime record is healthy or absent".to_string()
+                    },
+                ))
+            }
+        }
     }
 
     fn remove_codex(&self, selection: SwitchSelection) -> Result<RemoveOutcome, CliError> {
@@ -732,6 +870,14 @@ fn ensure_not_active(provider: Provider, is_active: bool, email: &str) -> Result
         )))
     } else {
         Ok(())
+    }
+}
+
+fn doctor_fix_row(name: &str, status: &str, message: impl Into<String>) -> DoctorFixRow {
+    DoctorFixRow {
+        name: name.to_string(),
+        status: status.to_string(),
+        message: message.into(),
     }
 }
 

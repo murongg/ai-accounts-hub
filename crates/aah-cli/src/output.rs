@@ -266,6 +266,17 @@ pub fn print_doctor(facade: &CliFacade) {
     }
 }
 
+pub fn print_doctor_fix(facade: &CliFacade) -> Result<(), String> {
+    let report = facade.doctor_fix().map_err(|error| error.to_string())?;
+    println!("AAH doctor --fix");
+    println!("managed root: {}", report.managed_root);
+    println!("user home: {}", report.user_home);
+    for fix in report.fixes {
+        println!("{}: {} - {}", fix.status, fix.name, fix.message);
+    }
+    Ok(())
+}
+
 pub fn print_relay_status(facade: &CliFacade, json: bool) -> Result<(), String> {
     let status = facade.relay_status().map_err(|error| error.to_string())?;
     if json {
