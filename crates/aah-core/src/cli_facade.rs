@@ -46,7 +46,16 @@ pub struct AccountRow {
     pub label: Option<String>,
     pub is_active: bool,
     pub summary: String,
+    pub quota_rows: Vec<AccountQuotaRow>,
+    pub quota_meta: Option<String>,
     pub needs_relogin: bool,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AccountQuotaRow {
+    pub label: String,
+    pub remaining_percent: Option<u8>,
+    pub refresh_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -989,6 +998,19 @@ fn select_gemini(
 
 impl AccountRow {
     fn from_codex(item: CodexAccountListItem) -> Self {
+        let quota_rows = vec![
+            quota_row(
+                "5h",
+                item.five_hour_remaining_percent,
+                item.five_hour_refresh_at,
+            ),
+            quota_row(
+                "Weekly",
+                item.weekly_remaining_percent,
+                item.weekly_refresh_at,
+            ),
+        ];
+        let quota_meta = format_credits_balance(item.credits_balance);
         Self {
             provider: Provider::Codex,
             id: item.id,
@@ -996,11 +1018,30 @@ impl AccountRow {
             label: item.label,
             is_active: item.is_active,
             summary: format_remaining("codex", item.five_hour_remaining_percent),
+            quota_rows,
+            quota_meta,
             needs_relogin: item.needs_relogin.unwrap_or(false),
         }
     }
 
     fn from_claude(item: ClaudeAccountListItem) -> Self {
+        let quota_rows = vec![
+            quota_row(
+                "Session",
+                item.session_remaining_percent,
+                item.session_refresh_at,
+            ),
+            quota_row(
+                "Weekly",
+                item.weekly_remaining_percent,
+                item.weekly_refresh_at,
+            ),
+            quota_row(
+                item.model_weekly_label.as_deref().unwrap_or("Model Weekly"),
+                item.model_weekly_remaining_percent,
+                item.model_weekly_refresh_at,
+            ),
+        ];
         Self {
             provider: Provider::Claude,
             id: item.id,
@@ -1008,11 +1049,22 @@ impl AccountRow {
             label: item.label,
             is_active: item.is_active,
             summary: format_remaining("claude", item.session_remaining_percent),
+            quota_rows,
+            quota_meta: None,
             needs_relogin: item.needs_relogin.unwrap_or(false),
         }
     }
 
     fn from_gemini(item: GeminiAccountListItem) -> Self {
+        let quota_rows = vec![
+            quota_row("Pro", item.pro_remaining_percent, item.pro_refresh_at),
+            quota_row("Flash", item.flash_remaining_percent, item.flash_refresh_at),
+            quota_row(
+                "Flash Lite",
+                item.flash_lite_remaining_percent,
+                item.flash_lite_refresh_at,
+            ),
+        ];
         Self {
             provider: Provider::Gemini,
             id: item.id,
@@ -1020,6 +1072,8 @@ impl AccountRow {
             label: item.label,
             is_active: item.is_active,
             summary: format_remaining("gemini", item.pro_remaining_percent),
+            quota_rows,
+            quota_meta: None,
             needs_relogin: item.needs_relogin.unwrap_or(false),
         }
     }
@@ -1058,6 +1112,27 @@ fn format_remaining(label: &str, remaining_percent: Option<u8>) -> String {
     match remaining_percent {
         Some(percent) => format!("{label} {percent}%"),
         None => "-".to_string(),
+    }
+}
+
+fn quota_row(
+    label: &str,
+    remaining_percent: Option<u8>,
+    refresh_at: Option<String>,
+) -> AccountQuotaRow {
+    AccountQuotaRow {
+        label: label.to_string(),
+        remaining_percent,
+        refresh_at,
+    }
+}
+
+fn format_credits_balance(balance: Option<f64>) -> Option<String> {
+    let balance = balance?;
+    if balance > 0.0 {
+        Some(format!("Credits {balance}"))
+    } else {
+        None
     }
 }
 

@@ -1,7 +1,10 @@
 use std::io::{self, Stdout};
 use std::time::Duration;
 
-use aah_core::cli_facade::{AccountRow, CliFacade, CurrentRow, Provider, SwitchSelection};
+use aah_core::cli_facade::{
+    AccountQuotaRow, AccountRow, CliFacade, CurrentRow, Provider, SwitchSelection,
+};
+use aah_core::time_utils::format_refresh_countdown;
 use crossterm::event::{self, Event, KeyCode, KeyEvent, KeyEventKind};
 use crossterm::execute;
 use crossterm::terminal::{
@@ -10,7 +13,7 @@ use crossterm::terminal::{
 use ratatui::backend::{Backend, CrosstermBackend, TestBackend};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span};
+use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Table};
 use ratatui::{Frame, Terminal};
 
@@ -636,24 +639,36 @@ fn render_help(frame: &mut Frame<'_>, area: Rect) {
 
 fn render_detail(frame: &mut Frame<'_>, area: Rect, account: Option<&AccountRow>) {
     let lines = match account {
-        Some(account) => vec![
-            Line::from(format!("provider: {}", provider_label(account.provider))),
-            Line::from(format!("id: {}", account.id)),
-            Line::from(format!("email: {}", account.email)),
-            Line::from(format!(
-                "label: {}",
-                account.label.as_deref().unwrap_or("-")
-            )),
-            Line::from(format!(
-                "active: {}",
-                if account.is_active { "yes" } else { "no" }
-            )),
-            Line::from(format!(
-                "relogin: {}",
-                if account.needs_relogin { "yes" } else { "no" }
-            )),
-            Line::from(format!("summary: {}", account.summary)),
-        ],
+        Some(account) => {
+            let mut lines = vec![
+                Line::from(format!("provider: {}", provider_label(account.provider))),
+                Line::from(format!("id: {}", account.id)),
+                Line::from(format!("email: {}", account.email)),
+                Line::from(format!(
+                    "label: {}",
+                    account.label.as_deref().unwrap_or("-")
+                )),
+                Line::from(format!(
+                    "active: {}",
+                    if account.is_active { "yes" } else { "no" }
+                )),
+                Line::from(format!(
+                    "relogin: {}",
+                    if account.needs_relogin { "yes" } else { "no" }
+                )),
+                Line::from(format!("summary: {}", account.summary)),
+            ];
+            if !account.quota_rows.is_empty() || account.quota_meta.is_some() {
+                lines.push(Line::from("quotas:"));
+                for quota in &account.quota_rows {
+                    lines.push(Line::from(format!("  {}", quota_display_plain(quota))));
+                }
+                if let Some(meta) = &account.quota_meta {
+                    lines.push(Line::from(format!("  {meta}")));
+                }
+            }
+            lines
+        }
         None => vec![Line::from("No account selected")],
     };
     let detail = Paragraph::new(lines).block(
@@ -688,8 +703,9 @@ fn render_accounts(frame: &mut Frame<'_>, area: Rect, accounts: &[AccountRow], s
                     Cell::from(provider_label(row.provider)),
                     Cell::from(account_display(row.label.as_deref(), &row.email)),
                     Cell::from(state),
-                    Cell::from(row.summary.clone()),
-                ]);
+                    Cell::from(quota_cell(row)),
+                ])
+                .height(account_row_height(row));
                 if index == selected {
                     table_row = table_row.style(
                         Style::default()
@@ -706,12 +722,12 @@ fn render_accounts(frame: &mut Frame<'_>, area: Rect, accounts: &[AccountRow], s
         rows,
         [
             Constraint::Length(12),
-            Constraint::Percentage(42),
+            Constraint::Percentage(34),
             Constraint::Length(10),
-            Constraint::Percentage(36),
+            Constraint::Percentage(44),
         ],
     )
-    .header(Row::new(["Provider", "Account", "State", "Summary"]).style(header_style()))
+    .header(Row::new(["Provider", "Account", "State", "Quota"]).style(header_style()))
     .block(Block::default().borders(Borders::ALL).title("Accounts"));
     frame.render_widget(table, area);
 }
@@ -801,6 +817,108 @@ fn account_display(label: Option<&str>, email: &str) -> String {
     }
 }
 
+fn quota_cell(account: &AccountRow) -> Text<'static> {
+    let mut lines = if account.quota_rows.is_empty() {
+        vec![Line::from(account.summary.clone())]
+    } else {
+        account
+            .quota_rows
+            .iter()
+            .map(quota_line)
+            .collect::<Vec<_>>()
+    };
+    if let Some(meta) = &account.quota_meta {
+        lines.push(Line::from(vec![Span::styled(
+            format!("• {meta}"),
+            Style::default().fg(Color::DarkGray),
+        )]));
+    }
+    Text::from(lines)
+}
+
+fn quota_line(quota: &AccountQuotaRow) -> Line<'static> {
+    let percent = quota.remaining_percent.map(clamp_percent);
+    let tone = percent.map(quota_tone).unwrap_or(Color::DarkGray);
+    let (filled, empty) = progress_bar_segments(percent.unwrap_or(0));
+    let percent_label = match percent {
+        Some(percent) => format!("{percent:>3}%"),
+        None => "sync".to_string(),
+    };
+    let refresh_label = quota
+        .remaining_percent
+        .map(|_| format_refresh_countdown(quota.refresh_at.as_deref()))
+        .unwrap_or_else(|| "--:--".to_string());
+
+    Line::from(vec![
+        Span::styled(
+            format!("{:<10}", quota.label),
+            Style::default().fg(Color::Black),
+        ),
+        Span::raw(" "),
+        Span::styled(
+            format!("{percent_label:>4}"),
+            Style::default().fg(tone).add_modifier(Modifier::BOLD),
+        ),
+        Span::raw("  "),
+        Span::styled(filled, Style::default().fg(tone)),
+        Span::styled(empty, Style::default().fg(Color::DarkGray)),
+        Span::styled("  ↻ ", Style::default().fg(Color::DarkGray)),
+        Span::styled(refresh_label, Style::default().fg(Color::DarkGray)),
+    ])
+}
+
+fn quota_display_plain(quota: &AccountQuotaRow) -> String {
+    let percent = quota.remaining_percent.map(clamp_percent);
+    let (filled, empty) = progress_bar_segments(percent.unwrap_or(0));
+    let percent_label = percent
+        .map(|percent| format!("{percent:>3}%"))
+        .unwrap_or_else(|| "sync".to_string());
+    let refresh_label = quota
+        .remaining_percent
+        .map(|_| format_refresh_countdown(quota.refresh_at.as_deref()))
+        .unwrap_or_else(|| "--:--".to_string());
+
+    format!(
+        "{:<10} {:>4}  {}{}  ↻ {}",
+        quota.label, percent_label, filled, empty, refresh_label
+    )
+}
+
+fn progress_bar_segments(percent: u8) -> (String, String) {
+    const WIDTH: u8 = 10;
+    let mut filled = ((percent as u16 * WIDTH as u16) + 50) / 100;
+    if percent > 0 {
+        filled = filled.max(1);
+    }
+    let filled = filled.min(WIDTH as u16) as usize;
+    let empty = WIDTH as usize - filled;
+    ("▰".repeat(filled), "▱".repeat(empty))
+}
+
+fn clamp_percent(percent: u8) -> u8 {
+    percent.min(100)
+}
+
+fn quota_tone(percent: u8) -> Color {
+    if percent <= 10 {
+        Color::Red
+    } else if percent <= 30 {
+        Color::Yellow
+    } else {
+        Color::Green
+    }
+}
+
+fn account_row_height(account: &AccountRow) -> u16 {
+    let quota_lines = if account.quota_rows.is_empty() {
+        1
+    } else {
+        account.quota_rows.len()
+    };
+    let meta_lines = usize::from(account.quota_meta.is_some());
+    (quota_lines + meta_lines).max(1).min(u16::MAX as usize) as u16
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -867,6 +985,49 @@ mod tests {
     }
 
     #[test]
+    fn account_table_renders_quota_progress_and_reset_times() {
+        let model = model_with_accounts(vec![account_with_quota(
+            Provider::Codex,
+            "codex-1",
+            "codex@example.com",
+            Some("Work"),
+            vec![
+                quota("5h", Some(82), Some("1800000000")),
+                quota("Weekly", Some(64), Some("1800600000")),
+            ],
+            Some("Credits 12.5"),
+        )]);
+
+        let snapshot = render_snapshot(&model).expect("snapshot");
+
+        assert!(snapshot.contains("5h"));
+        assert!(snapshot.contains("▰▰▰▰▰▰▰▰▱▱"));
+        assert!(snapshot.contains("82%"));
+        assert!(snapshot.contains("Weekly"));
+        assert!(snapshot.contains("↻"));
+        assert!(!snapshot.contains("[########--]"));
+        assert!(snapshot.contains("Credits 12.5"));
+    }
+
+    #[test]
+    fn quota_line_uses_readable_text_colors() {
+        let line = quota_line(&quota("5h", Some(82), Some("1800000000")));
+
+        assert_eq!(line.spans[0].style.fg, Some(Color::Black));
+        assert_eq!(
+            line.spans.last().and_then(|span| span.style.fg),
+            Some(Color::DarkGray)
+        );
+        assert!(!line
+            .spans
+            .last()
+            .expect("refresh span")
+            .style
+            .add_modifier
+            .contains(Modifier::DIM));
+    }
+
+    #[test]
     fn label_input_updates_selected_account_label() {
         let temp = tempfile::tempdir().expect("temp dir");
         write_codex_account(temp.path(), "codex-1", "codex@example.com", None);
@@ -913,6 +1074,17 @@ mod tests {
     }
 
     fn account(provider: Provider, id: &str, email: &str, label: Option<&str>) -> AccountRow {
+        account_with_quota(provider, id, email, label, Vec::new(), None)
+    }
+
+    fn account_with_quota(
+        provider: Provider,
+        id: &str,
+        email: &str,
+        label: Option<&str>,
+        quota_rows: Vec<aah_core::cli_facade::AccountQuotaRow>,
+        quota_meta: Option<&str>,
+    ) -> AccountRow {
         AccountRow {
             provider,
             id: id.to_string(),
@@ -920,7 +1092,21 @@ mod tests {
             label: label.map(ToString::to_string),
             is_active: false,
             summary: "quota 80%".to_string(),
+            quota_rows,
+            quota_meta: quota_meta.map(ToString::to_string),
             needs_relogin: false,
+        }
+    }
+
+    fn quota(
+        label: &str,
+        remaining_percent: Option<u8>,
+        refresh_at: Option<&str>,
+    ) -> aah_core::cli_facade::AccountQuotaRow {
+        aah_core::cli_facade::AccountQuotaRow {
+            label: label.to_string(),
+            remaining_percent,
+            refresh_at: refresh_at.map(ToString::to_string),
         }
     }
 
