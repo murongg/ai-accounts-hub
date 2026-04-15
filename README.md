@@ -165,7 +165,7 @@ AAH_INSTALL_DIR=/usr/local/bin sh install-aah.sh
 aah tui
 ```
 
-在 TUI 里可以用 `1 Codex` / `2 Claude` / `3 Gemini` / `a All` provider tabs 过滤账号；用 `up/down` 或 `j/k` 选择账号，`Enter` 切换账号，`r` 刷新 quota，`q` 或 `Esc` 退出。
+在 TUI 里可以用 `1 Codex` / `2 Claude` / `3 Gemini` / `a All` provider tabs 过滤账号；用 `up/down` 或 `j/k` 选择账号，`Enter` 切换账号，`/` 搜索，`i` 查看详情，`l` 修改 label，`d` 删除账号，`r` 刷新 quota，`?` 查看快捷键，`q` 或 `Esc` 退出。
 
 常用命令：
 

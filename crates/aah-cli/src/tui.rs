@@ -28,34 +28,59 @@ pub fn run_tui(facade: &CliFacade, snapshot: bool) -> Result<(), String> {
 }
 
 struct TuiModel {
+    source_accounts: Vec<AccountRow>,
     accounts: Vec<AccountRow>,
     current: Vec<CurrentRow>,
     filter: Option<Provider>,
     selected: usize,
     status: String,
+    mode: TuiMode,
+    search_query: String,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum TuiMode {
+    Normal,
+    Search,
+    LabelInput {
+        provider: Provider,
+        id: String,
+        email: String,
+        input: String,
+    },
+    ConfirmDelete {
+        provider: Provider,
+        id: String,
+        email: String,
+    },
+    Detail,
+    Help,
 }
 
 impl TuiModel {
     fn from_facade(facade: &CliFacade) -> Result<Self, String> {
         let mut model = Self {
+            source_accounts: Vec::new(),
             accounts: Vec::new(),
             current: Vec::new(),
             filter: None,
             selected: 0,
             status: "Ready".to_string(),
+            mode: TuiMode::Normal,
+            search_query: String::new(),
         };
         model.reload(facade)?;
         Ok(model)
     }
 
     fn reload(&mut self, facade: &CliFacade) -> Result<(), String> {
-        self.accounts = facade
+        self.source_accounts = facade
             .list(self.filter)
             .map_err(|error| error.to_string())?;
         self.current = facade
             .current(self.filter)
             .map_err(|error| error.to_string())?;
-        self.clamp_selection();
+        self.apply_search_filter();
         Ok(())
     }
 
@@ -68,8 +93,44 @@ impl TuiModel {
     }
 
     fn handle_key(&mut self, facade: &CliFacade, key: KeyEvent) -> Result<bool, String> {
+        match self.mode.clone() {
+            TuiMode::Normal => self.handle_normal_key(facade, key),
+            TuiMode::Search => self.handle_search_key(key),
+            TuiMode::LabelInput { .. } => self.handle_label_key(facade, key),
+            TuiMode::ConfirmDelete { .. } => self.handle_delete_key(facade, key),
+            TuiMode::Detail | TuiMode::Help => self.handle_panel_key(key),
+        }
+    }
+
+    fn handle_normal_key(&mut self, facade: &CliFacade, key: KeyEvent) -> Result<bool, String> {
         match key.code {
             KeyCode::Char('q') | KeyCode::Esc => Ok(true),
+            KeyCode::Char('?') => {
+                self.mode = TuiMode::Help;
+                self.status = "Help open".to_string();
+                Ok(false)
+            }
+            KeyCode::Char('/') => {
+                self.enter_search();
+                Ok(false)
+            }
+            KeyCode::Char('i') => {
+                if self.selected_account().is_some() {
+                    self.mode = TuiMode::Detail;
+                    self.status = "Account details open".to_string();
+                } else {
+                    self.status = "No account selected".to_string();
+                }
+                Ok(false)
+            }
+            KeyCode::Char('l') => {
+                self.begin_label_input();
+                Ok(false)
+            }
+            KeyCode::Char('d') => {
+                self.begin_delete_confirmation();
+                Ok(false)
+            }
             KeyCode::Down | KeyCode::Char('j') => {
                 self.select_next();
                 Ok(false)
@@ -94,6 +155,100 @@ impl TuiModel {
         }
     }
 
+    fn handle_search_key(&mut self, key: KeyEvent) -> Result<bool, String> {
+        match key.code {
+            KeyCode::Esc => {
+                self.search_query.clear();
+                self.apply_search_filter();
+                self.mode = TuiMode::Normal;
+                self.status = "Search cleared".to_string();
+            }
+            KeyCode::Enter => {
+                self.mode = TuiMode::Normal;
+                self.status = search_status(&self.search_query, self.accounts.len());
+            }
+            KeyCode::Backspace => {
+                let mut query = self.search_query.clone();
+                query.pop();
+                self.apply_search_query(&query);
+            }
+            KeyCode::Char(value) => {
+                let mut query = self.search_query.clone();
+                query.push(value);
+                self.apply_search_query(&query);
+            }
+            _ => {}
+        }
+        Ok(false)
+    }
+
+    fn handle_label_key(&mut self, facade: &CliFacade, key: KeyEvent) -> Result<bool, String> {
+        match key.code {
+            KeyCode::Esc => {
+                self.mode = TuiMode::Normal;
+                self.status = "Label edit cancelled".to_string();
+            }
+            KeyCode::Enter => {
+                if let Err(error) = self.confirm_label(facade) {
+                    self.mode = TuiMode::Normal;
+                    self.status = format!("Label failed: {error}");
+                }
+            }
+            KeyCode::Backspace => {
+                if let TuiMode::LabelInput { input, .. } = &mut self.mode {
+                    input.pop();
+                }
+            }
+            KeyCode::Char(value) => {
+                if let TuiMode::LabelInput { input, .. } = &mut self.mode {
+                    input.push(value);
+                }
+            }
+            _ => {}
+        }
+        Ok(false)
+    }
+
+    fn handle_delete_key(&mut self, facade: &CliFacade, key: KeyEvent) -> Result<bool, String> {
+        match key.code {
+            KeyCode::Char('y') | KeyCode::Char('Y') => {
+                if let Err(error) = self.confirm_delete(facade) {
+                    self.mode = TuiMode::Normal;
+                    self.status = format!("Delete failed: {error}");
+                }
+            }
+            KeyCode::Char('n') | KeyCode::Char('N') | KeyCode::Esc | KeyCode::Char('q') => {
+                self.mode = TuiMode::Normal;
+                self.status = "Delete cancelled".to_string();
+            }
+            _ => {}
+        }
+        Ok(false)
+    }
+
+    fn handle_panel_key(&mut self, key: KeyEvent) -> Result<bool, String> {
+        match key.code {
+            KeyCode::Esc | KeyCode::Char('q') => {
+                self.mode = TuiMode::Normal;
+                self.status = "Ready".to_string();
+            }
+            KeyCode::Char('?') => {
+                self.mode = match self.mode {
+                    TuiMode::Help => TuiMode::Normal,
+                    _ => TuiMode::Help,
+                };
+            }
+            KeyCode::Char('i') => {
+                self.mode = match self.mode {
+                    TuiMode::Detail => TuiMode::Normal,
+                    _ => TuiMode::Detail,
+                };
+            }
+            _ => {}
+        }
+        Ok(false)
+    }
+
     fn select_next(&mut self) {
         if self.accounts.is_empty() {
             return;
@@ -110,6 +265,128 @@ impl TuiModel {
         } else {
             self.selected - 1
         };
+    }
+
+    fn enter_search(&mut self) {
+        self.mode = TuiMode::Search;
+        self.status = search_status(&self.search_query, self.accounts.len());
+    }
+
+    fn apply_search_query(&mut self, query: &str) {
+        self.search_query = query.to_string();
+        self.apply_search_filter();
+        self.status = search_status(&self.search_query, self.accounts.len());
+    }
+
+    fn apply_search_filter(&mut self) {
+        let query = self.search_query.trim();
+        self.accounts = if query.is_empty() {
+            self.source_accounts.clone()
+        } else {
+            self.source_accounts
+                .iter()
+                .filter(|account| account_matches(account, query))
+                .cloned()
+                .collect()
+        };
+        self.clamp_selection();
+    }
+
+    fn selected_account(&self) -> Option<&AccountRow> {
+        self.accounts.get(self.selected)
+    }
+
+    fn begin_label_input(&mut self) {
+        let Some(account) = self.selected_account() else {
+            self.status = "No account selected".to_string();
+            return;
+        };
+        self.mode = TuiMode::LabelInput {
+            provider: account.provider,
+            id: account.id.clone(),
+            email: account.email.clone(),
+            input: account.label.clone().unwrap_or_default(),
+        };
+        self.status = "Editing label; Enter saves, empty clears".to_string();
+    }
+
+    #[cfg(test)]
+    fn replace_label_input(&mut self, label: &str) {
+        if let TuiMode::LabelInput { input, .. } = &mut self.mode {
+            *input = label.to_string();
+        }
+    }
+
+    fn confirm_label(&mut self, facade: &CliFacade) -> Result<(), String> {
+        let TuiMode::LabelInput {
+            provider,
+            id,
+            email,
+            input,
+        } = self.mode.clone()
+        else {
+            return Ok(());
+        };
+        let label = if input.trim().is_empty() {
+            None
+        } else {
+            Some(input)
+        };
+        let outcome = facade
+            .label(provider, SwitchSelection::Id(id), label)
+            .map_err(|error| error.to_string())?;
+        self.mode = TuiMode::Normal;
+        self.status = match outcome.label {
+            Some(label) => format!(
+                "Labelled {} account {} as \"{}\"",
+                provider_title(provider),
+                email,
+                label
+            ),
+            None => format!(
+                "Cleared label for {} account {}",
+                provider_title(provider),
+                email
+            ),
+        };
+        self.reload(facade)
+    }
+
+    fn begin_delete_confirmation(&mut self) {
+        let Some(account) = self.selected_account() else {
+            self.status = "No account selected".to_string();
+            return;
+        };
+        let provider = account.provider;
+        let id = account.id.clone();
+        let email = account.email.clone();
+        self.mode = TuiMode::ConfirmDelete {
+            provider,
+            id,
+            email: email.clone(),
+        };
+        self.status = format!(
+            "Delete {} account {}? Press y to confirm, n/Esc to cancel",
+            provider_title(provider),
+            email
+        );
+    }
+
+    fn confirm_delete(&mut self, facade: &CliFacade) -> Result<(), String> {
+        let TuiMode::ConfirmDelete {
+            provider,
+            id,
+            email,
+        } = self.mode.clone()
+        else {
+            return Ok(());
+        };
+        facade
+            .remove(provider, SwitchSelection::Id(id))
+            .map_err(|error| error.to_string())?;
+        self.mode = TuiMode::Normal;
+        self.status = format!("Deleted {} account {}", provider_title(provider), email);
+        self.reload(facade)
     }
 
     fn switch_selected(&mut self, facade: &CliFacade) {
@@ -156,6 +433,8 @@ impl TuiModel {
     fn set_filter(&mut self, facade: &CliFacade, filter: Option<Provider>) -> Result<bool, String> {
         self.filter = filter;
         self.selected = 0;
+        self.search_query.clear();
+        self.mode = TuiMode::Normal;
         self.reload(facade)?;
         self.status = format!("Filter: {}", provider_filter_label(filter));
         Ok(false)
@@ -224,11 +503,16 @@ fn render(frame: &mut Frame<'_>, model: &TuiModel) {
     render_header(frame, chunks[0], model);
     render_provider_tabs(frame, chunks[1], model.filter);
     render_current(frame, chunks[2], &model.current, model.filter);
-    render_accounts(frame, chunks[3], &model.accounts, model.selected);
-    render_footer(frame, chunks[4], &model.status);
+    render_main_panel(frame, chunks[3], model);
+    render_footer(frame, chunks[4], model);
 }
 
 fn render_header(frame: &mut Frame<'_>, area: Rect, model: &TuiModel) {
+    let search_suffix = if model.search_query.trim().is_empty() {
+        String::new()
+    } else {
+        format!(" | search: {}", model.search_query)
+    };
     let header = Paragraph::new(vec![
         Line::from(vec![Span::styled(
             "AI Accounts Hub",
@@ -237,9 +521,11 @@ fn render_header(frame: &mut Frame<'_>, area: Rect, model: &TuiModel) {
                 .add_modifier(Modifier::BOLD),
         )]),
         Line::from(format!(
-            "Terminal account switchboard | filter: {} | accounts: {}",
+            "Terminal account switchboard | filter: {} | accounts: {}/{}{}",
             provider_filter_label(model.filter),
-            model.accounts.len()
+            model.accounts.len(),
+            model.source_accounts.len(),
+            search_suffix
         )),
     ])
     .block(Block::default().borders(Borders::ALL).title("aah tui"));
@@ -321,6 +607,63 @@ fn render_current(
     frame.render_widget(table, area);
 }
 
+fn render_main_panel(frame: &mut Frame<'_>, area: Rect, model: &TuiModel) {
+    match model.mode {
+        TuiMode::Help => render_help(frame, area),
+        TuiMode::Detail => render_detail(frame, area, model.selected_account()),
+        _ => render_accounts(frame, area, &model.accounts, model.selected),
+    }
+}
+
+fn render_help(frame: &mut Frame<'_>, area: Rect) {
+    let help = Paragraph::new(vec![
+        Line::from("up/down/j/k select account"),
+        Line::from("Enter switch selected account"),
+        Line::from("/ search accounts by provider, email, label, or id"),
+        Line::from("l label selected account; empty label clears it"),
+        Line::from("d delete selected account with confirmation"),
+        Line::from("i details for selected account"),
+        Line::from("1 Codex | 2 Claude | 3 Gemini | a All"),
+        Line::from("r refresh quota | q/Esc quit or close panel"),
+    ])
+    .block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title("Keyboard help"),
+    );
+    frame.render_widget(help, area);
+}
+
+fn render_detail(frame: &mut Frame<'_>, area: Rect, account: Option<&AccountRow>) {
+    let lines = match account {
+        Some(account) => vec![
+            Line::from(format!("provider: {}", provider_label(account.provider))),
+            Line::from(format!("id: {}", account.id)),
+            Line::from(format!("email: {}", account.email)),
+            Line::from(format!(
+                "label: {}",
+                account.label.as_deref().unwrap_or("-")
+            )),
+            Line::from(format!(
+                "active: {}",
+                if account.is_active { "yes" } else { "no" }
+            )),
+            Line::from(format!(
+                "relogin: {}",
+                if account.needs_relogin { "yes" } else { "no" }
+            )),
+            Line::from(format!("summary: {}", account.summary)),
+        ],
+        None => vec![Line::from("No account selected")],
+    };
+    let detail = Paragraph::new(lines).block(
+        Block::default()
+            .borders(Borders::ALL)
+            .title("Account details"),
+    );
+    frame.render_widget(detail, area);
+}
+
 fn render_accounts(frame: &mut Frame<'_>, area: Rect, accounts: &[AccountRow], selected: usize) {
     let rows = if accounts.is_empty() {
         vec![Row::new(vec![
@@ -373,15 +716,28 @@ fn render_accounts(frame: &mut Frame<'_>, area: Rect, accounts: &[AccountRow], s
     frame.render_widget(table, area);
 }
 
-fn render_footer(frame: &mut Frame<'_>, area: Rect, status: &str) {
-    let footer = Paragraph::new(vec![
-        Line::from(status.to_string()),
-        Line::from(
-            "up/down/j/k select | Enter switch | r refresh | 1 Codex | 2 Claude | 3 Gemini | a All | q/Esc quit",
+fn render_footer(frame: &mut Frame<'_>, area: Rect, model: &TuiModel) {
+    let controls = match &model.mode {
+        TuiMode::Normal => {
+            "j/k | Enter switch | / search | i detail | l label | d delete | r refresh | ? help | q/Esc quit".to_string()
+        }
+        TuiMode::Search => format!(
+            "search: {} | type to filter | Backspace edit | Enter keep | Esc clear",
+            model.search_query
         ),
-    ])
-    .style(Style::default().fg(Color::DarkGray))
-    .block(Block::default().borders(Borders::ALL).title("Status"));
+        TuiMode::LabelInput { input, .. } => format!(
+            "label: {} | Enter save | empty clears label | Backspace edit | Esc cancel",
+            input
+        ),
+        TuiMode::ConfirmDelete { email, .. } => {
+            format!("delete {email}? | y confirm | n/Esc cancel")
+        }
+        TuiMode::Detail => "Account details | Esc/q close | i toggle details".to_string(),
+        TuiMode::Help => "Keyboard help | Esc/q close | ? toggle help".to_string(),
+    };
+    let footer = Paragraph::new(vec![Line::from(model.status.clone()), Line::from(controls)])
+        .style(Style::default().fg(Color::DarkGray))
+        .block(Block::default().borders(Borders::ALL).title("Status"));
     frame.render_widget(footer, area);
 }
 
@@ -389,6 +745,28 @@ fn header_style() -> Style {
     Style::default()
         .fg(Color::Yellow)
         .add_modifier(Modifier::BOLD)
+}
+
+fn search_status(query: &str, count: usize) -> String {
+    if query.trim().is_empty() {
+        format!("Search: showing {count} account(s)")
+    } else {
+        format!("Search \"{}\": {count} account(s)", query.trim())
+    }
+}
+
+fn account_matches(account: &AccountRow, query: &str) -> bool {
+    let query = query.trim().to_ascii_lowercase();
+    provider_label(account.provider).contains(&query)
+        || account.id.to_ascii_lowercase().contains(&query)
+        || account.email.to_ascii_lowercase().contains(&query)
+        || account
+            .label
+            .as_deref()
+            .unwrap_or_default()
+            .to_ascii_lowercase()
+            .contains(&query)
+        || account.summary.to_ascii_lowercase().contains(&query)
 }
 
 fn provider_filter_label(provider: Option<Provider>) -> &'static str {
@@ -420,5 +798,166 @@ fn account_display(label: Option<&str>, email: &str) -> String {
     match label {
         Some(label) => format!("{label} <{email}>"),
         None => email.to_string(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use aah_core::bootstrap::BootstrapContext;
+    use std::fs;
+    use std::path::Path;
+
+    #[test]
+    fn search_filters_accounts_by_label_email_and_provider() {
+        let mut model = model_with_accounts(vec![
+            account(
+                Provider::Codex,
+                "codex-1",
+                "codex@example.com",
+                Some("Work"),
+            ),
+            account(Provider::Claude, "claude-1", "claude@example.com", None),
+        ]);
+
+        model.enter_search();
+        model.apply_search_query("work");
+        assert_eq!(model.accounts.len(), 1);
+        assert_eq!(model.accounts[0].email, "codex@example.com");
+
+        model.apply_search_query("claude");
+        assert_eq!(model.accounts.len(), 1);
+        assert_eq!(model.accounts[0].email, "claude@example.com");
+
+        model.apply_search_query("missing");
+        assert!(model.accounts.is_empty());
+        assert_eq!(model.selected, 0);
+    }
+
+    #[test]
+    fn help_panel_renders_keyboard_shortcuts() {
+        let mut model = model_with_accounts(Vec::new());
+        model.mode = TuiMode::Help;
+
+        let snapshot = render_snapshot(&model).expect("snapshot");
+
+        assert!(snapshot.contains("Keyboard help"));
+        assert!(snapshot.contains("/ search"));
+        assert!(snapshot.contains("l label"));
+        assert!(snapshot.contains("d delete"));
+        assert!(snapshot.contains("i details"));
+    }
+
+    #[test]
+    fn detail_panel_renders_selected_account_metadata() {
+        let mut model = model_with_accounts(vec![account(
+            Provider::Codex,
+            "codex-1",
+            "codex@example.com",
+            Some("Work"),
+        )]);
+        model.mode = TuiMode::Detail;
+
+        let snapshot = render_snapshot(&model).expect("snapshot");
+
+        assert!(snapshot.contains("Account details"));
+        assert!(snapshot.contains("id: codex-1"));
+        assert!(snapshot.contains("email: codex@example.com"));
+        assert!(snapshot.contains("label: Work"));
+    }
+
+    #[test]
+    fn label_input_updates_selected_account_label() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        write_codex_account(temp.path(), "codex-1", "codex@example.com", None);
+        let facade = test_facade(temp.path());
+        let mut model = TuiModel::from_facade(&facade).expect("model");
+
+        model.begin_label_input();
+        model.replace_label_input("Work");
+        model.confirm_label(&facade).expect("label");
+
+        assert_eq!(model.accounts.len(), 1);
+        assert_eq!(model.accounts[0].label.as_deref(), Some("Work"));
+        assert_eq!(
+            model.status,
+            "Labelled Codex account codex@example.com as \"Work\""
+        );
+    }
+
+    #[test]
+    fn delete_confirmation_removes_selected_account() {
+        let temp = tempfile::tempdir().expect("temp dir");
+        write_codex_account(temp.path(), "codex-1", "codex@example.com", None);
+        let facade = test_facade(temp.path());
+        let mut model = TuiModel::from_facade(&facade).expect("model");
+
+        model.begin_delete_confirmation();
+        model.confirm_delete(&facade).expect("delete");
+
+        assert!(model.accounts.is_empty());
+        assert_eq!(model.status, "Deleted Codex account codex@example.com");
+    }
+
+    fn model_with_accounts(accounts: Vec<AccountRow>) -> TuiModel {
+        TuiModel {
+            source_accounts: accounts.clone(),
+            accounts,
+            current: Vec::new(),
+            filter: None,
+            selected: 0,
+            status: "Ready".to_string(),
+            mode: TuiMode::Normal,
+            search_query: String::new(),
+        }
+    }
+
+    fn account(provider: Provider, id: &str, email: &str, label: Option<&str>) -> AccountRow {
+        AccountRow {
+            provider,
+            id: id.to_string(),
+            email: email.to_string(),
+            label: label.map(ToString::to_string),
+            is_active: false,
+            summary: "quota 80%".to_string(),
+            needs_relogin: false,
+        }
+    }
+
+    fn test_facade(root: &Path) -> CliFacade {
+        CliFacade::new(BootstrapContext {
+            managed_root: root.to_path_buf(),
+            user_home: root.to_path_buf(),
+            import_warnings: Vec::new(),
+        })
+    }
+
+    fn write_codex_account(root: &Path, id: &str, email: &str, label: Option<&str>) {
+        let codex_dir = root.join("codex");
+        let managed_home = codex_dir.join("managed-codex-homes").join(id);
+        fs::create_dir_all(&managed_home).expect("managed home");
+        let label_field = label
+            .map(|label| format!(r#","label": "{label}""#))
+            .unwrap_or_default();
+        let index = format!(
+            r#"{{
+  "version": 1,
+  "accounts": [
+    {{
+      "id": "{id}",
+      "email": "{email}",
+      "account_id": "acct-{id}",
+      "plan": "Plus",
+      "managed_home_path": "{}",
+      "created_at": "0",
+      "updated_at": "0",
+      "last_authenticated_at": "0"{label_field}
+    }}
+  ]
+}}"#,
+            managed_home.display()
+        );
+        fs::create_dir_all(&codex_dir).expect("codex dir");
+        fs::write(codex_dir.join("accounts.json"), index).expect("accounts.json");
     }
 }
