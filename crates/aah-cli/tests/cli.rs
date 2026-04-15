@@ -45,7 +45,63 @@ fn add_help_lists_provider_flag() {
         .assert()
         .success()
         .stdout(predicate::str::contains("--provider"))
+        .stdout(predicate::str::contains(
+            "Start a provider login flow and add the account to the managed pool",
+        ))
+        .stdout(predicate::str::contains("Provider to add"))
         .stdout(predicate::str::contains("add"));
+}
+
+#[test]
+fn scriptable_subcommand_help_has_descriptions() {
+    let cases = [
+        (
+            ["list", "--help"].as_slice(),
+            "List managed accounts in the shared account pool",
+        ),
+        (
+            ["current", "--help"].as_slice(),
+            "Show the currently active account for each provider",
+        ),
+        (
+            ["switch", "--help"].as_slice(),
+            "Switch the active account for a provider",
+        ),
+        (
+            ["refresh", "--help"].as_slice(),
+            "Refresh usage and account status for managed accounts",
+        ),
+    ];
+
+    for (args, description) in cases {
+        Command::cargo_bin("aah")
+            .expect("binary")
+            .args(args)
+            .assert()
+            .success()
+            .stdout(predicate::str::contains(description));
+    }
+}
+
+#[test]
+fn relay_subcommand_help_has_descriptions() {
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .args(["relay", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Manage the local relay server"))
+        .stdout(predicate::str::contains("Show local relay runtime status"))
+        .stdout(predicate::str::contains("Start the local relay server"))
+        .stdout(predicate::str::contains("Stop the local relay server"))
+        .stdout(predicate::str::contains("Persist the relay port setting"));
+
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .args(["relay", "start", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("Port to bind the relay server to"));
 }
 
 #[test]
