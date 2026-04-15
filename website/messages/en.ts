@@ -13,7 +13,7 @@ export const en: Messages = {
     badge: 'macOS App · CLI · Local Relay · v0.3.5',
     titleLine1: 'All Your AI Accounts,',
     titleLine2: 'One Workflow',
-    desc: 'Unified management for Claude, Codex, and Gemini accounts. The desktop app gives you visual control, the aah CLI fits terminal workflows, and the local Codex relay exposes a compatible endpoint for other clients.',
+    desc: 'Unified management for Claude, Codex, and Gemini accounts. The desktop app gives you visual control, the aah CLI can add, inspect, switch, and refresh accounts from the terminal, and the local Codex relay exposes a compatible endpoint for other clients.',
     ctaGithub: 'View Source',
     cliInstallLabel: 'CLI install',
     statProviders: 'AI Providers',
@@ -32,7 +32,7 @@ export const en: Messages = {
       },
       {
         title: 'Standalone aah CLI',
-        desc: 'Use list, current, switch, and refresh directly in the terminal, with an interactive TUI, JSON output, and custom data directory support.',
+        desc: 'Use add, list, current, switch, and refresh directly in the terminal, with an interactive TUI, JSON output, and custom data directory support.',
       },
       {
         title: 'Local Codex Relay Mode',
@@ -77,7 +77,7 @@ export const en: Messages = {
         eyebrow: 'Terminal-native workflow',
         desc: 'Install the npm package and use it without the desktop app. Desktop and CLI share the same ~/.ai-accounts-hub account pool and settings.',
         command: 'npm install -g @murongg/aah-cli@latest',
-        bullets: ['aah tui interactive switching', 'list/current/switch/refresh', '--json output for scripts'],
+        bullets: ['aah add and aah tui account workflows', 'list/current/switch/refresh', '--json output for scripts'],
       },
       {
         title: 'Relay Mode',
@@ -128,7 +128,7 @@ export const en: Messages = {
       },
       {
         title: 'Add Accounts',
-        desc: 'Go to the provider tab, click "Add Account", and enter an account identifier. The app reads your current CLI credentials and saves them automatically.',
+        desc: 'Use the provider tab in the desktop app, or run `aah add --provider codex|claude|gemini` in the CLI. The account is saved into the shared managed pool without changing your current active CLI account.',
       },
       {
         title: 'One-Click Switch',
