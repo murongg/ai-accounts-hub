@@ -426,6 +426,37 @@ fn doctor_succeeds_against_an_empty_temp_root() {
 }
 
 #[test]
+fn doctor_help_describes_fix_flag() {
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .args(["doctor", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--fix"))
+        .stdout(predicate::str::contains(
+            "Apply safe automatic repairs for common local issues",
+        ));
+}
+
+#[test]
+fn doctor_fix_reports_safe_repairs() {
+    let temp = tempfile::tempdir().expect("temp dir");
+
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .env("HOME", temp.path())
+        .env("USERPROFILE", temp.path())
+        .args(["doctor", "--fix", "--data-dir"])
+        .arg(temp.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("AAH doctor --fix"))
+        .stdout(predicate::str::contains("fixed: managed directories"))
+        .stdout(predicate::str::contains("checked: account paths"))
+        .stdout(predicate::str::contains("checked: relay runtime"));
+}
+
+#[test]
 fn completion_generates_bash_script() {
     Command::cargo_bin("aah")
         .expect("binary")
