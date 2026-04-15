@@ -100,6 +100,15 @@ else
   install_dir="$HOME/.local/bin"
 fi
 
+if [ -n "${XDG_CONFIG_HOME:-}" ]; then
+  metadata_dir="$XDG_CONFIG_HOME/aah"
+elif [ -n "${HOME:-}" ]; then
+  metadata_dir="$HOME/.config/aah"
+else
+  metadata_dir=""
+fi
+metadata_path="${metadata_dir:+$metadata_dir/cli-install.json}"
+
 target="$(detect_target)"
 asset_name="aah_${version}_${target}"
 release_tag="cli-v${version}"
@@ -113,6 +122,23 @@ cleanup() {
 }
 trap cleanup EXIT HUP INT TERM
 
+write_install_metadata() {
+  if [ -z "$metadata_path" ]; then
+    return
+  fi
+
+  mkdir -p "$metadata_dir" || die "failed to create metadata directory: $metadata_dir"
+  cat >"$metadata_path" <<EOF
+{
+  "schema_version": 1,
+  "install_method": "binary",
+  "binary_path": "$install_dir/aah",
+  "install_dir": "$install_dir",
+  "repository": "$repo"
+}
+EOF
+}
+
 mkdir -p "$tmp_dir"
 
 printf 'Installing aah %s for %s...\n' "$version" "$target"
@@ -121,6 +147,7 @@ download_file "$download_url" "$tmp_bin"
 mkdir -p "$install_dir" || die "failed to create install directory: $install_dir"
 cp "$tmp_bin" "$install_dir/aah" || die "failed to copy aah into $install_dir"
 chmod 755 "$install_dir/aah" || die "failed to make $install_dir/aah executable"
+write_install_metadata
 
 if "$install_dir/aah" --version >/dev/null 2>&1; then
   :

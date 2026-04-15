@@ -32,6 +32,50 @@ export function releaseTagForVersion(version) {
   return `cli-v${version}`;
 }
 
+export function installMetadataPathForEnv(env = process.env, platform = process.platform) {
+  if (platform === "win32") {
+    const appData = env.APPDATA;
+    if (!appData) {
+      throw new Error("APPDATA is required on Windows");
+    }
+    return path.join(appData, "aah", "cli-install.json");
+  }
+
+  const home = env.HOME ?? os.homedir();
+  const configRoot = env.XDG_CONFIG_HOME ?? path.join(home, ".config");
+  return path.join(configRoot, "aah", "cli-install.json");
+}
+
+export function detectPackageManagerFromEnv(env = process.env) {
+  const userAgent = env.npm_config_user_agent ?? "";
+  if (userAgent.startsWith("pnpm/")) {
+    return "pnpm";
+  }
+  if (userAgent.startsWith("yarn/")) {
+    return "yarn";
+  }
+  if (userAgent.startsWith("bun/")) {
+    return "bun";
+  }
+  return "npm";
+}
+
+export function writeInstallMetadata(packageRoot, env = process.env, platform = process.platform) {
+  const metadataPath = installMetadataPathForEnv(env, platform);
+  const binaryPath = binaryPathForPackage(packageRoot, platform);
+  const metadata = {
+    schema_version: 1,
+    install_method: "package-manager",
+    package_manager: detectPackageManagerFromEnv(env),
+    package_name: "@murongg/aah-cli",
+    binary_path: binaryPath,
+    installed_at: new Date().toISOString(),
+  };
+
+  fs.mkdirSync(path.dirname(metadataPath), { recursive: true });
+  fs.writeFileSync(metadataPath, JSON.stringify(metadata, null, 2));
+}
+
 function download(url, targetPath) {
   return new Promise((resolve, reject) => {
     https
@@ -80,6 +124,8 @@ async function main() {
   if (process.platform !== "win32") {
     fs.chmodSync(binaryPath, 0o755);
   }
+
+  writeInstallMetadata(packageRoot);
 }
 
 if (process.argv[1] && import.meta.url === new URL(process.argv[1], "file:").href) {

@@ -1,5 +1,6 @@
 mod output;
 mod tui;
+mod upgrade;
 
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -50,6 +51,8 @@ enum Commands {
         #[arg(long)]
         provider: Option<ProviderArg>,
     },
+    /// Upgrade the installed CLI
+    Upgrade,
     /// Open the interactive TUI
     Tui {
         #[arg(long, hide = true)]
@@ -88,28 +91,36 @@ enum ProviderArg {
 
 fn main() -> Result<(), String> {
     let cli = Cli::parse();
-    let context = bootstrap_context(None, cli.data_dir.clone())?;
-    let facade = CliFacade::new(context);
-
     match cli.command {
-        Commands::Add { provider } => output::print_add(&facade, into_provider(provider), cli.json),
-        Commands::List { provider } => {
-            output::print_list(&facade, provider.map(into_provider), cli.json)
+        Commands::Upgrade => upgrade::run(cli.json),
+        command => {
+            let context = bootstrap_context(None, cli.data_dir.clone())?;
+            let facade = CliFacade::new(context);
+
+            match command {
+                Commands::Add { provider } => {
+                    output::print_add(&facade, into_provider(provider), cli.json)
+                }
+                Commands::List { provider } => {
+                    output::print_list(&facade, provider.map(into_provider), cli.json)
+                }
+                Commands::Current { provider } => {
+                    output::print_current(&facade, provider.map(into_provider), cli.json)
+                }
+                Commands::Switch { provider, selector } => {
+                    output::print_switch(&facade, into_provider(provider), selector)
+                }
+                Commands::Refresh { provider } => {
+                    output::print_refresh(&facade, provider.map(into_provider), cli.json)
+                }
+                Commands::Tui { snapshot } => tui::run_tui(&facade, snapshot),
+                Commands::Relay { command } => {
+                    handle_relay_command(&facade, command, cli.json, cli.data_dir)
+                }
+                Commands::RelayHost { port } => run_relay_host(cli.data_dir, port),
+                Commands::Upgrade => unreachable!("upgrade handled before bootstrap"),
+            }
         }
-        Commands::Current { provider } => {
-            output::print_current(&facade, provider.map(into_provider), cli.json)
-        }
-        Commands::Switch { provider, selector } => {
-            output::print_switch(&facade, into_provider(provider), selector)
-        }
-        Commands::Refresh { provider } => {
-            output::print_refresh(&facade, provider.map(into_provider), cli.json)
-        }
-        Commands::Tui { snapshot } => tui::run_tui(&facade, snapshot),
-        Commands::Relay { command } => {
-            handle_relay_command(&facade, command, cli.json, cli.data_dir)
-        }
-        Commands::RelayHost { port } => run_relay_host(cli.data_dir, port),
     }
 }
 
