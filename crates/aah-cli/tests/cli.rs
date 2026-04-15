@@ -71,6 +71,18 @@ fn scriptable_subcommand_help_has_descriptions() {
             ["refresh", "--help"].as_slice(),
             "Refresh usage and account status for managed accounts",
         ),
+        (
+            ["doctor", "--help"].as_slice(),
+            "Check local CLI setup and account hub health",
+        ),
+        (
+            ["paths", "--help"].as_slice(),
+            "Show account hub data and provider paths",
+        ),
+        (
+            ["completion", "--help"].as_slice(),
+            "Generate shell completion scripts",
+        ),
     ];
 
     for (args, description) in cases {
@@ -124,6 +136,84 @@ fn upgrade_rejects_global_json_output() {
         .stderr(predicate::str::contains(
             "--json is not supported for upgrade",
         ));
+}
+
+#[test]
+fn paths_prints_managed_and_provider_paths() {
+    let temp = tempfile::tempdir().expect("temp dir");
+
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .env("HOME", temp.path())
+        .env("USERPROFILE", temp.path())
+        .args(["paths", "--data-dir"])
+        .arg(temp.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("managed root:"))
+        .stdout(predicate::str::contains(temp.path().display().to_string()))
+        .stdout(predicate::str::contains("codex data:"))
+        .stdout(predicate::str::contains("claude data:"))
+        .stdout(predicate::str::contains("gemini data:"));
+}
+
+#[test]
+fn paths_does_not_auto_import_live_accounts() {
+    let temp = tempfile::tempdir().expect("temp dir");
+    let data_dir = temp.path().join("data");
+    let codex_dir = temp.path().join(".codex");
+    fs::create_dir_all(&codex_dir).expect("codex dir");
+    fs::write(
+        codex_dir.join("auth.json"),
+        r#"{"tokens":{"account_id":"acct-test","id_token":"header.eyJlbWFpbCI6InVzZXJAZXhhbXBsZS5jb20ifQ.signature"}}"#,
+    )
+    .expect("auth.json");
+
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .env("HOME", temp.path())
+        .env("USERPROFILE", temp.path())
+        .args(["paths", "--data-dir"])
+        .arg(&data_dir)
+        .assert()
+        .success();
+
+    assert!(
+        !data_dir.join("codex/accounts.json").exists(),
+        "paths should not mutate account indexes"
+    );
+}
+
+#[test]
+fn doctor_succeeds_against_an_empty_temp_root() {
+    let temp = tempfile::tempdir().expect("temp dir");
+
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .env("HOME", temp.path())
+        .env("USERPROFILE", temp.path())
+        .args(["doctor", "--data-dir"])
+        .arg(temp.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("AAH doctor"))
+        .stdout(predicate::str::contains("managed root:"))
+        .stdout(predicate::str::contains("relay:"))
+        .stdout(predicate::str::contains("codex"))
+        .stdout(predicate::str::contains("claude"))
+        .stdout(predicate::str::contains("gemini"));
+}
+
+#[test]
+fn completion_generates_bash_script() {
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .args(["completion", "bash"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("_aah"))
+        .stdout(predicate::str::contains("doctor"))
+        .stdout(predicate::str::contains("paths"));
 }
 
 #[test]
