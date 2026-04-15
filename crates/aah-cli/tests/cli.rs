@@ -28,6 +28,27 @@ fn switch_requires_provider() {
 }
 
 #[test]
+fn add_requires_provider() {
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .args(["add"])
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains("--provider"));
+}
+
+#[test]
+fn add_help_lists_provider_flag() {
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .args(["add", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--provider"))
+        .stdout(predicate::str::contains("add"));
+}
+
+#[test]
 fn relay_help_lists_runtime_and_config_commands() {
     Command::cargo_bin("aah")
         .expect("binary")

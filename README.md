@@ -167,11 +167,14 @@ aah tui
 常用命令：
 
 ```bash
+aah add --provider codex
 aah list
 aah current
 aah refresh
 aah switch --provider codex user@example.com
 ```
+
+`aah add --provider ...` 会启动对应 provider 的登录流程，把账号加入应用自己的账号池，但不会自动切换当前系统 CLI 正在使用的活跃账号。
 
 按 provider 过滤：
 

@@ -11,7 +11,7 @@ export const zh = {
     badge: 'macOS App · CLI · 本地中转 · v0.3.5',
     titleLine1: '所有 AI 账号',
     titleLine2: '一套工作流',
-    desc: '统一管理 Claude、Codex、Gemini 的多个账号。桌面端负责可视化控制，aah CLI 接管终端工作流，本地 Codex relay 为兼容客户端提供中转入口。',
+    desc: '统一管理 Claude、Codex、Gemini 的多个账号。桌面端负责可视化控制，aah CLI 可以直接在终端里添加、查看、切换和刷新账号，本地 Codex relay 为兼容客户端提供中转入口。',
     ctaGithub: '查看源码',
     cliInstallLabel: 'CLI 安装',
     cliInstallCommand: 'npm install -g @murongg/aah-cli@latest',
@@ -34,7 +34,7 @@ export const zh = {
       },
       {
         title: 'aah CLI 独立可用',
-        desc: '不打开桌面端也能在终端里 list、current、switch、refresh，支持交互式 TUI、JSON 输出和自定义数据目录。',
+        desc: '不打开桌面端也能在终端里 add、list、current、switch、refresh，支持交互式 TUI、JSON 输出和自定义数据目录。',
       },
       {
         title: '本地 Codex 中转模式',
@@ -81,7 +81,7 @@ export const zh = {
         desc: '可通过 npm 包或 shell 安装脚本单独使用，不依赖桌面 app。桌面端与 CLI 共用 ~/.ai-accounts-hub 账号池与设置。',
         command: 'npm install -g @murongg/aah-cli@latest',
         secondaryCommands: ['curl -fsSL https://raw.githubusercontent.com/murongg/ai-accounts-hub/main/scripts/install-aah.sh | sh'],
-        bullets: ['aah tui 交互式切换', 'list/current/switch/refresh', '--json 输出适合脚本集成'],
+        bullets: ['aah add 与 aah tui 终端工作流', 'list/current/switch/refresh', '--json 输出适合脚本集成'],
       },
       {
         title: 'Relay Mode',
@@ -133,7 +133,7 @@ export const zh = {
       },
       {
         title: '添加账号',
-        desc: '在对应 provider 标签页点击「添加账号」，输入账号标识。应用会读取当前系统已登录的 CLI 凭证并自动保存。',
+        desc: '你可以在桌面端对应 provider 标签页点击「添加账号」，也可以在 CLI 里运行 `aah add --provider codex|claude|gemini`。账号会加入共享账号池，但不会自动切换当前系统 CLI 的活跃账号。',
       },
       {
         title: '一键切换',
