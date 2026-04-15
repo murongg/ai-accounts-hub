@@ -187,6 +187,7 @@ mod tests {
         CodexAccountListItem {
             id: id.to_string(),
             email: format!("{id}@example.com"),
+            label: None,
             plan: Some("Plus".to_string()),
             account_id: Some(format!("acct-{id}")),
             is_active,
@@ -211,6 +212,7 @@ mod tests {
         ClaudeAccountListItem {
             id: id.to_string(),
             email: format!("{id}@example.com"),
+            label: None,
             display_name: Some("Claude User".to_string()),
             plan: Some("Pro".to_string()),
             account_hint: Some(format!("hint-{id}")),
@@ -238,6 +240,7 @@ mod tests {
         GeminiAccountListItem {
             id: id.to_string(),
             email: format!("{id}@example.com"),
+            label: None,
             subject: Some(format!("subject-{id}")),
             auth_type: Some("oauth-personal".to_string()),
             plan: Some("Pro".to_string()),
