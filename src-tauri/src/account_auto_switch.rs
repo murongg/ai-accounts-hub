@@ -20,9 +20,8 @@ pub fn select_codex_auto_switch_target(accounts: &[CodexAccountListItem]) -> Opt
             let weekly = account.weekly_remaining_percent?;
             let five_hour = account.five_hour_remaining_percent?;
 
-            (weekly > 0 && five_hour > 0).then(|| {
-                (index, weekly, five_hour, account.id.to_string())
-            })
+            (weekly > 0 && five_hour > 0)
+                .then(|| (index, weekly, five_hour, account.id.to_string()))
         })
         .max_by(|left, right| {
             left.1
@@ -330,7 +329,10 @@ mod tests {
             gemini_account("candidate", false, Some(10), Some(0), Some(0)),
         ];
 
-        assert_eq!(select_gemini_auto_switch_target(&still_usable_accounts), None);
+        assert_eq!(
+            select_gemini_auto_switch_target(&still_usable_accounts),
+            None
+        );
         assert_eq!(
             select_gemini_auto_switch_target(&exhausted_accounts),
             Some("candidate".to_string())
@@ -360,6 +362,7 @@ mod tests {
         CodexAccountListItem {
             id: id.to_string(),
             email: format!("{id}@example.com"),
+            label: None,
             plan: Some("Plus".to_string()),
             account_id: Some(format!("acct-{id}")),
             is_active,
@@ -384,6 +387,7 @@ mod tests {
         ClaudeAccountListItem {
             id: id.to_string(),
             email: format!("{id}@example.com"),
+            label: None,
             display_name: Some(id.to_string()),
             plan: Some("Pro".to_string()),
             account_hint: Some(format!("org-{id}")),
@@ -412,6 +416,7 @@ mod tests {
         GeminiAccountListItem {
             id: id.to_string(),
             email: format!("{id}@example.com"),
+            label: None,
             subject: Some(format!("subject-{id}")),
             auth_type: Some("oauth-personal".to_string()),
             plan: Some("Pro".to_string()),
