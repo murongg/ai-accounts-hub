@@ -8,7 +8,7 @@ use std::process::{Command, Stdio};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use aah_core::bootstrap::bootstrap_context;
+use aah_core::bootstrap::{bootstrap_context, bootstrap_managed_root, BootstrapContext};
 use aah_core::claude_accounts::paths::ClaudeAccountPaths;
 use aah_core::cli_facade::{CliFacade, Provider};
 use aah_core::codex_accounts::paths::CodexAccountPaths;
@@ -16,7 +16,7 @@ use aah_core::gemini_accounts::paths::GeminiAccountPaths;
 use aah_core::relay::credentials::LiveRelayCredentialSource;
 use aah_core::relay::registry::RelayRegistryPaths;
 use aah_core::relay::{RelayOwnerKind, RelayServerState};
-use clap::{Parser, Subcommand, ValueEnum};
+use clap::{CommandFactory, Parser, Subcommand, ValueEnum};
 
 #[derive(Parser)]
 #[command(name = "aah", version, about = "AI Accounts Hub CLI")]
@@ -92,6 +92,15 @@ enum Commands {
         #[arg(help = "Safe account metadata file to import")]
         input: PathBuf,
     },
+    /// Check local CLI setup and account hub health
+    Doctor,
+    /// Show account hub data and provider paths
+    Paths,
+    /// Generate shell completion scripts
+    Completion {
+        #[arg(help = "Shell to generate completions for")]
+        shell: CompletionShell,
+    },
     /// Upgrade the installed CLI
     Upgrade,
     /// Open the interactive TUI
@@ -136,10 +145,36 @@ enum ProviderArg {
     Gemini,
 }
 
+#[derive(Copy, Clone, Debug, Eq, PartialEq, ValueEnum)]
+enum CompletionShell {
+    Bash,
+    Zsh,
+    Fish,
+    Powershell,
+    Elvish,
+}
+
 fn main() -> Result<(), String> {
     let cli = Cli::parse();
     match cli.command {
         Commands::Upgrade => upgrade::run(cli.json),
+        Commands::Completion { shell } => {
+            ensure_text_only("completion", cli.json)?;
+            generate_completion(shell);
+            Ok(())
+        }
+        Commands::Doctor => {
+            ensure_text_only("doctor", cli.json)?;
+            let facade = diagnostic_facade(cli.data_dir)?;
+            output::print_doctor(&facade);
+            Ok(())
+        }
+        Commands::Paths => {
+            ensure_text_only("paths", cli.json)?;
+            let facade = diagnostic_facade(cli.data_dir)?;
+            output::print_paths(&facade);
+            Ok(())
+        }
         command => {
             let context = bootstrap_context(None, cli.data_dir.clone())?;
             let facade = CliFacade::new(context);
@@ -197,9 +232,21 @@ fn main() -> Result<(), String> {
                 }
                 Commands::RelayHost { port } => run_relay_host(cli.data_dir, port),
                 Commands::Upgrade => unreachable!("upgrade handled before bootstrap"),
+                Commands::Doctor => unreachable!("doctor handled before account import"),
+                Commands::Paths => unreachable!("paths handled before account import"),
+                Commands::Completion { .. } => unreachable!("completion handled before bootstrap"),
             }
         }
     }
+}
+
+fn diagnostic_facade(data_dir: Option<PathBuf>) -> Result<CliFacade, String> {
+    let managed = bootstrap_managed_root(None, data_dir)?;
+    Ok(CliFacade::new(BootstrapContext {
+        managed_root: managed.root,
+        user_home: managed.user_home,
+        import_warnings: Vec::new(),
+    }))
 }
 
 fn ensure_text_only(command: &str, json: bool) -> Result<(), String> {
@@ -228,6 +275,24 @@ fn confirm_remove(provider: Provider, selector: &str) -> Result<bool, String> {
         answer.trim().to_ascii_lowercase().as_str(),
         "y" | "yes"
     ))
+}
+
+fn generate_completion(shell: CompletionShell) {
+    let mut command = Cli::command();
+    let generator: clap_complete::Shell = shell.into();
+    clap_complete::generate(generator, &mut command, "aah", &mut std::io::stdout());
+}
+
+impl From<CompletionShell> for clap_complete::Shell {
+    fn from(shell: CompletionShell) -> Self {
+        match shell {
+            CompletionShell::Bash => Self::Bash,
+            CompletionShell::Zsh => Self::Zsh,
+            CompletionShell::Fish => Self::Fish,
+            CompletionShell::Powershell => Self::PowerShell,
+            CompletionShell::Elvish => Self::Elvish,
+        }
+    }
 }
 
 fn into_provider(provider: ProviderArg) -> Provider {
