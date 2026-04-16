@@ -1,6 +1,6 @@
 {
   "name": "@murongg/aah-cli",
-  "version": "0.1.8",
+  "version": "0.1.9",
   "description": "Standalone AI Accounts Hub CLI",
   "type": "module",
   "license": "MIT",
