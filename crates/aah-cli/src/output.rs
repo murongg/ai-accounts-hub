@@ -2,7 +2,8 @@ use std::path::Path;
 
 use aah_core::app_settings::models::RelaySettings;
 use aah_core::cli_facade::{
-    AccountMetadataExport, AddOutcome, CliFacade, Provider, SwitchSelection,
+    AccountMetadataExport, AddOutcome, CliFacade, CodexAutofillLoginInput, Provider,
+    SwitchSelection,
 };
 use aah_core::relay::RelayRuntimeStatus;
 
@@ -37,13 +38,28 @@ pub fn print_list(
 
 pub fn print_add(facade: &CliFacade, provider: Provider, json: bool) -> Result<(), String> {
     let outcome = facade.add(provider).map_err(|error| error.to_string())?;
+    print_add_outcome(&outcome, json)
+}
+
+pub fn print_add_codex_autofill(
+    facade: &CliFacade,
+    input: CodexAutofillLoginInput,
+    json: bool,
+) -> Result<(), String> {
+    let outcome = facade
+        .add_codex_autofill(input)
+        .map_err(|error| error.to_string())?;
+    print_add_outcome(&outcome, json)
+}
+
+fn print_add_outcome(outcome: &AddOutcome, json: bool) -> Result<(), String> {
     if json {
         println!(
             "{}",
-            serde_json::to_string_pretty(&outcome).map_err(|error| error.to_string())?
+            serde_json::to_string_pretty(outcome).map_err(|error| error.to_string())?
         );
     } else {
-        println!("{}", add_message(&outcome));
+        println!("{}", add_message(outcome));
     }
     Ok(())
 }

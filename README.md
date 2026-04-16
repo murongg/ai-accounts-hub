@@ -180,6 +180,7 @@ aah tui
 
 ```bash
 aah add --provider codex
+aah add --provider codex --autofill --email user@example.com
 aah list
 aah current
 aah refresh
@@ -192,6 +193,20 @@ aah upgrade
 ```
 
 `aah add --provider ...` 会启动对应 provider 的登录流程，把账号加入应用自己的账号池，但不会自动切换当前系统 CLI 正在使用的活跃账号。
+
+`Codex` 也可以在 CLI 里使用自动填充登录：
+
+```bash
+aah add --provider codex --autofill --email user@example.com
+```
+
+默认会在终端里隐藏输入密码。如果要在脚本里使用，可以从 stdin 传入密码，避免把密码写进 shell history：
+
+```bash
+printf '%s\n' "$CODEX_PASSWORD" | aah add --provider codex --autofill --email user@example.com --password-stdin
+```
+
+CLI 自动填充登录和桌面端使用同一套官方 `auth.openai.com` 登录流程，需要本机可用的 Chrome 或 Chromium。验证码、二次验证、Passkey 或风控确认仍需你在浏览器里手动完成；密码只用于本次登录流程，不会写入账号池、日志或导出文件。
 
 `aah switch/remove/label` 的账号选择器既可以传账号 email，也可以传托管账号 ID。`aah remove` 默认会交互确认；脚本里可以加 `--yes` 跳过确认。
 

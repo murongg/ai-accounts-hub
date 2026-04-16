@@ -12,6 +12,7 @@ use crate::claude_accounts::{
 use crate::claude_usage::service::ClaudeUsageService;
 use crate::codex_accounts::{
     cli::resolve_codex_binary,
+    device_login::CodexDeviceAutofillLoginRequest,
     models::{CodexAccountListItem, StoredCodexAccount},
     paths::CodexAccountPaths,
     service::CodexAccountService,
@@ -129,6 +130,12 @@ pub struct AddOutcome {
     pub id: String,
     pub email: String,
     pub activated: bool,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CodexAutofillLoginInput {
+    pub email: String,
+    pub password: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -401,6 +408,20 @@ impl CliFacade {
                     .map_err(CliError::Provider)
             }
         }
+    }
+
+    pub fn add_codex_autofill(
+        &self,
+        input: CodexAutofillLoginInput,
+    ) -> Result<AddOutcome, CliError> {
+        let service = CodexAccountService::with_process_runner(self.codex_paths());
+        service
+            .start_device_autofill_login(CodexDeviceAutofillLoginRequest {
+                email: input.email,
+                password: input.password,
+            })
+            .map(AddOutcome::from_codex)
+            .map_err(CliError::Provider)
     }
 
     pub fn refresh(&self, provider: Option<Provider>) -> Result<Vec<RefreshRow>, CliError> {

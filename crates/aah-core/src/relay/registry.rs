@@ -268,7 +268,9 @@ mod tests {
         let temp = TempDir::new("relay-registry-stop");
         let paths = RelayRegistryPaths::from_managed_root(&temp.path);
 
-        let stopped = stop_shared_runtime_async(&paths).await.expect("stop result");
+        let stopped = stop_shared_runtime_async(&paths)
+            .await
+            .expect("stop result");
 
         assert!(!stopped);
     }

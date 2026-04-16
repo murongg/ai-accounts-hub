@@ -46,6 +46,7 @@ Run script-friendly commands:
 
 ```bash
 aah add --provider codex
+aah add --provider codex --autofill --email user@example.com
 aah list
 aah current
 aah refresh
@@ -54,6 +55,20 @@ aah switch --provider codex user@example.com
 ```
 
 `aah add --provider ...` starts the provider's login flow, stores the account in the managed account pool, and leaves the current active CLI account unchanged.
+
+For Codex, the CLI can also use the browser autofill login flow:
+
+```bash
+aah add --provider codex --autofill --email user@example.com
+```
+
+The default mode prompts for the password with hidden terminal input. For scripts, pass the password through stdin so it does not land in shell history:
+
+```bash
+printf '%s\n' "$CODEX_PASSWORD" | aah add --provider codex --autofill --email user@example.com --password-stdin
+```
+
+Autofill login uses the official `auth.openai.com` flow and requires Chrome or Chromium on the machine. Verification codes, MFA, Passkeys, and risk checks still need to be completed manually in the browser. The password is used only for that login attempt and is not written to the account pool, logs, or export files.
 
 `aah upgrade` checks the latest `cli-vX.Y.Z` release, auto-detects how the CLI was installed, and upgrades in place when safe. On older installs that do not have install metadata yet, it may print a one-line manual upgrade command instead of upgrading directly.
 

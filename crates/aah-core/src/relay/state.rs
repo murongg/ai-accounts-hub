@@ -10,9 +10,8 @@ use uuid::Uuid;
 use super::credentials::{EmptyRelayCredentialSource, RelayCredentialSource};
 use super::proxy::{build_relay_router, RelayAdminControl, RelayProxyState};
 use super::registry::{
-    remove_runtime_record, save_runtime_record, shared_runtime_status,
-    shared_runtime_status_async, stop_shared_runtime, stop_shared_runtime_async,
-    RelayRegistryPaths, RelayRuntimeRecord,
+    remove_runtime_record, save_runtime_record, shared_runtime_status, shared_runtime_status_async,
+    stop_shared_runtime, stop_shared_runtime_async, RelayRegistryPaths, RelayRuntimeRecord,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -119,7 +118,8 @@ impl RelayServerState {
                 relay_status(true, port, None)
             }
             Err(error) => {
-                let shared_status = shared_runtime_status_async(&settings, registry_paths, None).await;
+                let shared_status =
+                    shared_runtime_status_async(&settings, registry_paths, None).await;
                 if shared_status.running {
                     self.set_last_error(None);
                     shared_status

@@ -188,7 +188,9 @@ fn start_device_autofill_login_saves_a_managed_account() {
         .expect("managed device login");
 
     assert_eq!(saved.email, "work@example.com");
-    assert!(Path::new(&saved.managed_home_path).join("auth.json").exists());
+    assert!(Path::new(&saved.managed_home_path)
+        .join("auth.json")
+        .exists());
 }
 
 #[test]

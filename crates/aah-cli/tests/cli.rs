@@ -1,6 +1,7 @@
 use assert_cmd::Command;
 use predicates::prelude::*;
 use std::fs;
+use std::net::TcpListener;
 
 #[test]
 fn list_json_works_against_an_empty_temp_root() {
@@ -50,6 +51,70 @@ fn add_help_lists_provider_flag() {
         ))
         .stdout(predicate::str::contains("Provider to add"))
         .stdout(predicate::str::contains("add"));
+}
+
+#[test]
+fn add_help_lists_codex_autofill_flags() {
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .args(["add", "--help"])
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("--autofill"))
+        .stdout(predicate::str::contains("--email"))
+        .stdout(predicate::str::contains("--password-stdin"));
+}
+
+#[test]
+fn codex_autofill_requires_email() {
+    let temp = tempfile::tempdir().expect("temp dir");
+
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .env("HOME", temp.path())
+        .env("USERPROFILE", temp.path())
+        .write_stdin("secret-password\n")
+        .args([
+            "add",
+            "--provider",
+            "codex",
+            "--autofill",
+            "--password-stdin",
+            "--data-dir",
+        ])
+        .arg(temp.path())
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "--email is required with --autofill",
+        ));
+}
+
+#[test]
+fn autofill_is_only_supported_for_codex() {
+    let temp = tempfile::tempdir().expect("temp dir");
+
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .env("HOME", temp.path())
+        .env("USERPROFILE", temp.path())
+        .write_stdin("secret-password\n")
+        .args([
+            "add",
+            "--provider",
+            "claude",
+            "--autofill",
+            "--email",
+            "user@example.com",
+            "--password-stdin",
+            "--data-dir",
+        ])
+        .arg(temp.path())
+        .assert()
+        .failure()
+        .stderr(predicate::str::contains(
+            "--autofill is only supported for Codex accounts",
+        ));
 }
 
 #[test]
@@ -503,19 +568,25 @@ fn relay_status_json_reports_stopped_when_no_owner_is_running() {
 #[test]
 fn relay_start_persists_relay_settings() {
     let temp = tempfile::tempdir().expect("temp dir");
+    let port = reserve_local_port();
 
     Command::cargo_bin("aah")
         .expect("binary")
         .env("HOME", temp.path())
         .env("USERPROFILE", temp.path())
-        .args(["relay", "start", "--port", "9876", "--data-dir"])
+        .args(["relay", "start", "--port"])
+        .arg(port.to_string())
+        .args(["--data-dir"])
         .arg(temp.path())
         .assert()
         .success();
 
     let settings = fs::read_to_string(temp.path().join("settings.json")).expect("settings.json");
     assert!(settings.contains("\"enabled\": true"), "{settings}");
-    assert!(settings.contains("\"port\": 9876"), "{settings}");
+    assert!(
+        settings.contains(&format!("\"port\": {port}")),
+        "{settings}"
+    );
 
     Command::cargo_bin("aah")
         .expect("binary")
@@ -530,12 +601,15 @@ fn relay_start_persists_relay_settings() {
 #[test]
 fn relay_start_and_stop_manage_a_single_runtime_instance() {
     let temp = tempfile::tempdir().expect("temp dir");
+    let port = reserve_local_port();
 
     Command::cargo_bin("aah")
         .expect("binary")
         .env("HOME", temp.path())
         .env("USERPROFILE", temp.path())
-        .args(["relay", "start", "--data-dir"])
+        .args(["relay", "start", "--port"])
+        .arg(port.to_string())
+        .args(["--data-dir"])
         .arg(temp.path())
         .assert()
         .success();
@@ -571,4 +645,12 @@ fn relay_start_and_stop_manage_a_single_runtime_instance() {
 
     let settings = fs::read_to_string(temp.path().join("settings.json")).expect("settings.json");
     assert!(settings.contains("\"enabled\": false"), "{settings}");
+}
+
+fn reserve_local_port() -> u16 {
+    TcpListener::bind(("127.0.0.1", 0))
+        .expect("reserve local port")
+        .local_addr()
+        .expect("local addr")
+        .port()
 }
