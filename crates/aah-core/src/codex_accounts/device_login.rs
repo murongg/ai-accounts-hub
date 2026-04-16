@@ -266,13 +266,18 @@ fn wait_for_codex_login(mut child: CapturedCodexLogin, timeout: Duration) -> Res
                 let detail = summarize_captured_output(&output)
                     .map(|message| format!(": {message}"))
                     .unwrap_or_default();
-                return Err(format!("failed to wait for codex device login: {error}{detail}"));
+                return Err(format!(
+                    "failed to wait for codex device login: {error}{detail}"
+                ));
             }
         }
     }
 }
 
-fn format_codex_login_exit_error(status: std::process::ExitStatus, output: &CollectedOutput) -> String {
+fn format_codex_login_exit_error(
+    status: std::process::ExitStatus,
+    output: &CollectedOutput,
+) -> String {
     let detail = summarize_captured_output(output)
         .map(|message| format!(": {message}"))
         .unwrap_or_default();
@@ -450,8 +455,7 @@ fn select_cdp_page_websocket_url(pages: &[Value]) -> Option<&str> {
 }
 
 fn is_openai_auth_page_url(url: &str) -> bool {
-    url == "https://auth.openai.com/codex/device"
-        || url.starts_with("https://auth.openai.com/")
+    url == "https://auth.openai.com/codex/device" || url.starts_with("https://auth.openai.com/")
 }
 
 fn send_cdp_command<S>(
@@ -597,7 +601,8 @@ pub fn parse_codex_login_prompt(raw: &str) -> Result<CodexDeviceAuthPrompt, Stri
 }
 
 pub fn parse_device_auth_prompt(raw: &str) -> Result<CodexDeviceAuthPrompt, String> {
-    let prompt = parse_codex_login_prompt(raw).map_err(|_| "Codex device auth URL was not found".to_string())?;
+    let prompt = parse_codex_login_prompt(raw)
+        .map_err(|_| "Codex device auth URL was not found".to_string())?;
     if prompt.url != "https://auth.openai.com/codex/device" {
         return Err("Codex device auth URL was not found".to_string());
     }
@@ -723,8 +728,8 @@ Follow these steps to sign in with ChatGPT using device code authorization:
 
     #[test]
     fn rejects_prompt_without_device_code() {
-        let error =
-            parse_device_auth_prompt("https://auth.openai.com/codex/device").expect_err("missing code");
+        let error = parse_device_auth_prompt("https://auth.openai.com/codex/device")
+            .expect_err("missing code");
 
         assert_eq!(error, "Codex device auth code was not found");
     }
@@ -920,7 +925,9 @@ https://auth.openai.com/oauth/authorize?response_type=code&client_id=app_example
         let _ = child.wait();
 
         assert!(elapsed < Duration::from_secs(2), "elapsed={elapsed:?}");
-        assert!(parsed.url.starts_with("https://auth.openai.com/oauth/authorize?"));
+        assert!(parsed
+            .url
+            .starts_with("https://auth.openai.com/oauth/authorize?"));
     }
 
     fn temp_test_dir(prefix: &str) -> std::path::PathBuf {

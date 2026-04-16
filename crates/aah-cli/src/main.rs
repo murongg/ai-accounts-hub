@@ -2,7 +2,7 @@ mod output;
 mod tui;
 mod upgrade;
 
-use std::io::{self, Write};
+use std::io::{self, Read, Write};
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
 use std::thread;
@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 
 use aah_core::bootstrap::{bootstrap_context, bootstrap_managed_root, BootstrapContext};
 use aah_core::claude_accounts::paths::ClaudeAccountPaths;
-use aah_core::cli_facade::{CliFacade, Provider};
+use aah_core::cli_facade::{CliFacade, CodexAutofillLoginInput, Provider};
 use aah_core::codex_accounts::paths::CodexAccountPaths;
 use aah_core::gemini_accounts::paths::GeminiAccountPaths;
 use aah_core::relay::credentials::LiveRelayCredentialSource;
@@ -35,6 +35,12 @@ enum Commands {
     Add {
         #[arg(long, help = "Provider to add")]
         provider: ProviderArg,
+        #[arg(long, help = "Use Codex browser autofill login")]
+        autofill: bool,
+        #[arg(long, help = "Email address for Codex autofill login")]
+        email: Option<String>,
+        #[arg(long, help = "Read the Codex autofill password from stdin")]
+        password_stdin: bool,
     },
     /// List managed accounts in the shared account pool
     List {
@@ -187,8 +193,20 @@ fn main() -> Result<(), String> {
             let facade = CliFacade::new(context);
 
             match command {
-                Commands::Add { provider } => {
-                    output::print_add(&facade, into_provider(provider), cli.json)
+                Commands::Add {
+                    provider,
+                    autofill,
+                    email,
+                    password_stdin,
+                } => {
+                    let provider = into_provider(provider);
+                    if autofill {
+                        let input = read_codex_autofill_input(provider, email, password_stdin)?;
+                        output::print_add_codex_autofill(&facade, input, cli.json)
+                    } else {
+                        ensure_no_autofill_only_add_args(email, password_stdin)?;
+                        output::print_add(&facade, provider, cli.json)
+                    }
                 }
                 Commands::List { provider } => {
                     output::print_list(&facade, provider.map(into_provider), cli.json)
@@ -307,6 +325,98 @@ fn into_provider(provider: ProviderArg) -> Provider {
         ProviderArg::Codex => Provider::Codex,
         ProviderArg::Claude => Provider::Claude,
         ProviderArg::Gemini => Provider::Gemini,
+    }
+}
+
+fn ensure_no_autofill_only_add_args(
+    email: Option<String>,
+    password_stdin: bool,
+) -> Result<(), String> {
+    if email.is_some() {
+        return Err("--email requires --autofill".to_string());
+    }
+    if password_stdin {
+        return Err("--password-stdin requires --autofill".to_string());
+    }
+    Ok(())
+}
+
+fn read_codex_autofill_input(
+    provider: Provider,
+    email: Option<String>,
+    password_stdin: bool,
+) -> Result<CodexAutofillLoginInput, String> {
+    if provider != Provider::Codex {
+        return Err("--autofill is only supported for Codex accounts".to_string());
+    }
+
+    let email = email
+        .ok_or_else(|| "--email is required with --autofill".to_string())?
+        .trim()
+        .to_string();
+    if email.is_empty() {
+        return Err("Codex login email is required".to_string());
+    }
+
+    let password = read_codex_autofill_password(password_stdin)?;
+    Ok(CodexAutofillLoginInput { email, password })
+}
+
+fn read_codex_autofill_password(password_stdin: bool) -> Result<String, String> {
+    let password = if password_stdin {
+        let mut password = String::new();
+        io::stdin()
+            .read_to_string(&mut password)
+            .map_err(|error| format!("failed to read Codex password from stdin: {error}"))?;
+        strip_password_stdin_newline(password)
+    } else {
+        rpassword::prompt_password("Codex password: ")
+            .map_err(|error| format!("failed to read Codex password: {error}"))?
+    };
+
+    if password.is_empty() {
+        return Err("Codex login password is required".to_string());
+    }
+
+    Ok(password)
+}
+
+fn strip_password_stdin_newline(mut password: String) -> String {
+    if password.ends_with('\n') {
+        password.pop();
+        if password.ends_with('\r') {
+            password.pop();
+        }
+    }
+    password
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn stdin_password_removes_one_trailing_lf() {
+        assert_eq!(
+            strip_password_stdin_newline(" secret \n".to_string()),
+            " secret "
+        );
+    }
+
+    #[test]
+    fn stdin_password_removes_one_trailing_crlf() {
+        assert_eq!(
+            strip_password_stdin_newline("secret\r\n".to_string()),
+            "secret"
+        );
+    }
+
+    #[test]
+    fn stdin_password_preserves_non_newline_trailing_whitespace() {
+        assert_eq!(
+            strip_password_stdin_newline("secret  ".to_string()),
+            "secret  "
+        );
     }
 }
 
