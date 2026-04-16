@@ -156,7 +156,13 @@ function SettingsPageComponent({
           <h1 className="text-2xl font-bold tracking-tight text-base-content">{copy.settings.title}</h1>
           <p className="mt-1 text-sm text-base-content/55">{copy.settings.subtitle}</p>
         </div>
-        <div className="badge badge-outline h-10 rounded-full border-base-300 px-4 text-xs text-base-content/60">
+        <div
+          className={`badge badge-outline h-10 rounded-full px-4 text-xs ${
+            isSavingAppSettings || isSavingRefreshSettings
+              ? "border-primary/30 bg-primary/10 text-primary"
+              : "border-base-300 text-base-content/60"
+          }`}
+        >
           {copy.settings.autoSaveLabel}
         </div>
       </div>
@@ -178,7 +184,6 @@ function SettingsPageComponent({
                   <SelectField
                     value={language}
                     onChange={(value) => onLanguageChange(value as AppLanguage)}
-                    isDisabled={isSavingAppSettings}
                     options={copy.settings.language.options}
                     className="max-w-xs"
                   />
@@ -197,7 +202,6 @@ function SettingsPageComponent({
                           ? "btn-primary"
                           : "bg-transparent text-base-content/70 hover:bg-base-100 hover:text-base-content"
                       }`}
-                      disabled={isSavingAppSettings}
                       onClick={() => onThemeChange("light")}
                     >
                       <SunMedium size={16} />
@@ -210,7 +214,6 @@ function SettingsPageComponent({
                           ? "btn-primary"
                           : "bg-transparent text-base-content/70 hover:bg-base-100 hover:text-base-content"
                       }`}
-                      disabled={isSavingAppSettings}
                       onClick={() => onThemeChange("dark")}
                     >
                       <Moon size={16} />
@@ -223,7 +226,6 @@ function SettingsPageComponent({
                           ? "btn-primary"
                           : "bg-transparent text-base-content/70 hover:bg-base-100 hover:text-base-content"
                       }`}
-                      disabled={isSavingAppSettings}
                       onClick={() => onThemeChange("system")}
                     >
                       <MonitorCog size={16} />
@@ -255,7 +257,6 @@ function SettingsPageComponent({
                         type="checkbox"
                         className="toggle toggle-primary"
                         checked={relaySettings.enabled}
-                        disabled={isSavingAppSettings}
                         onChange={(event) => onRelayEnabledChange(event.target.checked)}
                       />
                       <span className="text-sm text-base-content/75">
@@ -270,7 +271,6 @@ function SettingsPageComponent({
                         min={1}
                         max={65535}
                         value={relaySettings.port}
-                        disabled={isSavingAppSettings}
                         onChange={(event) => onRelayPortChange(event.target.value)}
                         className="input input-bordered max-w-[160px] rounded-xl border-base-300 bg-base-100 shadow-none"
                       />
@@ -350,7 +350,6 @@ function SettingsPageComponent({
                         type="checkbox"
                         className="toggle toggle-primary"
                         checked={refreshSettings.enabled}
-                        disabled={isSavingRefreshSettings}
                         onChange={(event) => onRefreshEnabledChange(event.target.checked)}
                       />
                       <span className="text-sm text-base-content/75">{copy.settings.sync.enabledLabel}</span>
@@ -361,7 +360,7 @@ function SettingsPageComponent({
                       <SelectField
                         value={String(refreshSettings.interval_seconds)}
                         onChange={(value) => onRefreshIntervalChange(Number(value))}
-                        isDisabled={!refreshSettings.enabled || isSavingRefreshSettings}
+                        isDisabled={!refreshSettings.enabled}
                         options={copy.settings.sync.options}
                         className="max-w-[180px]"
                       />
@@ -379,7 +378,6 @@ function SettingsPageComponent({
                       type="checkbox"
                       className="toggle toggle-primary"
                       checked={autoSwitchEnabled}
-                      disabled={isSavingAppSettings}
                       onChange={(event) => onAutoSwitchEnabledChange(event.target.checked)}
                     />
                     <span className="text-sm text-base-content/75">

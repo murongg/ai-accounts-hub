@@ -66,5 +66,5 @@ pub async fn get_relay_status(app: tauri::AppHandle) -> Result<RelayRuntimeStatu
     let (managed_root, codex_paths, _, _) = relay_context()?;
     let settings = store::load_app_settings(&codex_paths)?;
     let state = app.state::<RelayServerState>();
-    Ok(state.status(&settings.relay, &managed_root))
+    Ok(state.status_async(&settings.relay, &managed_root).await)
 }

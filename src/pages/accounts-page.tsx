@@ -3,6 +3,7 @@ import { LayoutGrid, LayoutList, Plus, RefreshCw } from "lucide-react";
 
 import { AccountCard } from "../components/account-card";
 import { AccountListItem } from "../components/account-list-item";
+import { CodexAutofillLoginModal } from "../components/codex-autofill-login-modal";
 import { EmptyStateCard } from "../components/empty-state-card";
 import { getI18n } from "../lib/i18n";
 import {
@@ -40,12 +41,21 @@ export interface AccountsPageProps {
   switchingAccountId: string | null;
   deletingAccountId: string | null;
   isRefreshingUsage: boolean;
+  isCodexAutofillLoginOpen: boolean;
+  isStartingCodexAutofillLogin: boolean;
+  codexAutofillLoginEmail: string;
+  codexAutofillLoginPassword: string;
   actionsDisabled: boolean;
   nowMs: number;
   onTabChange: (tab: string) => void;
   onViewModeChange: (mode: AccountsViewMode) => void;
   onRefreshUsage: () => void;
   onAddAccount: () => void;
+  onOpenCodexAutofillLogin: () => void;
+  onCloseCodexAutofillLogin: () => void;
+  onCodexAutofillLoginEmailChange: (value: string) => void;
+  onCodexAutofillLoginPasswordChange: (value: string) => void;
+  onSubmitCodexAutofillLogin: () => void;
   onSwitchAccount: (accountId: string) => void;
   onDeleteAccount: (accountId: string) => void;
 }
@@ -65,12 +75,21 @@ function AccountsPageComponent({
   switchingAccountId,
   deletingAccountId,
   isRefreshingUsage,
+  isCodexAutofillLoginOpen,
+  isStartingCodexAutofillLogin,
+  codexAutofillLoginEmail,
+  codexAutofillLoginPassword,
   actionsDisabled,
   nowMs,
   onTabChange,
   onViewModeChange,
   onRefreshUsage,
   onAddAccount,
+  onOpenCodexAutofillLogin,
+  onCloseCodexAutofillLogin,
+  onCodexAutofillLoginEmailChange,
+  onCodexAutofillLoginPasswordChange,
+  onSubmitCodexAutofillLogin,
   onSwitchAccount,
   onDeleteAccount,
 }: AccountsPageProps) {
@@ -183,16 +202,26 @@ function AccountsPageComponent({
           <button
             type="button"
             onClick={onRefreshUsage}
-            disabled={actionsDisabled || isLoadingAccounts || isAddingAccount || isRefreshingUsage}
+            disabled={actionsDisabled || isLoadingAccounts || isAddingAccount || isRefreshingUsage || isStartingCodexAutofillLogin}
             className="btn btn-sm h-11 rounded-2xl border border-base-300 bg-base-100 px-4 text-sm font-medium text-base-content/70 shadow-sm hover:bg-base-100 disabled:border-base-300 disabled:bg-base-200 disabled:text-base-content/35"
           >
             <RefreshCw size={16} className={isRefreshingUsage ? "animate-spin" : ""} />
             {isRefreshingUsage ? copy.accounts.refreshingList : copy.accounts.refreshList}
           </button>
+          {activePlatform === "codex" ? (
+            <button
+              type="button"
+              onClick={onOpenCodexAutofillLogin}
+              disabled={actionsDisabled || isAddingAccount || isStartingCodexAutofillLogin || switchingAccountId !== null}
+              className="btn btn-sm h-11 rounded-lg border border-base-300 bg-base-100 px-4 text-sm font-medium text-base-content/70 shadow-sm hover:bg-base-100 disabled:border-base-300 disabled:bg-base-200 disabled:text-base-content/35"
+            >
+              {isStartingCodexAutofillLogin ? copy.accounts.autoFillLoginPending : copy.accounts.autoFillLogin}
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={onAddAccount}
-            disabled={actionsDisabled || isAddingAccount || switchingAccountId !== null}
+            disabled={actionsDisabled || isAddingAccount || isStartingCodexAutofillLogin || switchingAccountId !== null}
             className="btn btn-primary btn-sm h-11 rounded-2xl px-4 text-sm font-medium shadow-sm disabled:bg-primary/50 disabled:text-primary-content/80"
           >
             <Plus size={16} />
@@ -470,6 +499,20 @@ function AccountsPageComponent({
           ))}
         </div>
       )}
+
+      {isCodexAutofillLoginOpen ? (
+        <CodexAutofillLoginModal
+          copy={copy.accounts.autofillModal}
+          pendingLabel={copy.accounts.autoFillLoginPending}
+          email={codexAutofillLoginEmail}
+          password={codexAutofillLoginPassword}
+          isSubmitting={isStartingCodexAutofillLogin}
+          onEmailChange={onCodexAutofillLoginEmailChange}
+          onPasswordChange={onCodexAutofillLoginPasswordChange}
+          onCancel={onCloseCodexAutofillLogin}
+          onSubmit={onSubmitCodexAutofillLogin}
+        />
+      ) : null}
     </>
   );
 }
