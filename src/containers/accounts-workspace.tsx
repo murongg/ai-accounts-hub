@@ -13,6 +13,7 @@ import {
   deleteCodexAccount,
   listCodexAccounts,
   refreshCodexUsageNow,
+  startCodexAccountDeviceAutofillLogin,
   startCodexAccountLogin,
   switchCodexAccount,
 } from "../lib/codex-accounts";
@@ -25,6 +26,7 @@ import {
 } from "../lib/gemini-accounts";
 import { getPlatformAccountMetrics, sortAccountsByPrimaryQuota } from "../lib/accounts-display";
 import { createLatestRequestGate } from "../lib/accounts-workspace";
+import { normalizeCodexAutofillLoginInput } from "../lib/codex-autofill-login";
 import type { ClaudeAccountSummary } from "../types/claude";
 import type { CodexAccountSummary } from "../types/codex";
 import type { GeminiAccountSummary } from "../types/gemini";
@@ -64,6 +66,10 @@ function AccountsWorkspaceComponent({
   const [isAddingCodexAccount, setIsAddingCodexAccount] = useState(false);
   const [isAddingClaudeAccount, setIsAddingClaudeAccount] = useState(false);
   const [isAddingGeminiAccount, setIsAddingGeminiAccount] = useState(false);
+  const [isCodexAutofillLoginOpen, setIsCodexAutofillLoginOpen] = useState(false);
+  const [isStartingCodexAutofillLogin, setIsStartingCodexAutofillLogin] = useState(false);
+  const [codexAutofillLoginEmail, setCodexAutofillLoginEmail] = useState("");
+  const [codexAutofillLoginPassword, setCodexAutofillLoginPassword] = useState("");
   const [switchingCodexAccountId, setSwitchingCodexAccountId] = useState<string | null>(null);
   const [switchingClaudeAccountId, setSwitchingClaudeAccountId] = useState<string | null>(null);
   const [switchingGeminiAccountId, setSwitchingGeminiAccountId] = useState<string | null>(null);
@@ -458,6 +464,42 @@ function AccountsWorkspaceComponent({
     }
   }, [activePlatform, onToast, refreshClaudeAccounts, refreshCodexAccounts, refreshGeminiAccounts]);
 
+  const closeCodexAutofillLogin = useCallback(() => {
+    if (isStartingCodexAutofillLogin) {
+      return;
+    }
+    setIsCodexAutofillLoginOpen(false);
+    setCodexAutofillLoginPassword("");
+  }, [isStartingCodexAutofillLogin]);
+
+  const handleSubmitCodexAutofillLogin = useCallback(async () => {
+    const input = normalizeCodexAutofillLoginInput({
+      email: codexAutofillLoginEmail,
+      password: codexAutofillLoginPassword,
+    });
+    if (!input.email || !input.password) {
+      return;
+    }
+
+    try {
+      setIsStartingCodexAutofillLogin(true);
+      await startCodexAccountDeviceAutofillLogin(input);
+      setIsCodexAutofillLoginOpen(false);
+      setCodexAutofillLoginPassword("");
+      await refreshCodexAccounts(false);
+    } catch (error) {
+      setCodexAutofillLoginPassword("");
+      onToast("error", errorMessage(error));
+    } finally {
+      setIsStartingCodexAutofillLogin(false);
+    }
+  }, [
+    codexAutofillLoginEmail,
+    codexAutofillLoginPassword,
+    onToast,
+    refreshCodexAccounts,
+  ]);
+
   const currentAccounts: Array<CodexAccountSummary | ClaudeAccountSummary | GeminiAccountSummary> = activePlatform === "codex"
     ? codexAccounts
     : activePlatform === "claude"
@@ -525,12 +567,21 @@ function AccountsWorkspaceComponent({
       switchingAccountId={switchingAccountId}
       deletingAccountId={deletingAccountId}
       isRefreshingUsage={isRefreshingUsage}
+      isCodexAutofillLoginOpen={isCodexAutofillLoginOpen}
+      isStartingCodexAutofillLogin={isStartingCodexAutofillLogin}
+      codexAutofillLoginEmail={codexAutofillLoginEmail}
+      codexAutofillLoginPassword={codexAutofillLoginPassword}
       actionsDisabled={actionsDisabled}
       nowMs={nowMs}
       onTabChange={onTabChange}
       onViewModeChange={onViewModeChange}
       onRefreshUsage={() => void handleRefreshUsage()}
       onAddAccount={() => void handleAddAccount()}
+      onOpenCodexAutofillLogin={() => setIsCodexAutofillLoginOpen(true)}
+      onCloseCodexAutofillLogin={closeCodexAutofillLogin}
+      onCodexAutofillLoginEmailChange={setCodexAutofillLoginEmail}
+      onCodexAutofillLoginPasswordChange={setCodexAutofillLoginPassword}
+      onSubmitCodexAutofillLogin={() => void handleSubmitCodexAutofillLogin()}
       onSwitchAccount={handleSwitchAccount}
       onDeleteAccount={handleDeleteAccount}
     />

@@ -115,13 +115,22 @@ export default function App() {
 
   const handleAccountsViewModeChange = useCallback(
     async (mode: AccountsViewMode) => {
+      if (appSettings.accounts_view_mode === mode) {
+        return;
+      }
+
+      const nextSettings = {
+        ...appSettings,
+        accounts_view_mode: mode,
+      };
+
+      setAppSettings(nextSettings);
+
       try {
-        const saved = await updateAppSettings({
-          ...appSettings,
-          accounts_view_mode: mode,
-        });
+        const saved = await updateAppSettings(nextSettings);
         setAppSettings(saved);
       } catch (error) {
+        setAppSettings(appSettings);
         pushToast("error", errorMessage(error));
       }
     },

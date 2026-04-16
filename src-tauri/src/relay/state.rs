@@ -20,6 +20,19 @@ impl RelayServerState {
         )
     }
 
+    pub async fn status_async(
+        &self,
+        settings: &RelaySettings,
+        managed_root: &Path,
+    ) -> RelayRuntimeStatus {
+        self.inner
+            .status_async(
+                settings,
+                &RelayRegistryPaths::from_managed_root(managed_root),
+            )
+            .await
+    }
+
     pub async fn apply_settings(
         &self,
         settings: RelaySettings,

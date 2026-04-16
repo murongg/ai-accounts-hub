@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { CodexAutofillLoginFormInput } from "./codex-autofill-login";
 import type { CodexAccountSummary, CodexRefreshSettings } from "../types/codex";
 
 export function listCodexAccounts() {
@@ -7,6 +8,10 @@ export function listCodexAccounts() {
 
 export function startCodexAccountLogin() {
   return invoke<void>("start_codex_account_login");
+}
+
+export function startCodexAccountDeviceAutofillLogin(input: CodexAutofillLoginFormInput) {
+  return invoke<void>("start_codex_account_device_autofill_login", { input });
 }
 
 export function switchCodexAccount(accountId: string) {

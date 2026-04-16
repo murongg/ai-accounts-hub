@@ -15,7 +15,21 @@ export interface I18nMessages {
     refreshList: string;
     refreshingList: string;
     addAccount: string;
+    autoFillLogin: string;
+    autoFillLoginPending: string;
     loggingIn: string;
+    autofillModal: {
+      title: string;
+      description: string;
+      emailLabel: string;
+      emailPlaceholder: string;
+      passwordLabel: string;
+      passwordPlaceholder: string;
+      privacyNote: string;
+      verificationNote: string;
+      cancel: string;
+      submit: string;
+    };
     filters: {
       all: string;
       active: string;
@@ -211,7 +225,21 @@ function createChineseCopy(): I18nMessages {
       refreshList: "刷新列表",
       refreshingList: "刷新中...",
       addAccount: "添加账号",
+      autoFillLogin: "自动填充登录",
+      autoFillLoginPending: "自动登录中...",
       loggingIn: "登录中...",
+      autofillModal: {
+        title: "Codex 自动填充登录",
+        description: "使用官方 Codex 设备授权页面登录。验证码、二次验证或风控确认仍需手动完成。",
+        emailLabel: "邮箱",
+        emailPlaceholder: "you@example.com",
+        passwordLabel: "密码",
+        passwordPlaceholder: "仅用于本次登录",
+        privacyNote: "密码只在本次登录过程中使用，不会写入账号库、日志或导出文件。",
+        verificationNote: "浏览器打开后，请确认地址为 auth.openai.com。",
+        cancel: "取消",
+        submit: "开始登录",
+      },
       filters: {
         all: "全部",
         active: "使用中",
@@ -379,7 +407,21 @@ function createEnglishCopy(): I18nMessages {
       refreshList: "Refresh",
       refreshingList: "Refreshing...",
       addAccount: "Add account",
+      autoFillLogin: "Auto-fill login",
+      autoFillLoginPending: "Logging in...",
       loggingIn: "Logging in...",
+      autofillModal: {
+        title: "Codex auto-fill login",
+        description: "Sign in through the official Codex device authorization page. Verification, MFA, or risk checks still require manual completion.",
+        emailLabel: "Email",
+        emailPlaceholder: "you@example.com",
+        passwordLabel: "Password",
+        passwordPlaceholder: "Used for this login only",
+        privacyNote: "The password is used only during this login attempt. It is not written to the account pool, logs, or export files.",
+        verificationNote: "When the browser opens, verify that the address is auth.openai.com.",
+        cancel: "Cancel",
+        submit: "Start login",
+      },
       filters: {
         all: "All",
         active: "Active",

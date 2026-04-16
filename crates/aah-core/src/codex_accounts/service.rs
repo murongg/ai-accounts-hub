@@ -7,6 +7,10 @@ use crate::time_utils::timestamp_string;
 use super::auth::{match_active_identity, read_account_identity_from_path};
 pub use super::cli::CodexLoginRunner;
 use super::cli::ProcessCodexLoginRunner;
+use super::device_login::{
+    CodexDeviceAutofillLoginRequest, CodexDeviceAutofillLoginRunner,
+    ProcessCodexDeviceAutofillLoginRunner,
+};
 use super::models::{CodexAccountListItem, StoredCodexAccount};
 use super::paths::{atomic_write, CodexAccountPaths};
 use super::store::{auth_path_for_home, CodexAccountStore};
@@ -14,13 +18,27 @@ use super::store::{auth_path_for_home, CodexAccountStore};
 pub struct CodexAccountService {
     paths: CodexAccountPaths,
     login_runner: Box<dyn CodexLoginRunner>,
+    device_autofill_login_runner: Box<dyn CodexDeviceAutofillLoginRunner>,
 }
 
 impl CodexAccountService {
     pub fn new(paths: CodexAccountPaths, login_runner: Box<dyn CodexLoginRunner>) -> Self {
+        Self::new_with_runners(
+            paths,
+            login_runner,
+            Box::new(ProcessCodexDeviceAutofillLoginRunner),
+        )
+    }
+
+    pub fn new_with_runners(
+        paths: CodexAccountPaths,
+        login_runner: Box<dyn CodexLoginRunner>,
+        device_autofill_login_runner: Box<dyn CodexDeviceAutofillLoginRunner>,
+    ) -> Self {
         Self {
             paths,
             login_runner,
+            device_autofill_login_runner,
         }
     }
 
@@ -38,6 +56,45 @@ impl CodexAccountService {
 
         let result = (|| {
             self.login_runner.run_login(&managed_home)?;
+
+            let managed_auth_path = auth_path_for_home(&managed_home);
+            let identity = read_account_identity_from_path(&managed_auth_path)?;
+            let mut store = CodexAccountStore::load(&self.paths)?;
+            let previous_home = store
+                .find_matching_account(&identity)
+                .map(|account| account.managed_home_path.clone());
+            let saved = store.upsert_identity(&self.paths, identity, managed_home.clone())?;
+
+            if let Some(previous_home) = previous_home {
+                if previous_home != saved.managed_home_path {
+                    let _ = fs::remove_dir_all(previous_home);
+                }
+            }
+
+            Ok(saved)
+        })();
+
+        if result.is_err() {
+            let _ = fs::remove_dir_all(&managed_home);
+        }
+
+        result
+    }
+
+    pub fn start_device_autofill_login(
+        &self,
+        request: CodexDeviceAutofillLoginRequest,
+    ) -> Result<StoredCodexAccount, String> {
+        self.paths.ensure_dirs()?;
+
+        let managed_home = self
+            .paths
+            .managed_homes_dir
+            .join(uuid::Uuid::new_v4().to_string());
+
+        let result = (|| {
+            self.device_autofill_login_runner
+                .run_login(&managed_home, request)?;
 
             let managed_auth_path = auth_path_for_home(&managed_home);
             let identity = read_account_identity_from_path(&managed_auth_path)?;
