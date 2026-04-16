@@ -61,6 +61,7 @@
 
 - `Codex` / `Claude` / `Gemini` 多账号管理
 - 首次启动自动导入当前系统已经登录的账号
+- 桌面端支持 `Codex` 自动填充登录，输入邮箱和密码后通过官方登录页完成授权
 - 一键切换当前系统 CLI 正在使用的登录态
 - 主界面展示账号状态、剩余额度、刷新时间和 relogin 状态
 - 后台定时刷新各 provider 配额快照
@@ -85,9 +86,10 @@
 应用默认的工作方式不是“代理所有请求”，而是“托管账号凭证并切换系统当前账号”。
 
 1. 首次启动时，应用会尝试把本机已经登录的 `Codex` / `Claude` / `Gemini` 账号导入自己的账号池。
-2. 每个账号都会隔离存放在应用数据目录里，而不是混在系统当前的 live 配置里。
-3. 当你切换账号时，应用会把目标账号的凭证同步回对应 CLI 的系统路径。
-4. 后台刷新任务会定时更新 usage / quota 快照，并在启用自动切换时选出仍然可用的账号。
+2. 添加新账号时，应用会启动对应 provider 的官方登录流程，并把登录成功后的凭证收进账号池。
+3. 每个账号都会隔离存放在应用数据目录里，而不是混在系统当前的 live 配置里。
+4. 当你切换账号时，应用会把目标账号的凭证同步回对应 CLI 的系统路径。
+5. 后台刷新任务会定时更新 usage / quota 快照，并在启用自动切换时选出仍然可用的账号。
 
 当前会接管的 live 配置路径主要包括：
 
@@ -137,6 +139,13 @@
 
 - [下载最新版本](https://github.com/murongg/ai-accounts-hub/releases)
 
+在账号页添加 `Codex` 账号时，可以选择：
+
+- **添加账号**：启动 `codex login` 的官方登录流程，按浏览器页面提示手动完成登录。
+- **自动填充登录**：输入邮箱和密码后，应用会打开官方 `auth.openai.com` 登录页并自动填入账号密码；验证码、二次验证、Passkey 或风控确认仍需你在浏览器里手动完成。
+
+自动填充登录需要本机可用的 Chrome 或 Chromium。密码只用于本次登录流程，不会写入账号池、日志或导出文件。
+
 ### CLI 模式
 
 如果你只需要命令行版，可以单独安装 `aah` CLI，不需要安装桌面 app：
@@ -171,6 +180,7 @@ aah tui
 
 ```bash
 aah add --provider codex
+aah add --provider codex --autofill --email user@example.com
 aah list
 aah current
 aah refresh
@@ -183,6 +193,20 @@ aah upgrade
 ```
 
 `aah add --provider ...` 会启动对应 provider 的登录流程，把账号加入应用自己的账号池，但不会自动切换当前系统 CLI 正在使用的活跃账号。
+
+`Codex` 也可以在 CLI 里使用自动填充登录：
+
+```bash
+aah add --provider codex --autofill --email user@example.com
+```
+
+默认会在终端里隐藏输入密码。如果要在脚本里使用，可以从 stdin 传入密码，避免把密码写进 shell history：
+
+```bash
+printf '%s\n' "$CODEX_PASSWORD" | aah add --provider codex --autofill --email user@example.com --password-stdin
+```
+
+CLI 自动填充登录和桌面端使用同一套官方 `auth.openai.com` 登录流程，需要本机可用的 Chrome 或 Chromium。验证码、二次验证、Passkey 或风控确认仍需你在浏览器里手动完成；密码只用于本次登录流程，不会写入账号池、日志或导出文件。
 
 `aah switch/remove/label` 的账号选择器既可以传账号 email，也可以传托管账号 ID。`aah remove` 默认会交互确认；脚本里可以加 `--yes` 跳过确认。
 

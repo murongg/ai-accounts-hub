@@ -10,8 +10,8 @@ use uuid::Uuid;
 use super::credentials::{EmptyRelayCredentialSource, RelayCredentialSource};
 use super::proxy::{build_relay_router, RelayAdminControl, RelayProxyState};
 use super::registry::{
-    remove_runtime_record, save_runtime_record, shared_runtime_status, stop_shared_runtime,
-    RelayRegistryPaths, RelayRuntimeRecord,
+    remove_runtime_record, save_runtime_record, shared_runtime_status, shared_runtime_status_async,
+    stop_shared_runtime, stop_shared_runtime_async, RelayRegistryPaths, RelayRuntimeRecord,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -70,6 +70,23 @@ impl RelayServerState {
         }
     }
 
+    pub async fn status_async(
+        &self,
+        settings: &RelaySettings,
+        registry_paths: &RelayRegistryPaths,
+    ) -> RelayRuntimeStatus {
+        let runtime_port = self
+            .runtime
+            .lock()
+            .expect("relay runtime lock")
+            .as_ref()
+            .map(|runtime| runtime.port);
+        match runtime_port {
+            Some(port) => relay_status(true, port, self.last_error()),
+            None => shared_runtime_status_async(settings, registry_paths, self.last_error()).await,
+        }
+    }
+
     pub async fn apply_settings(
         &self,
         settings: RelaySettings,
@@ -79,14 +96,14 @@ impl RelayServerState {
     ) -> RelayRuntimeStatus {
         self.stop_current_runtime(registry_paths);
         if !settings.enabled {
-            match stop_shared_runtime(registry_paths) {
+            match stop_shared_runtime_async(registry_paths).await {
                 Ok(_) => self.set_last_error(None),
                 Err(error) => self.set_last_error(Some(error)),
             }
             return relay_status(false, settings.port, None);
         }
 
-        let shared_status = shared_runtime_status(&settings, registry_paths, None);
+        let shared_status = shared_runtime_status_async(&settings, registry_paths, None).await;
         if shared_status.running {
             self.set_last_error(None);
             return shared_status;
@@ -101,7 +118,8 @@ impl RelayServerState {
                 relay_status(true, port, None)
             }
             Err(error) => {
-                let shared_status = shared_runtime_status(&settings, registry_paths, None);
+                let shared_status =
+                    shared_runtime_status_async(&settings, registry_paths, None).await;
                 if shared_status.running {
                     self.set_last_error(None);
                     shared_status

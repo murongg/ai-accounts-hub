@@ -1,3 +1,6 @@
+use ai_accounts_hub_lib::codex_accounts::device_login::{
+    CodexDeviceAutofillLoginRequest, CodexDeviceAutofillLoginRunner,
+};
 use ai_accounts_hub_lib::codex_accounts::paths::CodexAccountPaths;
 use ai_accounts_hub_lib::codex_accounts::service::{CodexAccountService, CodexLoginRunner};
 use serde_json::json;
@@ -53,6 +56,42 @@ impl CodexLoginRunner for FakeLoginRunner {
         )
         .map_err(|error| error.to_string())?;
         Ok(())
+    }
+}
+
+#[derive(Clone)]
+struct FakeDeviceAutofillLoginRunner {
+    auth_json: serde_json::Value,
+}
+
+impl CodexDeviceAutofillLoginRunner for FakeDeviceAutofillLoginRunner {
+    fn run_login(
+        &self,
+        managed_home: &Path,
+        request: CodexDeviceAutofillLoginRequest,
+    ) -> Result<(), String> {
+        assert_eq!(request.email, "work@example.com");
+        assert_eq!(request.password, "secret-password");
+        fs::create_dir_all(managed_home).map_err(|error| error.to_string())?;
+        fs::write(
+            managed_home.join("auth.json"),
+            serde_json::to_vec_pretty(&self.auth_json).expect("json"),
+        )
+        .map_err(|error| error.to_string())?;
+        Ok(())
+    }
+}
+
+#[derive(Clone)]
+struct FailingDeviceAutofillLoginRunner;
+
+impl CodexDeviceAutofillLoginRunner for FailingDeviceAutofillLoginRunner {
+    fn run_login(
+        &self,
+        _managed_home: &Path,
+        _request: CodexDeviceAutofillLoginRequest,
+    ) -> Result<(), String> {
+        Err("device login failed".to_string())
     }
 }
 
@@ -113,6 +152,143 @@ fn start_login_replaces_existing_account_with_same_email() {
 
     assert_eq!(first.id, second.id);
     assert_ne!(first.managed_home_path, second.managed_home_path);
+}
+
+#[test]
+fn start_device_autofill_login_saves_a_managed_account() {
+    let temp = TempDir::new("service-device-start");
+    let paths = CodexAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let service = CodexAccountService::new_with_runners(
+        paths.clone(),
+        Box::new(FakeLoginRunner {
+            auth_json: json!({
+                "tokens": {
+                    "account_id": "manual",
+                    "id_token": id_token(WORK_PAYLOAD),
+                    "access_token": "manual-access-token"
+                }
+            }),
+        }),
+        Box::new(FakeDeviceAutofillLoginRunner {
+            auth_json: json!({
+                "tokens": {
+                    "account_id": "acct_123",
+                    "id_token": id_token(WORK_PAYLOAD),
+                    "access_token": "access-token"
+                }
+            }),
+        }),
+    );
+
+    let saved = service
+        .start_device_autofill_login(CodexDeviceAutofillLoginRequest {
+            email: "work@example.com".to_string(),
+            password: "secret-password".to_string(),
+        })
+        .expect("managed device login");
+
+    assert_eq!(saved.email, "work@example.com");
+    assert!(Path::new(&saved.managed_home_path)
+        .join("auth.json")
+        .exists());
+}
+
+#[test]
+fn start_device_autofill_login_replaces_existing_account_with_same_email() {
+    let temp = TempDir::new("service-device-dedupe");
+    let paths = CodexAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let first_service = CodexAccountService::new_with_runners(
+        paths.clone(),
+        Box::new(FakeLoginRunner {
+            auth_json: json!({
+                "tokens": {
+                    "account_id": "manual",
+                    "id_token": id_token(WORK_PAYLOAD),
+                    "access_token": "manual-access-token"
+                }
+            }),
+        }),
+        Box::new(FakeDeviceAutofillLoginRunner {
+            auth_json: json!({
+                "tokens": {
+                    "account_id": "acct_123",
+                    "id_token": id_token(WORK_PAYLOAD),
+                    "access_token": "access-token"
+                }
+            }),
+        }),
+    );
+    let second_service = CodexAccountService::new_with_runners(
+        paths.clone(),
+        Box::new(FakeLoginRunner {
+            auth_json: json!({
+                "tokens": {
+                    "account_id": "manual",
+                    "id_token": id_token(WORK_PAYLOAD),
+                    "access_token": "manual-access-token"
+                }
+            }),
+        }),
+        Box::new(FakeDeviceAutofillLoginRunner {
+            auth_json: json!({
+                "tokens": {
+                    "account_id": "acct_999",
+                    "id_token": id_token(WORK_PAYLOAD_UPDATED),
+                    "access_token": "access-token"
+                }
+            }),
+        }),
+    );
+
+    let first = first_service
+        .start_device_autofill_login(CodexDeviceAutofillLoginRequest {
+            email: "work@example.com".to_string(),
+            password: "secret-password".to_string(),
+        })
+        .expect("first device login");
+    let first_home = first.managed_home_path.clone();
+    let second = second_service
+        .start_device_autofill_login(CodexDeviceAutofillLoginRequest {
+            email: "work@example.com".to_string(),
+            password: "secret-password".to_string(),
+        })
+        .expect("second device login");
+
+    assert_eq!(first.id, second.id);
+    assert_ne!(first.managed_home_path, second.managed_home_path);
+    assert!(!Path::new(&first_home).exists());
+}
+
+#[test]
+fn start_device_autofill_login_cleans_up_new_home_on_failure() {
+    let temp = TempDir::new("service-device-failure");
+    let paths = CodexAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let service = CodexAccountService::new_with_runners(
+        paths.clone(),
+        Box::new(FakeLoginRunner {
+            auth_json: json!({
+                "tokens": {
+                    "account_id": "manual",
+                    "id_token": id_token(WORK_PAYLOAD),
+                    "access_token": "manual-access-token"
+                }
+            }),
+        }),
+        Box::new(FailingDeviceAutofillLoginRunner),
+    );
+
+    let error = service
+        .start_device_autofill_login(CodexDeviceAutofillLoginRequest {
+            email: "work@example.com".to_string(),
+            password: "secret-password".to_string(),
+        })
+        .expect_err("device login should fail");
+
+    assert_eq!(error, "device login failed");
+    let homes = fs::read_dir(&paths.managed_homes_dir)
+        .map(|entries| entries.count())
+        .unwrap_or(0);
+    assert_eq!(homes, 0);
 }
 
 #[test]

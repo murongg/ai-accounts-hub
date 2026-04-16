@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import { openPath } from "@tauri-apps/plugin-opener";
 
 import { SettingsPage } from "../pages/settings-page";
@@ -80,6 +80,8 @@ function SettingsWorkspaceComponent({
   });
   const [isCheckingForUpdates, setIsCheckingForUpdates] = useState(false);
   const [isInstallingUpdate, setIsInstallingUpdate] = useState(false);
+  const appSettingsSaveRequestId = useRef(0);
+  const refreshSettingsSaveRequestId = useRef(0);
   const copy = getI18n(appSettings.language);
 
   const loadRefreshSettings = useCallback(async () => {
@@ -135,15 +137,26 @@ function SettingsWorkspaceComponent({
   }, [availableUpdate]);
 
   const persistAppSettings = useCallback(
-    async (nextSettings: AppSettings) => {
+    async (nextSettings: AppSettings, previousSettings: AppSettings) => {
+      const requestId = appSettingsSaveRequestId.current + 1;
+      appSettingsSaveRequestId.current = requestId;
+
       try {
         setIsSavingAppSettings(true);
+        onAppSettingsChange(nextSettings);
         const saved = await updateAppSettings(nextSettings);
-        onAppSettingsChange(saved);
+        if (appSettingsSaveRequestId.current === requestId) {
+          onAppSettingsChange(saved);
+        }
       } catch (error) {
-        onToast("error", errorMessage(error));
+        if (appSettingsSaveRequestId.current === requestId) {
+          onAppSettingsChange(previousSettings);
+          onToast("error", errorMessage(error));
+        }
       } finally {
-        setIsSavingAppSettings(false);
+        if (appSettingsSaveRequestId.current === requestId) {
+          setIsSavingAppSettings(false);
+        }
       }
     },
     [onAppSettingsChange, onToast],
@@ -154,7 +167,7 @@ function SettingsWorkspaceComponent({
       await persistAppSettings({
         ...appSettings,
         language,
-      });
+      }, appSettings);
     },
     [appSettings, persistAppSettings],
   );
@@ -164,7 +177,7 @@ function SettingsWorkspaceComponent({
       await persistAppSettings({
         ...appSettings,
         theme,
-      });
+      }, appSettings);
     },
     [appSettings, persistAppSettings],
   );
@@ -174,7 +187,7 @@ function SettingsWorkspaceComponent({
       await persistAppSettings({
         ...appSettings,
         auto_switch_enabled: enabled,
-      });
+      }, appSettings);
     },
     [appSettings, persistAppSettings],
   );
@@ -187,7 +200,7 @@ function SettingsWorkspaceComponent({
           ...appSettings.relay,
           enabled,
         },
-      });
+      }, appSettings);
       await loadRelayStatus();
     },
     [appSettings, loadRelayStatus, persistAppSettings],
@@ -202,7 +215,7 @@ function SettingsWorkspaceComponent({
           ...appSettings.relay,
           port,
         },
-      });
+      }, appSettings);
       await loadRelayStatus();
     },
     [appSettings, loadRelayStatus, persistAppSettings],
@@ -210,17 +223,30 @@ function SettingsWorkspaceComponent({
 
   const handleRefreshEnabledChange = useCallback(
     async (enabled: boolean) => {
+      const nextSettings = {
+        ...refreshSettings,
+        enabled,
+      };
+      const previousSettings = refreshSettings;
+      const requestId = refreshSettingsSaveRequestId.current + 1;
+      refreshSettingsSaveRequestId.current = requestId;
+
       try {
         setIsSavingRefreshSettings(true);
-        const saved = await updateCodexRefreshSettings({
-          ...refreshSettings,
-          enabled,
-        });
-        setRefreshSettings(saved);
+        setRefreshSettings(nextSettings);
+        const saved = await updateCodexRefreshSettings(nextSettings);
+        if (refreshSettingsSaveRequestId.current === requestId) {
+          setRefreshSettings(saved);
+        }
       } catch (error) {
-        onToast("error", errorMessage(error));
+        if (refreshSettingsSaveRequestId.current === requestId) {
+          setRefreshSettings(previousSettings);
+          onToast("error", errorMessage(error));
+        }
       } finally {
-        setIsSavingRefreshSettings(false);
+        if (refreshSettingsSaveRequestId.current === requestId) {
+          setIsSavingRefreshSettings(false);
+        }
       }
     },
     [onToast, refreshSettings],
@@ -228,17 +254,30 @@ function SettingsWorkspaceComponent({
 
   const handleRefreshIntervalChange = useCallback(
     async (intervalSeconds: number) => {
+      const nextSettings = {
+        ...refreshSettings,
+        interval_seconds: intervalSeconds,
+      };
+      const previousSettings = refreshSettings;
+      const requestId = refreshSettingsSaveRequestId.current + 1;
+      refreshSettingsSaveRequestId.current = requestId;
+
       try {
         setIsSavingRefreshSettings(true);
-        const saved = await updateCodexRefreshSettings({
-          ...refreshSettings,
-          interval_seconds: intervalSeconds,
-        });
-        setRefreshSettings(saved);
+        setRefreshSettings(nextSettings);
+        const saved = await updateCodexRefreshSettings(nextSettings);
+        if (refreshSettingsSaveRequestId.current === requestId) {
+          setRefreshSettings(saved);
+        }
       } catch (error) {
-        onToast("error", errorMessage(error));
+        if (refreshSettingsSaveRequestId.current === requestId) {
+          setRefreshSettings(previousSettings);
+          onToast("error", errorMessage(error));
+        }
       } finally {
-        setIsSavingRefreshSettings(false);
+        if (refreshSettingsSaveRequestId.current === requestId) {
+          setIsSavingRefreshSettings(false);
+        }
       }
     },
     [onToast, refreshSettings],

@@ -54,6 +54,7 @@ pub fn run() {
             claude_usage::refresh_claude_usage_now,
             codex_accounts::list_codex_accounts,
             codex_accounts::start_codex_account_login,
+            codex_accounts::start_codex_account_device_autofill_login,
             codex_accounts::switch_codex_account,
             codex_accounts::delete_codex_account,
             gemini_accounts::list_gemini_accounts,
