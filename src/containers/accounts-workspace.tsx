@@ -27,6 +27,10 @@ import {
 import { getPlatformAccountMetrics, sortAccountsByPrimaryQuota } from "../lib/accounts-display";
 import { createLatestRequestGate } from "../lib/accounts-workspace";
 import { normalizeCodexAutofillLoginInput } from "../lib/codex-autofill-login";
+import {
+  detectDesktopPlatform,
+  getAccountsActionSupport,
+} from "../lib/platform-support";
 import type { ClaudeAccountSummary } from "../types/claude";
 import type { CodexAccountSummary } from "../types/codex";
 import type { GeminiAccountSummary } from "../types/gemini";
@@ -80,6 +84,7 @@ function AccountsWorkspaceComponent({
   const [isRefreshingClaudeUsage, setIsRefreshingClaudeUsage] = useState(false);
   const [isRefreshingGeminiAccounts, setIsRefreshingGeminiAccounts] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const desktopPlatform = detectDesktopPlatform();
   const codexAccountsRequestGate = useRef(createLatestRequestGate<CodexAccountSummary[]>());
   const claudeAccountsRequestGate = useRef(createLatestRequestGate<ClaudeAccountSummary[]>());
   const geminiAccountsRequestGate = useRef(createLatestRequestGate<GeminiAccountSummary[]>());
@@ -534,7 +539,11 @@ function AccountsWorkspaceComponent({
     : activePlatform === "claude"
       ? isRefreshingClaudeUsage
       : isRefreshingGeminiAccounts;
-  const actionsDisabled = false;
+  const accountActionSupport = getAccountsActionSupport({
+    platform: desktopPlatform,
+    language,
+  });
+  const actionsDisabled = !accountActionSupport.actionsEnabled;
 
   const normalizedQuery = searchQuery.trim().toLowerCase();
   const searchedAccounts = currentAccounts.filter((account) =>

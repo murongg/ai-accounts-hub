@@ -3,6 +3,7 @@ import type { CodexRefreshSettings } from "./codex";
 export type AppLanguage = "zh-CN" | "en-US";
 export type AppTheme = "light" | "dark" | "system";
 export type AccountsViewMode = "cards" | "list";
+export type DesktopPlatform = "windows" | "macos" | "linux" | "unknown";
 export type AppUpdaterStatus =
   | "idle"
   | "checking"
