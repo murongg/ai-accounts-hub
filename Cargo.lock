@@ -41,6 +41,7 @@ dependencies = [
  "tokio",
  "tungstenite",
  "uuid",
+ "winreg 0.55.0",
 ]
 
 [[package]]

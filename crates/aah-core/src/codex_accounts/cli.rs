@@ -35,14 +35,18 @@ impl CodexLoginRunner for ProcessCodexLoginRunner {
         let binary = resolve_codex_binary()
             .ok_or_else(|| "未检测到 codex 命令，请先安装 Codex CLI".to_string())?;
 
-        let status = run_cli_status(&binary, &["login"], &[("CODEX_HOME", managed_home)])
-            .map_err(|error| format!("failed to launch codex login: {error}"))?;
+        run_login_with_binary(&binary, managed_home)
+    }
+}
 
-        if status.success() {
-            Ok(())
-        } else {
-            Err(format!("codex login exited with status {status}"))
-        }
+fn run_login_with_binary(binary: &Path, managed_home: &Path) -> Result<(), String> {
+    let status = run_cli_status(binary, &["login"], &[("CODEX_HOME", managed_home)])
+        .map_err(|error| format!("failed to launch codex login: {error}"))?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!("codex login exited with status {status}"))
     }
 }
 
@@ -62,6 +66,8 @@ fn resolve_codex_binary_from(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(windows)]
+    use crate::codex_accounts::store::auth_path_for_home;
     use std::fs;
     use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -118,6 +124,34 @@ mod tests {
         );
 
         assert_eq!(resolved, Some(codex_path));
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn windows_login_runs_cmd_wrapper_and_saves_auth_file() {
+        let temp = temp_test_dir("codex-windows-login-flow");
+        let bin_dir = temp.join("bin");
+        let managed_home = temp.join("managed-home");
+        let codex_cmd = bin_dir.join("codex.cmd");
+        fs::create_dir_all(&bin_dir).unwrap();
+        fs::write(&codex_cmd, fake_codex_login_cmd_script()).unwrap();
+
+        let result = run_login_with_binary(&codex_cmd, &managed_home);
+
+        assert!(result.is_ok(), "login should succeed: {result:?}");
+        assert!(auth_path_for_home(&managed_home).exists());
+    }
+
+    #[cfg(windows)]
+    fn fake_codex_login_cmd_script() -> String {
+        format!(
+            "@echo off\r\n\
+if /I not \"%~1\"==\"login\" exit /b 2\r\n\
+if not exist \"%CODEX_HOME%\" mkdir \"%CODEX_HOME%\"\r\n\
+>{auth_path} echo {{\"tokens\":{{\"account_id\":\"acct_123\",\"id_token\":\"eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJlbWFpbCI6IndvcmtAZXhhbXBsZS5jb20iLCJodHRwczovL2FwaS5vcGVuYWkuY29tL2F1dGgiOnsiY2hhdGdwdF9wbGFuX3R5cGUiOiJwbHVzIiwiY2hhdGdwdF9hY2NvdW50X2lkIjoiYWNjdF8xMjMifX0.signature\",\"access_token\":\"access-token\"}}}}\r\n\
+exit /b 0\r\n",
+            auth_path = "\"%CODEX_HOME%\\auth.json\""
+        )
     }
 
     fn temp_test_dir(prefix: &str) -> PathBuf {

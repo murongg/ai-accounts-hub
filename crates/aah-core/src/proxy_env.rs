@@ -25,12 +25,21 @@ pub fn import_shell_proxy_env_if_missing() {
     } else {
         BTreeMap::new()
     };
+    let windows = if needs_shell_probe(&current) {
+        read_windows_proxy_env()
+    } else {
+        BTreeMap::new()
+    };
 
-    for (key, value) in resolve_proxy_env_updates(&current, &shell) {
+    let shell_updates = resolve_proxy_env_updates(&current, &shell);
+    let merged = merge_proxy_env(&shell_updates, &windows);
+
+    for (key, value) in merged {
         std::env::set_var(key, value);
     }
 }
 
+#[cfg(target_os = "macos")]
 pub(crate) fn build_proxy_export_block_from_current_env() -> String {
     build_proxy_export_block(&current_proxy_env())
 }
@@ -99,6 +108,146 @@ pub(crate) fn resolve_proxy_env_updates(
     updates
 }
 
+fn merge_proxy_env(
+    primary: &BTreeMap<String, String>,
+    secondary: &BTreeMap<String, String>,
+) -> BTreeMap<String, String> {
+    let mut merged = secondary.clone();
+    for (key, value) in primary {
+        merged.insert(key.clone(), value.clone());
+    }
+    merged
+}
+
+#[cfg(windows)]
+fn read_windows_proxy_env() -> BTreeMap<String, String> {
+    let enabled = read_windows_internet_setting_dword("ProxyEnable").unwrap_or_default() != 0;
+    let server = read_windows_internet_setting_string("ProxyServer");
+    let override_list = read_windows_internet_setting_string("ProxyOverride");
+    parse_windows_proxy_settings(enabled, server.as_deref(), override_list.as_deref())
+}
+
+#[cfg(not(windows))]
+fn read_windows_proxy_env() -> BTreeMap<String, String> {
+    BTreeMap::new()
+}
+
+#[cfg(windows)]
+fn read_windows_internet_setting_string(name: &str) -> Option<String> {
+    use winreg::enums::HKEY_CURRENT_USER;
+    use winreg::RegKey;
+
+    let key = RegKey::predef(HKEY_CURRENT_USER)
+        .open_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings")
+        .ok()?;
+    let value = key.get_value::<String, _>(name).ok()?;
+    let trimmed = value.trim();
+    (!trimmed.is_empty()).then(|| trimmed.to_string())
+}
+
+#[cfg(windows)]
+fn read_windows_internet_setting_dword(name: &str) -> Option<u32> {
+    use winreg::enums::HKEY_CURRENT_USER;
+    use winreg::RegKey;
+
+    let key = RegKey::predef(HKEY_CURRENT_USER)
+        .open_subkey("Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings")
+        .ok()?;
+    key.get_value::<u32, _>(name).ok()
+}
+
+fn parse_windows_proxy_settings(
+    enabled: bool,
+    proxy_server: Option<&str>,
+    proxy_override: Option<&str>,
+) -> BTreeMap<String, String> {
+    let mut proxy_env = BTreeMap::new();
+    if !enabled {
+        return proxy_env;
+    }
+
+    let Some(proxy_server) = proxy_server.map(str::trim).filter(|value| !value.is_empty()) else {
+        return proxy_env;
+    };
+
+    if proxy_server.contains('=') {
+        for entry in proxy_server.split(';').map(str::trim).filter(|value| !value.is_empty()) {
+            let Some((protocol, value)) = entry.split_once('=') else {
+                continue;
+            };
+            let normalized = normalize_windows_proxy_url(protocol.trim(), value.trim());
+            let Some(normalized) = normalized else {
+                continue;
+            };
+
+            match protocol.trim().to_ascii_lowercase().as_str() {
+                "http" => {
+                    insert_proxy_family(&mut proxy_env, "HTTP_PROXY", "http_proxy", &normalized)
+                }
+                "https" => insert_proxy_family(
+                    &mut proxy_env,
+                    "HTTPS_PROXY",
+                    "https_proxy",
+                    &normalized,
+                ),
+                "socks" | "socks5" => {
+                    insert_proxy_family(&mut proxy_env, "ALL_PROXY", "all_proxy", &normalized)
+                }
+                _ => {}
+            }
+        }
+    } else if let Some(normalized) = normalize_windows_proxy_url("http", proxy_server) {
+        insert_proxy_family(&mut proxy_env, "HTTP_PROXY", "http_proxy", &normalized);
+        insert_proxy_family(&mut proxy_env, "HTTPS_PROXY", "https_proxy", &normalized);
+        insert_proxy_family(&mut proxy_env, "ALL_PROXY", "all_proxy", &normalized);
+    }
+
+    if let Some(no_proxy) = normalize_windows_proxy_override(proxy_override) {
+        insert_proxy_family(&mut proxy_env, "NO_PROXY", "no_proxy", &no_proxy);
+    }
+
+    proxy_env
+}
+
+fn insert_proxy_family(
+    proxy_env: &mut BTreeMap<String, String>,
+    upper: &str,
+    lower: &str,
+    value: &str,
+) {
+    proxy_env.insert(upper.to_string(), value.to_string());
+    proxy_env.insert(lower.to_string(), value.to_string());
+}
+
+fn normalize_windows_proxy_url(protocol: &str, raw: &str) -> Option<String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if trimmed.contains("://") {
+        return Some(trimmed.to_string());
+    }
+
+    let scheme = match protocol.to_ascii_lowercase().as_str() {
+        "socks" | "socks5" => "socks5",
+        "https" => "http",
+        _ => "http",
+    };
+
+    Some(format!("{scheme}://{trimmed}"))
+}
+
+fn normalize_windows_proxy_override(proxy_override: Option<&str>) -> Option<String> {
+    let values = proxy_override?
+        .split(';')
+        .map(str::trim)
+        .filter(|value| !value.is_empty() && *value != "<local>")
+        .collect::<Vec<_>>();
+
+    (!values.is_empty()).then(|| values.join(","))
+}
+
+#[cfg(any(target_os = "macos", test))]
 pub(crate) fn build_proxy_export_block(proxy_env: &BTreeMap<String, String>) -> String {
     let normalized = resolve_proxy_env_updates(&BTreeMap::new(), proxy_env);
     let mut block = String::new();
@@ -220,6 +369,7 @@ fn is_supported_proxy_key(key: &str) -> bool {
         .any(|(upper, lower)| key == *upper || key == *lower)
 }
 
+#[cfg(any(target_os = "macos", test))]
 fn shell_escape_value(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
@@ -291,6 +441,50 @@ mod tests {
         assert!(block.contains("export https_proxy='http://127.0.0.1:7890'"));
         assert!(block.contains("export NO_PROXY='localhost,127.0.0.1'"));
         assert!(block.contains("export no_proxy='localhost,127.0.0.1'"));
+    }
+
+    #[test]
+    fn parses_windows_proxy_server_with_single_endpoint() {
+        let parsed = parse_windows_proxy_settings(
+            true,
+            Some("127.0.0.1:7897"),
+            Some("localhost;127.*;10.*"),
+        );
+
+        assert_eq!(
+            parsed,
+            map(&[
+                ("HTTP_PROXY", "http://127.0.0.1:7897"),
+                ("http_proxy", "http://127.0.0.1:7897"),
+                ("HTTPS_PROXY", "http://127.0.0.1:7897"),
+                ("https_proxy", "http://127.0.0.1:7897"),
+                ("ALL_PROXY", "http://127.0.0.1:7897"),
+                ("all_proxy", "http://127.0.0.1:7897"),
+                ("NO_PROXY", "localhost,127.*,10.*"),
+                ("no_proxy", "localhost,127.*,10.*"),
+            ])
+        );
+    }
+
+    #[test]
+    fn parses_windows_proxy_server_with_protocol_specific_entries() {
+        let parsed = parse_windows_proxy_settings(
+            true,
+            Some("http=127.0.0.1:8080;https=127.0.0.1:8443;socks=127.0.0.1:1080"),
+            None,
+        );
+
+        assert_eq!(
+            parsed,
+            map(&[
+                ("HTTP_PROXY", "http://127.0.0.1:8080"),
+                ("http_proxy", "http://127.0.0.1:8080"),
+                ("HTTPS_PROXY", "http://127.0.0.1:8443"),
+                ("https_proxy", "http://127.0.0.1:8443"),
+                ("ALL_PROXY", "socks5://127.0.0.1:1080"),
+                ("all_proxy", "socks5://127.0.0.1:1080"),
+            ])
+        );
     }
 
     #[test]
