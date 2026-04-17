@@ -370,6 +370,50 @@ fn label_sets_account_display_label() {
 }
 
 #[test]
+fn list_uses_ansi_colors_for_key_fields_when_forced() {
+    let temp = tempfile::tempdir().expect("temp dir");
+    write_codex_account(temp.path(), "codex-1", "user@example.com");
+
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .env("HOME", temp.path())
+        .env("USERPROFILE", temp.path())
+        .env("CLICOLOR_FORCE", "1")
+        .args(["list", "--provider", "codex", "--data-dir"])
+        .arg(temp.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("PROVIDER"))
+        .stdout(predicate::str::contains("codex"))
+        .stdout(predicate::str::contains("no"))
+        .stdout(predicate::str::is_match("\\x1b\\[[0-9;]*m").expect("ansi escape regex"));
+}
+
+#[test]
+fn list_respects_no_color_even_when_force_color_is_set() {
+    let temp = tempfile::tempdir().expect("temp dir");
+    write_codex_account(temp.path(), "codex-1", "user@example.com");
+
+    Command::cargo_bin("aah")
+        .expect("binary")
+        .env("HOME", temp.path())
+        .env("USERPROFILE", temp.path())
+        .env("CLICOLOR_FORCE", "1")
+        .env("NO_COLOR", "1")
+        .args(["list", "--provider", "codex", "--data-dir"])
+        .arg(temp.path())
+        .assert()
+        .success()
+        .stdout(predicate::str::contains("PROVIDER"))
+        .stdout(predicate::str::contains("codex"))
+        .stdout(
+            predicate::str::is_match("\\x1b\\[[0-9;]*m")
+                .expect("ansi escape regex")
+                .not(),
+        );
+}
+
+#[test]
 fn remove_deletes_account_when_confirmed() {
     let temp = tempfile::tempdir().expect("temp dir");
     write_codex_account(temp.path(), "codex-1", "user@example.com");
