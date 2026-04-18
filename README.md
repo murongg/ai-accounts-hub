@@ -1,4 +1,25 @@
-# AI Accounts Hub
+<p align="center">
+  <img src="./public/icon.svg" alt="AI Accounts Hub logo" width="100" />
+</p>
+
+<h1 align="center">AI Accounts Hub</h1>
+
+<p align="center">
+  <a href="https://github.com/murongg/ai-accounts-hub/releases"><img alt="Latest Release" src="https://img.shields.io/github/v/release/murongg/ai-accounts-hub?label=release" /></a>
+  <a href="https://www.npmjs.com/package/@murongg/aah-cli"><img alt="CLI on npm" src="https://img.shields.io/npm/v/%40murongg%2Faah-cli?label=aah-cli" /></a>
+  <a href="https://github.com/murongg/ai-accounts-hub/actions/workflows/ci.yml"><img alt="CI" src="https://img.shields.io/github/actions/workflow/status/murongg/ai-accounts-hub/ci.yml?label=CI" /></a>
+  <a href="./LICENSE"><img alt="License" src="https://img.shields.io/github/license/murongg/ai-accounts-hub" /></a>
+  <a href="https://github.com/murongg/ai-accounts-hub/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/murongg/ai-accounts-hub/total?label=downloads" /></a>
+  <a href="https://github.com/murongg/ai-accounts-hub/stargazers"><img alt="GitHub stars" src="https://img.shields.io/github/stars/murongg/ai-accounts-hub" /></a>
+</p>
+
+<p align="center">
+  <a href="https://github.com/murongg/ai-accounts-hub/releases"><img alt="Platforms" src="https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20x64%20%7C%20Linux%20x64-0f766e" /></a>
+  <a href="https://tauri.app/"><img alt="Tauri" src="https://img.shields.io/badge/Tauri-2.x-24C8DB?logo=tauri&amp;logoColor=white" /></a>
+  <a href="https://react.dev/"><img alt="React" src="https://img.shields.io/badge/React-19-149ECA?logo=react&amp;logoColor=white" /></a>
+  <a href="https://www.typescriptlang.org/"><img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.8-3178C6?logo=typescript&amp;logoColor=white" /></a>
+  <a href="https://www.rust-lang.org/"><img alt="Rust" src="https://img.shields.io/badge/Rust-workspace-000000?logo=rust&amp;logoColor=white" /></a>
+</p>
 
 一个面向 AI CLI 重度用户的桌面账号中枢。
 
@@ -347,3 +368,9 @@ node --test packages/aah-cli/tests/*.test.mjs
 ## License
 
 本项目采用 `MIT` License，见 [LICENSE](./LICENSE)。
+
+<p align="center">
+  <a href="https://star-history.com/#murongg/ai-accounts-hub&Date">
+    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=murongg/ai-accounts-hub&amp;type=Date" />
+  </a>
+</p>
