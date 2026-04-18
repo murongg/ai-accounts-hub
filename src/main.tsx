@@ -5,7 +5,7 @@ import "./App.css";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <main className="min-h-screen bg-base-200 text-base-content">
+    <main className="h-screen overflow-hidden bg-base-200 text-base-content">
       <App />
     </main>
   </React.StrictMode>,

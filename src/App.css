@@ -13,11 +13,21 @@ body,
 
 body {
   margin: 0;
+  overflow: hidden;
   font-family:
     "SF Pro Display",
     "PingFang SC",
     "Helvetica Neue",
     sans-serif;
+}
+
+#root {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-scroll-region {
+  overscroll-behavior-y: none;
 }
 
 [data-theme="luxury"] .provider-switcher-logo-codex {
