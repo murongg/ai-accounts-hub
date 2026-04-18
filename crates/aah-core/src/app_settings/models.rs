@@ -33,6 +33,7 @@ impl Default for AppTheme {
 pub enum AppAccountsViewMode {
     Cards,
     List,
+    Mini,
 }
 
 impl Default for AppAccountsViewMode {

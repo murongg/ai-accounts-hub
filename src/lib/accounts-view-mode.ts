@@ -1,11 +1,19 @@
 import type { AccountsViewMode } from "../types/settings";
 
-export const ACCOUNTS_VIEW_MODES = ["cards", "list"] satisfies AccountsViewMode[];
+export const ACCOUNTS_VIEW_MODES = ["cards", "list", "mini"] satisfies AccountsViewMode[];
 
 export function normalizeAccountsViewMode(value: string | undefined): AccountsViewMode {
-  return value === "list" ? "list" : "cards";
+  return value === "list" || value === "mini" ? value : "cards";
 }
 
 export function getAccountsViewModeIconName(mode: AccountsViewMode) {
-  return mode === "list" ? "layout-list" : "layout-grid";
+  if (mode === "list") {
+    return "layout-list";
+  }
+
+  if (mode === "mini") {
+    return "menu";
+  }
+
+  return "layout-grid";
 }

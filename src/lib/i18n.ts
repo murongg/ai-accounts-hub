@@ -39,6 +39,7 @@ export interface I18nMessages {
       label: string;
       cards: string;
       list: string;
+      mini: string;
     };
     actionFailedTitle: string;
     q1Label: string;
@@ -53,8 +54,11 @@ export interface I18nMessages {
     geminiFlashLiteLabel: string;
     authenticatedPrefix: string;
     activePrimary: string;
+    activePrimaryCompact: string;
     switchingPrimary: string;
+    switchingPrimaryCompact: string;
     switchPrimary: string;
+    switchPrimaryCompact: string;
     emptyState: {
       unsupportedPlatform: (label: string) => string;
       unsupportedDescription: string;
@@ -249,6 +253,7 @@ function createChineseCopy(): I18nMessages {
         label: "展示方式",
         cards: "卡片",
         list: "列表",
+        mini: "紧凑",
       },
       actionFailedTitle: "操作失败",
       q1Label: "5小时剩余配额",
@@ -263,8 +268,11 @@ function createChineseCopy(): I18nMessages {
       geminiFlashLiteLabel: "Flash Lite 剩余配额",
       authenticatedPrefix: "最近认证于",
       activePrimary: "正在使用中",
+      activePrimaryCompact: "使用中",
       switchingPrimary: "切换中...",
+      switchingPrimaryCompact: "切换中",
       switchPrimary: "切换至此账号",
+      switchPrimaryCompact: "切换",
       emptyState: {
         unsupportedPlatform: (label) => `${label} 即将接入`,
         unsupportedDescription: "当前版本先聚焦 Codex 账号管理与切换，后续会继续补齐其它平台。",
@@ -431,6 +439,7 @@ function createEnglishCopy(): I18nMessages {
         label: "View mode",
         cards: "Cards",
         list: "List",
+        mini: "Mini",
       },
       actionFailedTitle: "Action failed",
       q1Label: "5-hour remaining quota",
@@ -445,8 +454,11 @@ function createEnglishCopy(): I18nMessages {
       geminiFlashLiteLabel: "Flash Lite remaining quota",
       authenticatedPrefix: "Authenticated",
       activePrimary: "Currently in use",
+      activePrimaryCompact: "Active",
       switchingPrimary: "Switching...",
+      switchingPrimaryCompact: "Switching",
       switchPrimary: "Switch to this account",
+      switchPrimaryCompact: "Switch",
       emptyState: {
         unsupportedPlatform: (label) => `${label} is coming soon`,
         unsupportedDescription: "This version focuses on Codex account management first. Support for the other providers will follow.",
