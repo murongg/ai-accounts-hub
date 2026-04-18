@@ -94,7 +94,7 @@ impl RelayServerState {
         registry_paths: &RelayRegistryPaths,
         owner_kind: RelayOwnerKind,
     ) -> RelayRuntimeStatus {
-        self.stop_current_runtime(registry_paths);
+        self.stop_current_runtime_async().await;
         if !settings.enabled {
             match stop_shared_runtime_async(registry_paths).await {
                 Ok(_) => self.set_last_error(None),
@@ -192,15 +192,48 @@ impl RelayServerState {
         Ok(actual_port)
     }
 
-    fn stop_current_runtime(&self, registry_paths: &RelayRegistryPaths) {
+    async fn stop_current_runtime_async(&self) {
+        let runtime = { self.runtime.lock().expect("relay runtime lock").take() };
+        if let Some(runtime) = runtime {
+            let shutdown = {
+                runtime
+                    .shutdown
+                    .lock()
+                    .ok()
+                    .and_then(|mut shutdown| shutdown.take())
+            };
+            if let Some(shutdown) = shutdown {
+                let _ = shutdown.send(());
+            }
+            // Give the server task a chance to complete graceful shutdown so the
+            // listening socket is released before we report "stopped".
+            let deadline = tokio::time::Instant::now() + Duration::from_millis(500);
+            while !runtime.handle.is_finished() && tokio::time::Instant::now() < deadline {
+                tokio::task::yield_now().await;
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+            if !runtime.handle.is_finished() {
+                runtime.handle.abort();
+                let abort_deadline = tokio::time::Instant::now() + Duration::from_millis(250);
+                while !runtime.handle.is_finished() && tokio::time::Instant::now() < abort_deadline
+                {
+                    tokio::task::yield_now().await;
+                    tokio::time::sleep(Duration::from_millis(10)).await;
+                }
+            }
+            let _ = remove_runtime_record(&runtime.registry_paths);
+        }
+    }
+
+    fn stop_current_runtime(&self, _registry_paths: &RelayRegistryPaths) {
         if let Some(runtime) = self.runtime.lock().expect("relay runtime lock").take() {
             if let Ok(mut shutdown) = runtime.shutdown.lock() {
                 if let Some(shutdown) = shutdown.take() {
                     let _ = shutdown.send(());
                 }
             }
-            let _ = remove_runtime_record(registry_paths);
             runtime.handle.abort();
+            let _ = remove_runtime_record(&runtime.registry_paths);
         }
     }
 
@@ -337,5 +370,58 @@ pub fn relay_status(running: bool, port: u16, last_error: Option<String>) -> Rel
         port,
         last_error,
         codex_base_url: format!("http://127.0.0.1:{port}/codex"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::net::TcpListener;
+
+    fn reserve_local_port() -> u16 {
+        TcpListener::bind(("127.0.0.1", 0))
+            .expect("reserve local port")
+            .local_addr()
+            .expect("local addr")
+            .port()
+    }
+
+    #[tokio::test]
+    async fn disabling_local_runtime_releases_bound_port_before_returning() {
+        let state = RelayServerState::default();
+        let port = reserve_local_port();
+        let registry_paths = RelayRegistryPaths::from_managed_root(
+            &std::env::temp_dir().join(Uuid::new_v4().to_string()),
+        );
+        let source = Arc::new(EmptyRelayCredentialSource);
+
+        let started = state
+            .apply_settings(
+                RelaySettings {
+                    enabled: true,
+                    port,
+                },
+                source.clone(),
+                &registry_paths,
+                RelayOwnerKind::Cli,
+            )
+            .await;
+        assert!(started.running, "{started:?}");
+
+        let stopped = state
+            .apply_settings(
+                RelaySettings {
+                    enabled: false,
+                    port,
+                },
+                source,
+                &registry_paths,
+                RelayOwnerKind::Cli,
+            )
+            .await;
+        assert!(!stopped.running, "{stopped:?}");
+
+        TcpListener::bind(("127.0.0.1", port))
+            .expect("port should be released after disabling relay");
     }
 }
