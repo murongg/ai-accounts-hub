@@ -1,5 +1,7 @@
 use std::path::Path;
 use std::process::{Command, ExitStatus};
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) struct CliCommandPlan {
@@ -25,8 +27,18 @@ pub(crate) fn cli_command_plan(binary: &Path, args: &[&str]) -> CliCommandPlan {
 
 fn cli_command(binary: &Path, args: &[&str]) -> Command {
     let plan = cli_command_plan(binary, args);
-    let mut command = Command::new(plan.program);
-    command.args(plan.args);
+    let mut command = Command::new(&plan.program);
+
+    #[cfg(windows)]
+    if plan.program.eq_ignore_ascii_case("cmd.exe") {
+        if let [cmd_flag, command_line] = &plan.args[..] {
+            command.arg(cmd_flag);
+            command.raw_arg(command_line);
+            return command;
+        }
+    }
+
+    command.args(&plan.args);
     command
 }
 
@@ -57,10 +69,12 @@ fn is_windows_cmd_wrapper(binary: &Path) -> bool {
 }
 
 fn build_windows_cmd_command_line(binary: &Path, args: &[&str]) -> String {
-    std::iter::once(cmd_quote(&binary.to_string_lossy()))
+    let joined = std::iter::once(cmd_quote(&binary.to_string_lossy()))
         .chain(args.iter().map(|arg| cmd_quote(arg)))
         .collect::<Vec<_>>()
-        .join(" ")
+        .join(" ");
+
+    format!("\"{joined}\"")
 }
 
 fn cmd_quote(arg: &str) -> String {
@@ -79,6 +93,8 @@ fn cmd_quote(arg: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(windows)]
+    use std::fs;
 
     #[test]
     fn windows_cmd_wrappers_run_through_cmd_exe() {
@@ -93,7 +109,7 @@ mod tests {
             plan.args,
             vec![
                 "/C".to_string(),
-                r#""C:\Users\murong\AppData\Roaming\npm\claude.cmd" "auth" "login""#.to_string(),
+                r#"""C:\Users\murong\AppData\Roaming\npm\claude.cmd" "auth" "login"""#.to_string(),
             ]
         );
     }
@@ -116,5 +132,34 @@ mod tests {
             cmd_quote(r"C:\Users\100%\claude.cmd"),
             r#""C:\Users\100%%\claude.cmd""#
         );
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn executes_windows_cmd_wrapper_successfully() {
+        let temp = temp_test_dir("cli-runner-windows-cmd");
+        let bin_dir = temp.join("bin");
+        let script = bin_dir.join("codex.cmd");
+        fs::create_dir_all(&bin_dir).unwrap();
+        fs::write(
+            &script,
+            "@echo off\r\nif /I \"%~1\"==\"login\" exit /b 0\r\nexit /b 2\r\n",
+        )
+        .unwrap();
+
+        let status = run_cli_status(&script, &["login"], &[]).expect("run cli");
+
+        assert!(status.success());
+    }
+
+    #[cfg(windows)]
+    fn temp_test_dir(prefix: &str) -> std::path::PathBuf {
+        let unique = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let path = std::env::temp_dir().join(format!("aihub-{prefix}-{unique}"));
+        fs::create_dir_all(&path).unwrap();
+        path
     }
 }

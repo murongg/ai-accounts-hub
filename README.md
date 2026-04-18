@@ -12,7 +12,7 @@
 - 下载地址：[Latest Release](https://github.com/murongg/ai-accounts-hub/releases)
 - 项目仓库：[murongg/ai-accounts-hub](https://github.com/murongg/ai-accounts-hub)
 
-> 当前体验以 macOS 为主。原生 menubar / 状态栏能力仅在 macOS 可用；仓库包含其他平台的构建链路，但整体使用体验以 macOS 为准。
+> 当前体验仍以 macOS 为主，但 Windows x64 已完成第一阶段适配：主窗口可以构建并启动。原生 menubar / 状态栏能力仅在 macOS 可用；Windows 当前阶段聚焦主界面可用，不承诺完整复刻 macOS 体验。
 
 <table>
   <tr>
@@ -306,7 +306,7 @@ CLI npm 发布依赖 GitHub Secret `NPM_TOKEN`。如果 npm 账号开启了发�
 - `pnpm 10+`
 - `Rust stable`
 - 本机已安装对应 CLI：`codex` / `claude` / `gemini`
-- 推荐在 macOS 上运行和验证
+- 推荐在 macOS 或 Windows x64 上运行和验证
 
 ### 启动桌面应用
 
@@ -331,6 +331,8 @@ node --test packages/aah-cli/tests/*.test.mjs
 ```
 
 > 如果你在 Linux 上本地构建 Tauri，需要额外安装 `libwebkit2gtk-4.1-dev` 等系统依赖，可直接参考 [`.github/workflows/ci.yml`](./.github/workflows/ci.yml)。
+>
+> 如果你在 Windows 上本地构建安装包，Tauri 会使用 WiX Toolset；首次构建可能需要联网下载 WiX 依赖。若只验证应用可执行文件是否生成，可先关注 `src-tauri/target/release/ai-accounts-hub.exe`。
 
 ## 仓库结构
 
