@@ -1,0 +1,15 @@
+{
+  "app": {
+    "macOSPrivateApi": true,
+    "windows": [
+      {
+        "label": "main",
+        "title": "",
+        "width": 1360,
+        "height": 800,
+        "titleBarStyle": "Overlay",
+        "transparent": true
+      }
+    ]
+  }
+}
