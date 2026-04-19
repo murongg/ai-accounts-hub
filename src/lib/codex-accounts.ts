@@ -26,6 +26,10 @@ export function refreshCodexUsageNow() {
   return invoke<void>("refresh_codex_usage_now");
 }
 
+export function refreshCodexAccountUsage(accountId: string) {
+  return invoke<void>("refresh_codex_account_usage", { accountId });
+}
+
 export function getCodexRefreshSettings() {
   return invoke<CodexRefreshSettings>("get_codex_refresh_settings");
 }

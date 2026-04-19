@@ -15,6 +15,8 @@ const defaultAppSettings: AppSettings = {
   language: "zh-CN",
   theme: "light",
   auto_switch_enabled: true,
+  auto_switch_five_hour_threshold_percent: 0,
+  auto_switch_weekly_threshold_percent: 0,
   accounts_view_mode: "cards",
   relay: {
     enabled: false,

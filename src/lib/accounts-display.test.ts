@@ -79,6 +79,7 @@ function codexAccount(overrides: Partial<CodexAccountSummary> = {}): CodexAccoun
     last_sync_error: null,
     credits_balance: null,
     needs_relogin: false,
+    refresh_accelerated_until: null,
     ...overrides,
   };
 }

@@ -25,10 +25,15 @@ fn service_from_app() -> Result<CodexAccountService, String> {
 }
 
 #[tauri::command]
-pub async fn list_codex_accounts(_app: AppHandle) -> Result<Vec<CodexAccountListItem>, String> {
-    tauri::async_runtime::spawn_blocking(move || service_from_app()?.list_accounts())
+pub async fn list_codex_accounts(
+    _app: AppHandle,
+    scheduler: tauri::State<'_, CodexUsageSchedulerState>,
+) -> Result<Vec<CodexAccountListItem>, String> {
+    let mut accounts = tauri::async_runtime::spawn_blocking(move || service_from_app()?.list_accounts())
         .await
-        .map_err(|error| error.to_string())?
+        .map_err(|error| error.to_string())??;
+    scheduler.apply_accelerated_refresh_state(&mut accounts)?;
+    Ok(accounts)
 }
 
 #[tauri::command]

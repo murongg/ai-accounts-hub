@@ -45,6 +45,10 @@ fn default_auto_switch_enabled() -> bool {
     true
 }
 
+fn default_auto_switch_threshold_percent() -> u8 {
+    0
+}
+
 fn default_relay_port() -> u16 {
     8765
 }
@@ -72,10 +76,28 @@ pub struct AppSettings {
     pub theme: AppTheme,
     #[serde(default = "default_auto_switch_enabled")]
     pub auto_switch_enabled: bool,
+    #[serde(default = "default_auto_switch_threshold_percent")]
+    pub auto_switch_five_hour_threshold_percent: u8,
+    #[serde(
+        default = "default_auto_switch_threshold_percent",
+        rename = "auto_switch_weekly_threshold_percent",
+        alias = "auto_switch_one_hour_threshold_percent"
+    )]
+    pub auto_switch_weekly_threshold_percent: u8,
     #[serde(default)]
     pub accounts_view_mode: AppAccountsViewMode,
     #[serde(default)]
     pub relay: RelaySettings,
+}
+
+impl AppSettings {
+    pub fn sanitized(mut self) -> Self {
+        self.auto_switch_five_hour_threshold_percent =
+            self.auto_switch_five_hour_threshold_percent.min(99);
+        self.auto_switch_weekly_threshold_percent =
+            self.auto_switch_weekly_threshold_percent.min(99);
+        self
+    }
 }
 
 impl Default for AppSettings {
@@ -84,6 +106,8 @@ impl Default for AppSettings {
             language: AppLanguage::default(),
             theme: AppTheme::default(),
             auto_switch_enabled: default_auto_switch_enabled(),
+            auto_switch_five_hour_threshold_percent: default_auto_switch_threshold_percent(),
+            auto_switch_weekly_threshold_percent: default_auto_switch_threshold_percent(),
             accounts_view_mode: AppAccountsViewMode::default(),
             relay: RelaySettings::default(),
         }

@@ -28,6 +28,7 @@ fn codex_account(
         last_sync_error: None,
         credits_balance: None,
         needs_relogin: Some(false),
+        refresh_accelerated_until: None,
     }
 }
 

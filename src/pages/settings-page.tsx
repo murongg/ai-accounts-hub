@@ -33,6 +33,8 @@ export interface SettingsPageProps {
   language: AppLanguage;
   theme: AppTheme;
   autoSwitchEnabled: boolean;
+  autoSwitchFiveHourThresholdPercent: number;
+  autoSwitchWeeklyThresholdPercent: number;
   relaySettings: RelaySettings;
   relayStatus: RelayRuntimeStatus | null;
   refreshSettings: CodexRefreshSettings;
@@ -49,6 +51,8 @@ export interface SettingsPageProps {
   onLanguageChange: (language: AppLanguage) => void;
   onThemeChange: (theme: AppTheme) => void;
   onAutoSwitchEnabledChange: (enabled: boolean) => void;
+  onAutoSwitchFiveHourThresholdChange: (value: string) => void;
+  onAutoSwitchWeeklyThresholdChange: (value: string) => void;
   onRelayEnabledChange: (enabled: boolean) => void;
   onRelayPortChange: (value: string) => void;
   onRefreshEnabledChange: (enabled: boolean) => void;
@@ -65,6 +69,8 @@ function SettingsPageComponent({
   language,
   theme,
   autoSwitchEnabled,
+  autoSwitchFiveHourThresholdPercent,
+  autoSwitchWeeklyThresholdPercent,
   relaySettings,
   relayStatus,
   refreshSettings,
@@ -81,6 +87,8 @@ function SettingsPageComponent({
   onLanguageChange,
   onThemeChange,
   onAutoSwitchEnabledChange,
+  onAutoSwitchFiveHourThresholdChange,
+  onAutoSwitchWeeklyThresholdChange,
   onRelayEnabledChange,
   onRelayPortChange,
   onRefreshEnabledChange,
@@ -373,17 +381,65 @@ function SettingsPageComponent({
                 title={copy.settings.autoSwitch.title}
                 description={copy.settings.autoSwitch.description}
                 content={
-                  <label className="flex items-center gap-3">
-                    <input
-                      type="checkbox"
-                      className="toggle toggle-primary"
-                      checked={autoSwitchEnabled}
-                      onChange={(event) => onAutoSwitchEnabledChange(event.target.checked)}
-                    />
-                    <span className="text-sm text-base-content/75">
-                      {copy.settings.autoSwitch.enabledLabel}
-                    </span>
-                  </label>
+                  <div className="space-y-4">
+                    <label className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        className="toggle toggle-primary"
+                        checked={autoSwitchEnabled}
+                        onChange={(event) => onAutoSwitchEnabledChange(event.target.checked)}
+                      />
+                      <span className="text-sm text-base-content/75">
+                        {copy.settings.autoSwitch.enabledLabel}
+                      </span>
+                    </label>
+
+                    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                      <label className="space-y-2">
+                        <span className="text-sm text-base-content/55">
+                          {copy.settings.autoSwitch.fiveHourThresholdLabel}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            maxLength={2}
+                            value={String(autoSwitchFiveHourThresholdPercent)}
+                            disabled={autoSwitchEnabled}
+                            onChange={(event) => onAutoSwitchFiveHourThresholdChange(event.target.value)}
+                            className="input input-bordered w-full rounded-xl border-base-300 bg-base-100 shadow-none disabled:bg-base-200/70"
+                          />
+                          <span className="text-sm text-base-content/45">
+                            {copy.settings.autoSwitch.percentSuffix}
+                          </span>
+                        </div>
+                      </label>
+
+                      <label className="space-y-2">
+                        <span className="text-sm text-base-content/55">
+                          {copy.settings.autoSwitch.weeklyThresholdLabel}
+                        </span>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            maxLength={2}
+                            value={String(autoSwitchWeeklyThresholdPercent)}
+                            disabled={autoSwitchEnabled}
+                            onChange={(event) => onAutoSwitchWeeklyThresholdChange(event.target.value)}
+                            className="input input-bordered w-full rounded-xl border-base-300 bg-base-100 shadow-none disabled:bg-base-200/70"
+                          />
+                          <span className="text-sm text-base-content/45">
+                            {copy.settings.autoSwitch.percentSuffix}
+                          </span>
+                        </div>
+                      </label>
+                    </div>
+
+                    <p className="text-xs text-base-content/50">{copy.settings.autoSwitch.thresholdHint}</p>
+                  </div>
                 }
               />
             </div>

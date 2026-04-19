@@ -41,6 +41,7 @@ export interface AccountsPageProps {
   switchingAccountId: string | null;
   deletingAccountId: string | null;
   isRefreshingUsage: boolean;
+  refreshingAccountId: string | null;
   isCodexAutofillLoginOpen: boolean;
   isStartingCodexAutofillLogin: boolean;
   codexAutofillLoginEmail: string;
@@ -50,6 +51,7 @@ export interface AccountsPageProps {
   onTabChange: (tab: string) => void;
   onViewModeChange: (mode: AccountsViewMode) => void;
   onRefreshUsage: () => void;
+  onRefreshAccount: (accountId: string) => void;
   onAddAccount: () => void;
   onOpenCodexAutofillLogin: () => void;
   onCloseCodexAutofillLogin: () => void;
@@ -75,6 +77,7 @@ function AccountsPageComponent({
   switchingAccountId,
   deletingAccountId,
   isRefreshingUsage,
+  refreshingAccountId,
   isCodexAutofillLoginOpen,
   isStartingCodexAutofillLogin,
   codexAutofillLoginEmail,
@@ -84,6 +87,7 @@ function AccountsPageComponent({
   onTabChange,
   onViewModeChange,
   onRefreshUsage,
+  onRefreshAccount,
   onAddAccount,
   onOpenCodexAutofillLogin,
   onCloseCodexAutofillLogin,
@@ -157,6 +161,25 @@ function AccountsPageComponent({
 
   function getSecondaryDisabled(account: CodexAccountSummary | ClaudeAccountSummary | GeminiAccountSummary) {
     return deletingAccountId === account.id || isAddingAccount;
+  }
+
+  function hasAcceleratedCodexRefresh(refreshAcceleratedUntil: string | null) {
+    const timestamp = Number(refreshAcceleratedUntil);
+    return Number.isFinite(timestamp) && timestamp > Math.floor(nowMs / 1000);
+  }
+
+  function formatCodexActivityValue(codexAccount: CodexAccountSummary) {
+    const baseValue = formatTimestamp(
+      codexAccount.last_synced_at,
+      copy.accounts.waitingFirstSync,
+      language,
+    );
+
+    if (!hasAcceleratedCodexRefresh(codexAccount.refresh_accelerated_until)) {
+      return baseValue;
+    }
+
+    return `${baseValue} · ${copy.accounts.acceleratedRefreshActive}`;
   }
 
   return (
@@ -342,16 +365,21 @@ function AccountsPageComponent({
                     quotaRows={quotaRows.bars}
                     quotaMeta={quotaRows.meta}
                     activityLabel={copy.card.syncedPrefix}
-                    activityValue={formatTimestamp(
-                      codexAccount.last_synced_at,
-                      copy.accounts.waitingFirstSync,
-                      language,
-                    )}
+                    activityValue={formatCodexActivityValue(codexAccount)}
                     primaryLabel={getPrimaryLabel(account)}
                     primaryDisabled={getPrimaryDisabled(account)}
                     secondaryDisabled={getSecondaryDisabled(account)}
+                    refreshDisabled={
+                      refreshingAccountId === account.id ||
+                      isRefreshingUsage ||
+                      isAddingAccount ||
+                      switchingAccountId === account.id ||
+                      deletingAccountId === account.id
+                    }
+                    isRefreshing={refreshingAccountId === account.id}
                     onPrimaryClick={onSwitchAccount}
                     onSecondaryClick={onDeleteAccount}
+                    onRefreshClick={onRefreshAccount}
                   />
                 );
               })()
@@ -478,11 +506,7 @@ function AccountsPageComponent({
                   },
                 ]}
                 activityLabel={copy.card.syncedPrefix}
-                activityValue={formatTimestamp(
-                  (account as CodexAccountSummary).last_synced_at,
-                  copy.accounts.waitingFirstSync,
-                  language,
-                )}
+                activityValue={formatCodexActivityValue(account as CodexAccountSummary)}
                 primaryLabel={
                   account.is_active
                     ? copy.accounts.activePrimary
@@ -492,8 +516,17 @@ function AccountsPageComponent({
                 }
                 primaryDisabled={account.is_active || switchingAccountId === account.id || isAddingAccount}
                 secondaryDisabled={deletingAccountId === account.id || isAddingAccount}
+                refreshDisabled={
+                  refreshingAccountId === account.id ||
+                  isRefreshingUsage ||
+                  isAddingAccount ||
+                  switchingAccountId === account.id ||
+                  deletingAccountId === account.id
+                }
+                isRefreshing={refreshingAccountId === account.id}
                 onPrimaryClick={onSwitchAccount}
                 onSecondaryClick={onDeleteAccount}
+                onRefreshClick={onRefreshAccount}
               />
             )
           ))}

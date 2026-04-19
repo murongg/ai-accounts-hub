@@ -15,3 +15,8 @@ test("settings workspace updates local app settings before persistence and rolls
   assert.notEqual(rollbackIndex, -1);
   assert.ok(optimisticIndex < persistIndex);
 });
+
+test("settings workspace persists auto switch threshold fields", () => {
+  assert.ok(source.includes("auto_switch_five_hour_threshold_percent"));
+  assert.ok(source.includes("auto_switch_weekly_threshold_percent"));
+});

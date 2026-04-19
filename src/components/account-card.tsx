@@ -26,8 +26,11 @@ export interface AccountCardProps {
   primaryLabel: string;
   primaryDisabled: boolean;
   secondaryDisabled: boolean;
+  refreshDisabled?: boolean;
+  isRefreshing?: boolean;
   onPrimaryClick: (accountId: string) => void;
   onSecondaryClick: (accountId: string) => void;
+  onRefreshClick?: (accountId: string) => void;
 }
 
 function AccountCardComponent({
@@ -46,8 +49,11 @@ function AccountCardComponent({
   primaryLabel,
   primaryDisabled,
   secondaryDisabled,
+  refreshDisabled = false,
+  isRefreshing = false,
   onPrimaryClick,
   onSecondaryClick,
+  onRefreshClick,
 }: AccountCardProps) {
   const copy = getI18n(language);
   const theme = getAccountCardTheme({ isActive, isAlive });
@@ -129,7 +135,20 @@ function AccountCardComponent({
         ) : null}
 
         <div className="mb-4 flex min-w-0 items-center gap-1.5 text-[10px] text-base-content/55 xl:text-[11px]">
-          {activityKind === "auth" ? (
+          {onRefreshClick ? (
+            <button
+              type="button"
+              disabled={refreshDisabled}
+              onClick={() => onRefreshClick(accountId)}
+              className="btn btn-ghost btn-xs btn-square h-5 min-h-0 w-5 rounded-md p-0 text-base-content/55 hover:bg-base-200 hover:text-base-content disabled:bg-transparent disabled:text-base-content/30"
+              aria-label={copy.accounts.refreshAccountAria}
+            >
+              <RefreshCw
+                size={11}
+                className={isRefreshing ? "animate-spin shrink-0" : "shrink-0"}
+              />
+            </button>
+          ) : activityKind === "auth" ? (
             <ShieldCheck size={11} className="shrink-0" />
           ) : (
             <RefreshCw size={11} className="shrink-0" />

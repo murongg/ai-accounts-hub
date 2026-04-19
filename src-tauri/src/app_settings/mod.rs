@@ -15,6 +15,13 @@ fn paths_from_app() -> Result<CodexAccountPaths, String> {
     ))
 }
 
+fn should_trigger_immediate_auto_switch_refresh(
+    previous: &AppSettings,
+    saved: &AppSettings,
+) -> bool {
+    !previous.auto_switch_enabled && saved.auto_switch_enabled
+}
+
 #[tauri::command]
 pub async fn get_app_settings(_app: tauri::AppHandle) -> Result<AppSettings, String> {
     tauri::async_runtime::spawn_blocking(move || store::load_app_settings(&paths_from_app()?))
@@ -25,16 +32,22 @@ pub async fn get_app_settings(_app: tauri::AppHandle) -> Result<AppSettings, Str
 #[tauri::command]
 pub async fn update_app_settings(
     app: tauri::AppHandle,
+    scheduler: State<'_, CodexUsageSchedulerState>,
     settings: AppSettings,
 ) -> Result<AppSettings, String> {
-    let saved = tauri::async_runtime::spawn_blocking(move || {
+    let (previous, saved) = tauri::async_runtime::spawn_blocking(move || {
         let paths = paths_from_app()?;
-        store::save_app_settings(&paths, settings)
+        let previous = store::load_app_settings(&paths)?;
+        let saved = store::save_app_settings(&paths, settings)?;
+        Ok::<_, String>((previous, saved))
     })
     .await
     .map_err(|error| error.to_string())??;
 
     let _ = crate::relay::apply_relay_settings_from_app(app).await;
+    if should_trigger_immediate_auto_switch_refresh(&previous, &saved) {
+        let _ = scheduler.refresh_all_now().await;
+    }
     Ok(saved)
 }
 
@@ -74,4 +87,47 @@ pub async fn clear_all_app_data(
     scheduler.update_settings(CodexRefreshSettings::default())?;
     let _ = crate::relay::apply_relay_settings_from_app(app).await;
     Ok(result)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::should_trigger_immediate_auto_switch_refresh;
+    use crate::app_settings::models::AppSettings;
+
+    #[test]
+    fn immediate_auto_switch_refresh_runs_only_when_switch_changes_from_disabled_to_enabled() {
+        let previous = AppSettings {
+            auto_switch_enabled: false,
+            ..AppSettings::default()
+        };
+        let enabled = AppSettings {
+            auto_switch_enabled: true,
+            ..AppSettings::default()
+        };
+        let still_disabled = AppSettings {
+            auto_switch_enabled: false,
+            ..AppSettings::default()
+        };
+        let still_enabled = AppSettings {
+            auto_switch_enabled: true,
+            ..AppSettings::default()
+        };
+
+        assert!(should_trigger_immediate_auto_switch_refresh(
+            &previous,
+            &enabled,
+        ));
+        assert!(!should_trigger_immediate_auto_switch_refresh(
+            &previous,
+            &still_disabled,
+        ));
+        assert!(!should_trigger_immediate_auto_switch_refresh(
+            &enabled,
+            &still_enabled,
+        ));
+        assert!(!should_trigger_immediate_auto_switch_refresh(
+            &enabled,
+            &previous,
+        ));
+    }
 }
