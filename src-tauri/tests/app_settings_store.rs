@@ -112,8 +112,11 @@ fn app_settings_persist_mini_view_mode() {
             language: AppLanguage::EnUs,
             theme: AppTheme::Dark,
             auto_switch_enabled: true,
+            auto_switch_five_hour_threshold_percent: 0,
+            auto_switch_weekly_threshold_percent: 0,
             accounts_view_mode: AppAccountsViewMode::Mini,
             relay: RelaySettings::default(),
+            ..AppSettings::default()
         },
     )
     .expect("save settings");

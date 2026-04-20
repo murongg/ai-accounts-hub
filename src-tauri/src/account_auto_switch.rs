@@ -117,45 +117,9 @@ pub fn select_claude_auto_switch_target(accounts: &[ClaudeAccountListItem]) -> O
 
 pub fn select_claude_auto_switch_target_with_thresholds(
     accounts: &[ClaudeAccountListItem],
-    thresholds: AutoSwitchThresholds,
+    _thresholds: AutoSwitchThresholds,
 ) -> Option<String> {
-    let active_account = accounts.iter().find(|account| account.is_active)?;
-    let active_is_unusable = active_account.needs_relogin.unwrap_or(false)
-        || quota_reached_threshold(
-            active_account.weekly_remaining_percent,
-            thresholds.weekly_percent,
-        );
-
-    if !active_is_unusable {
-        return None;
-    }
-
-    accounts
-        .iter()
-        .enumerate()
-        .filter(|(_, account)| !account.is_active && !account.needs_relogin.unwrap_or(false))
-        .filter_map(|(index, account)| {
-            let weekly = account.weekly_remaining_percent?;
-            let session = account.session_remaining_percent?;
-
-            (weekly > 0 && session > 0).then(|| {
-                (
-                    index,
-                    weekly,
-                    session,
-                    account.model_weekly_remaining_percent.unwrap_or(0),
-                    account.id.to_string(),
-                )
-            })
-        })
-        .max_by(|left, right| {
-            left.1
-                .cmp(&right.1)
-                .then_with(|| left.2.cmp(&right.2))
-                .then_with(|| left.3.cmp(&right.3))
-                .then_with(|| right.0.cmp(&left.0))
-        })
-        .map(|(_, _, _, _, account_id)| account_id)
+    select_claude_auto_switch_target(accounts)
 }
 
 pub fn select_gemini_auto_switch_target(accounts: &[GeminiAccountListItem]) -> Option<String> {
@@ -416,9 +380,28 @@ mod tests {
     }
 
     #[test]
-    fn claude_auto_switch_triggers_when_weekly_threshold_is_reached() {
+    fn claude_auto_switch_does_not_trigger_before_quota_is_depleted_even_with_threshold_configured() {
         let accounts = vec![
             claude_account("active", true, Some(80), Some(4)),
+            claude_account("candidate", false, Some(55), Some(72)),
+        ];
+
+        assert_eq!(
+            select_claude_auto_switch_target_with_thresholds(
+                &accounts,
+                AutoSwitchThresholds {
+                    five_hour_percent: 0,
+                    weekly_percent: 5,
+                },
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn claude_auto_switch_still_triggers_when_session_quota_is_depleted() {
+        let accounts = vec![
+            claude_account("active", true, Some(0), Some(80)),
             claude_account("candidate", false, Some(55), Some(72)),
         ];
 
