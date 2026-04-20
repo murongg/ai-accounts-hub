@@ -1,5 +1,5 @@
 import { memo } from "react";
-import { LayoutGrid, LayoutList, Plus, RefreshCw } from "lucide-react";
+import { LayoutGrid, LayoutList, Menu, Plus, RefreshCw } from "lucide-react";
 
 import { AccountCard } from "../components/account-card";
 import { AccountListItem } from "../components/account-list-item";
@@ -197,9 +197,15 @@ function AccountsPageComponent({
           >
             {ACCOUNTS_VIEW_MODES.map((mode) => {
               const isActive = viewMode === mode;
-              const label = mode === "cards" ? copy.accounts.viewMode.cards : copy.accounts.viewMode.list;
+              const label =
+                mode === "cards"
+                  ? copy.accounts.viewMode.cards
+                  : mode === "list"
+                    ? copy.accounts.viewMode.list
+                    : copy.accounts.viewMode.mini;
               const iconName = getAccountsViewModeIconName(mode);
-              const Icon = iconName === "layout-list" ? LayoutList : LayoutGrid;
+              const Icon =
+                iconName === "layout-list" ? LayoutList : iconName === "menu" ? Menu : LayoutGrid;
 
               return (
                 <button
@@ -285,8 +291,8 @@ function AccountsPageComponent({
 
       {stateCard ? (
         <EmptyStateCard title={stateCard.title} description={stateCard.description} />
-      ) : viewMode === "list" ? (
-        <div className="grid gap-3">
+      ) : viewMode === "list" || viewMode === "mini" ? (
+        <div className={`grid ${viewMode === "mini" ? "gap-2 md:grid-cols-2 xl:grid-cols-3" : "gap-3"}`}>
           {visibleAccounts.map((account) => (
             activePlatform === "gemini" ? (
               (() => {
@@ -300,6 +306,7 @@ function AccountsPageComponent({
                     language={language}
                     email={account.email}
                     plan={geminiAccount.plan ?? "Google"}
+                    variant={viewMode === "mini" ? "mini" : "default"}
                     isActive={account.is_active}
                     isAlive={!(geminiAccount.needs_relogin ?? false)}
                     quotaRows={buildGeminiListQuotaRows(geminiAccount, language, nowMs)}
@@ -330,6 +337,7 @@ function AccountsPageComponent({
                     language={language}
                     email={account.email}
                     plan={claudeAccount.plan ?? copy.accounts.planUnknown}
+                    variant={viewMode === "mini" ? "mini" : "default"}
                     isActive={account.is_active}
                     isAlive={!(claudeAccount.needs_relogin ?? false)}
                     quotaRows={buildClaudeListQuotaRows(claudeAccount, language, nowMs)}
@@ -360,6 +368,7 @@ function AccountsPageComponent({
                     language={language}
                     email={account.email}
                     plan={codexAccount.plan ?? copy.accounts.planUnknown}
+                    variant={viewMode === "mini" ? "mini" : "default"}
                     isActive={account.is_active}
                     isAlive={!(codexAccount.needs_relogin ?? false)}
                     quotaRows={quotaRows.bars}

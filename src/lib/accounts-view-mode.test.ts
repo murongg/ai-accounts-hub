@@ -10,15 +10,17 @@ import {
 test("normalizeAccountsViewMode falls back to cards for unknown values", () => {
   assert.equal(normalizeAccountsViewMode("cards"), "cards");
   assert.equal(normalizeAccountsViewMode("list"), "list");
+  assert.equal(normalizeAccountsViewMode("mini"), "mini");
   assert.equal(normalizeAccountsViewMode("table"), "cards");
   assert.equal(normalizeAccountsViewMode(undefined), "cards");
 });
 
 test("accounts view modes stay in card-first order", () => {
-  assert.deepEqual(ACCOUNTS_VIEW_MODES, ["cards", "list"]);
+  assert.deepEqual(ACCOUNTS_VIEW_MODES, ["cards", "list", "mini"]);
 });
 
 test("accounts view modes use distinct icon names", () => {
   assert.equal(getAccountsViewModeIconName("cards"), "layout-grid");
   assert.equal(getAccountsViewModeIconName("list"), "layout-list");
+  assert.equal(getAccountsViewModeIconName("mini"), "menu");
 });

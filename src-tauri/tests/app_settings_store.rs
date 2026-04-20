@@ -102,6 +102,27 @@ fn app_settings_round_trip_through_disk() {
 }
 
 #[test]
+fn app_settings_persist_mini_view_mode() {
+    let temp = TempDir::new("app-settings-mini-view");
+    let paths = CodexAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+
+    save_app_settings(
+        &paths,
+        AppSettings {
+            language: AppLanguage::EnUs,
+            theme: AppTheme::Dark,
+            auto_switch_enabled: true,
+            accounts_view_mode: AppAccountsViewMode::Mini,
+            relay: RelaySettings::default(),
+        },
+    )
+    .expect("save settings");
+
+    let loaded = load_app_settings(&paths).expect("load settings");
+    assert_eq!(loaded.accounts_view_mode, AppAccountsViewMode::Mini);
+}
+
+#[test]
 fn app_settings_round_trip_relay_settings() {
     let temp = TempDir::new("app-settings-relay-save");
     let paths = CodexAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));

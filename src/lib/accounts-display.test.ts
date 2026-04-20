@@ -10,6 +10,7 @@ import {
   formatRefreshCountdown,
   formatResetLabel,
   formatTimestamp,
+  getAccountCardPresentation,
   getPlatformAccountMetrics,
   getQuotaProgressTone,
   sortAccountsByPrimaryQuota,
@@ -324,6 +325,16 @@ test("buildGeminiListQuotaRows returns three horizontal bars in provider order",
     { label: "Flash 剩余配额", percent: 64, time: "2小时" },
     { label: "Flash Lite 剩余配额", percent: 41, time: "2小时" },
   ]);
+});
+
+test("mini view keeps the default card presentation because it renders through the list layout", () => {
+  const codexMini = getAccountCardPresentation("codex");
+  const geminiMini = getAccountCardPresentation("gemini");
+
+  assert.equal(codexMini.cardSize, "default");
+  assert.match(codexMini.gridClass, /minmax\(280px,296px\)/);
+  assert.equal(geminiMini.cardSize, "large");
+  assert.match(geminiMini.gridClass, /minmax\(400px,428px\)/);
 });
 
 test("returns codex account counts when the codex platform is active", () => {

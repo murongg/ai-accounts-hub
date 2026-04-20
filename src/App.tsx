@@ -150,7 +150,7 @@ export default function App() {
   return (
     <div
       data-theme={resolvedTheme}
-      className="flex min-h-screen w-full flex-col bg-base-200 font-sans text-base-content"
+      className="flex h-full min-h-0 w-full flex-col bg-base-200 font-sans text-base-content"
     >
       <ToastStack items={toasts} onDismiss={dismissToast} />
       <AppHeader
@@ -164,7 +164,7 @@ export default function App() {
         onTogglePage={handleTogglePage}
       />
 
-      <main className="flex-1 overflow-y-auto">
+      <main className="min-h-0 flex-1 overflow-y-auto app-scroll-region">
         <div className="mx-auto max-w-[1520px] p-6 lg:p-10">
           {activePage === "accounts" ? (
             <AccountsWorkspace
