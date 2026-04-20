@@ -1,11 +1,15 @@
 use ai_accounts_hub_lib::codex_accounts::paths::CodexAccountPaths;
+use ai_accounts_hub_lib::codex_accounts::store::CodexAccountStore;
 use ai_accounts_hub_lib::codex_accounts::service::CodexAccountService;
+use ai_accounts_hub_lib::codex_accounts::models::CodexAccountIdentity;
 use ai_accounts_hub_lib::codex_usage::models::{FetchedCodexUsage, RateWindowSnapshot};
 use ai_accounts_hub_lib::codex_usage::oauth::{CodexUsageFetchError, CodexUsageFetcher};
 use ai_accounts_hub_lib::codex_usage::service::CodexUsageService;
+use ai_accounts_hub_lib::codex_usage::store::load_usage_snapshots;
 use serde_json::json;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 const HEADER: &str = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0";
@@ -73,9 +77,60 @@ impl CodexUsageFetcher for FakeUsageFetcher {
     }
 }
 
+struct TrackingUsageFetcher {
+    fetched_homes: Arc<Mutex<Vec<String>>>,
+}
+
+impl CodexUsageFetcher for TrackingUsageFetcher {
+    fn fetch_usage(&self, managed_home: &Path) -> Result<FetchedCodexUsage, CodexUsageFetchError> {
+        self.fetched_homes
+            .lock()
+            .expect("lock fetched homes")
+            .push(managed_home.display().to_string());
+
+        Ok(FetchedCodexUsage {
+            plan: Some("Pro".into()),
+            five_hour: Some(RateWindowSnapshot {
+                remaining_percent: 63,
+                used_percent: 37,
+                reset_at: "1800000000".into(),
+            }),
+            weekly: Some(RateWindowSnapshot {
+                remaining_percent: 71,
+                used_percent: 29,
+                reset_at: "1800500000".into(),
+            }),
+            credits_balance: Some(12.0),
+        })
+    }
+}
+
 fn create_account(paths: &CodexAccountPaths) -> String {
     let account_service = CodexAccountService::new(paths.clone(), Box::new(FakeLoginRunner));
     account_service.start_login().expect("saved").id
+}
+
+fn create_managed_account(
+    paths: &CodexAccountPaths,
+    email: &str,
+    account_id: &str,
+    managed_home_path: PathBuf,
+) -> String {
+    fs::create_dir_all(&managed_home_path).expect("managed home");
+
+    let mut store = CodexAccountStore::load(paths).expect("load store");
+    store
+        .upsert_identity(
+            paths,
+            CodexAccountIdentity {
+                email: email.to_string(),
+                account_id: Some(account_id.to_string()),
+                plan: Some("Plus".to_string()),
+            },
+            managed_home_path,
+        )
+        .expect("save account")
+        .id
 }
 
 #[test]
@@ -164,4 +219,36 @@ fn refresh_failure_keeps_previous_snapshot_and_marks_error() {
         Some("Codex OAuth token expired or invalid. Run `codex login` again.")
     );
     assert_eq!(account.needs_relogin, Some(true));
+}
+
+#[test]
+fn refresh_account_updates_only_target_snapshot() {
+    let temp = TempDir::new("usage-service-single-account");
+    let paths = CodexAccountPaths::for_test(temp.path().join("app-data"), temp.path().join("home"));
+    let target_home = temp.path().join("managed-home-target");
+    let other_home = temp.path().join("managed-home-other");
+    let target_id = create_managed_account(&paths, "target@example.com", "acct_target", target_home.clone());
+    let other_id = create_managed_account(&paths, "other@example.com", "acct_other", other_home);
+    let fetched_homes = Arc::new(Mutex::new(Vec::new()));
+    let usage_service = CodexUsageService::new(
+        paths.clone(),
+        Box::new(TrackingUsageFetcher {
+            fetched_homes: Arc::clone(&fetched_homes),
+        }),
+    );
+
+    usage_service
+        .refresh_account(&target_id)
+        .expect("refresh target account");
+
+    let recorded_homes = fetched_homes.lock().expect("lock fetched homes").clone();
+    let snapshots = load_usage_snapshots(&paths).expect("load usage snapshots");
+    let target_snapshot = snapshots
+        .iter()
+        .find(|snapshot| snapshot.managed_account_id == target_id)
+        .expect("target snapshot");
+
+    assert_eq!(recorded_homes, vec![target_home.display().to_string()]);
+    assert_eq!(target_snapshot.plan.as_deref(), Some("Pro"));
+    assert!(snapshots.iter().all(|snapshot| snapshot.managed_account_id != other_id));
 }

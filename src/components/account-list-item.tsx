@@ -26,8 +26,11 @@ export interface AccountListItemProps {
   primaryLabel: string;
   primaryDisabled: boolean;
   secondaryDisabled: boolean;
+  refreshDisabled?: boolean;
+  isRefreshing?: boolean;
   onPrimaryClick: (accountId: string) => void;
   onSecondaryClick: (accountId: string) => void;
+  onRefreshClick?: (accountId: string) => void;
 }
 
 function AccountListItemComponent({
@@ -46,8 +49,11 @@ function AccountListItemComponent({
   primaryLabel,
   primaryDisabled,
   secondaryDisabled,
+  refreshDisabled = false,
+  isRefreshing = false,
   onPrimaryClick,
   onSecondaryClick,
+  onRefreshClick,
 }: AccountListItemProps) {
   const copy = getI18n(language);
   const theme = getAccountCardTheme({ isActive, isAlive });
@@ -132,10 +138,15 @@ function AccountListItemComponent({
 
         {isMini ? null : (
           <ActivitySummary
+            accountId={accountId}
+            copy={copy}
             activityKind={activityKind}
             activityLabel={activityLabel}
             activityValue={activityValue}
             iconSize={13}
+            onRefreshClick={onRefreshClick}
+            refreshDisabled={refreshDisabled}
+            isRefreshing={isRefreshing}
             className={`${activityClass} text-base-content/55`}
           />
         )}
@@ -222,21 +233,44 @@ function MiniStatusIndicators({
 }
 
 function ActivitySummary({
+  accountId,
+  copy,
   activityKind,
   activityLabel,
   activityValue,
   iconSize,
+  onRefreshClick,
+  refreshDisabled = false,
+  isRefreshing = false,
   className,
 }: {
+  accountId: string;
+  copy: I18nMessages;
   activityKind: "sync" | "auth";
   activityLabel: string;
   activityValue: string;
   iconSize: number;
+  onRefreshClick?: (accountId: string) => void;
+  refreshDisabled?: boolean;
+  isRefreshing?: boolean;
   className: string;
 }) {
   return (
     <div className={className}>
-      {activityKind === "auth" ? (
+      {onRefreshClick ? (
+        <button
+          type="button"
+          disabled={refreshDisabled}
+          onClick={() => onRefreshClick(accountId)}
+          className="btn btn-ghost btn-xs btn-square h-6 min-h-0 w-6 rounded-md p-0 text-base-content/55 hover:bg-base-300/60 hover:text-base-content disabled:bg-transparent disabled:text-base-content/30"
+          aria-label={copy.accounts.refreshAccountAria}
+        >
+          <RefreshCw
+            size={iconSize}
+            className={isRefreshing ? "animate-spin shrink-0" : "shrink-0"}
+          />
+        </button>
+      ) : activityKind === "auth" ? (
         <ShieldCheck size={iconSize} className="shrink-0" />
       ) : (
         <RefreshCw size={iconSize} className="shrink-0" />

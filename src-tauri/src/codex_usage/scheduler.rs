@@ -1,18 +1,22 @@
-use std::sync::Mutex;
-use std::time::Duration;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use tokio::sync::{mpsc, oneshot};
 
 use tauri::{AppHandle, Emitter};
 
 use crate::account_auto_switch::{
-    select_claude_auto_switch_target, select_codex_auto_switch_target,
-    select_gemini_auto_switch_target,
+    select_claude_auto_switch_target_with_thresholds,
+    select_codex_auto_switch_target_with_thresholds, select_gemini_auto_switch_target,
+    AutoSwitchThresholds,
 };
 use crate::app_settings::store::load_app_settings;
 use crate::claude_accounts::{paths::ClaudeAccountPaths, service::ClaudeAccountService};
 use crate::claude_usage::service::ClaudeUsageService;
-use crate::codex_accounts::{paths::CodexAccountPaths, service::CodexAccountService};
+use crate::codex_accounts::{
+    models::CodexAccountListItem, paths::CodexAccountPaths, service::CodexAccountService,
+};
 use crate::gemini_accounts::{paths::GeminiAccountPaths, service::GeminiAccountService};
 use crate::gemini_usage::service::GeminiUsageService;
 
@@ -50,12 +54,39 @@ enum SchedulerCommand {
         target: RefreshTarget,
         respond_to: oneshot::Sender<Result<(), String>>,
     },
+    RefreshCodexAccount {
+        account_id: String,
+        respond_to: oneshot::Sender<Result<(), String>>,
+    },
     UpdateSettings(CodexRefreshSettings),
 }
 
-#[derive(Default)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct AutoSwitchSettings {
+    enabled: bool,
+    five_hour_threshold_percent: u8,
+    weekly_threshold_percent: u8,
+}
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+struct AcceleratedCodexRefreshState {
+    by_account_id: HashMap<String, String>,
+}
+
 pub struct CodexUsageSchedulerState {
     sender: Mutex<Option<mpsc::UnboundedSender<SchedulerCommand>>>,
+    accelerated_codex_refresh_state: Arc<Mutex<AcceleratedCodexRefreshState>>,
+}
+
+impl Default for CodexUsageSchedulerState {
+    fn default() -> Self {
+        Self {
+            sender: Mutex::new(None),
+            accelerated_codex_refresh_state: Arc::new(Mutex::new(
+                AcceleratedCodexRefreshState::default(),
+            )),
+        }
+    }
 }
 
 impl CodexUsageSchedulerState {
@@ -72,7 +103,13 @@ impl CodexUsageSchedulerState {
         let (tx, rx) = mpsc::unbounded_channel();
         *sender = Some(tx);
 
-        tauri::async_runtime::spawn(run_scheduler_loop(app, paths, settings, rx));
+        tauri::async_runtime::spawn(run_scheduler_loop(
+            app,
+            paths,
+            settings,
+            rx,
+            Arc::clone(&self.accelerated_codex_refresh_state),
+        ));
         Ok(())
     }
 
@@ -97,12 +134,46 @@ impl CodexUsageSchedulerState {
         self.refresh_target(RefreshTarget::Codex).await
     }
 
+    pub async fn refresh_codex_account_now(&self, account_id: String) -> Result<(), String> {
+        let sender = self
+            .sender
+            .lock()
+            .map_err(|_| "scheduler lock poisoned".to_string())?
+            .clone()
+            .ok_or_else(|| "scheduler not initialized".to_string())?;
+        let (tx, rx) = oneshot::channel();
+        sender
+            .send(SchedulerCommand::RefreshCodexAccount {
+                account_id,
+                respond_to: tx,
+            })
+            .map_err(|_| "scheduler task is no longer running".to_string())?;
+        rx.await
+            .map_err(|_| "scheduler response channel closed".to_string())?
+    }
+
     pub async fn refresh_gemini_now(&self) -> Result<(), String> {
         self.refresh_target(RefreshTarget::Gemini).await
     }
 
     pub async fn refresh_claude_now(&self) -> Result<(), String> {
         self.refresh_target(RefreshTarget::Claude).await
+    }
+
+    pub fn apply_accelerated_refresh_state(
+        &self,
+        accounts: &mut [CodexAccountListItem],
+    ) -> Result<(), String> {
+        let state = self
+            .accelerated_codex_refresh_state
+            .lock()
+            .map_err(|_| "accelerated refresh state lock poisoned".to_string())?;
+
+        for account in accounts {
+            account.refresh_accelerated_until = state.by_account_id.get(&account.id).cloned();
+        }
+
+        Ok(())
     }
 
     async fn refresh_target(&self, target: RefreshTarget) -> Result<(), String> {
@@ -129,27 +200,93 @@ async fn run_scheduler_loop(
     paths: CodexAccountPaths,
     mut settings: CodexRefreshSettings,
     mut receiver: mpsc::UnboundedReceiver<SchedulerCommand>,
+    accelerated_codex_refresh_state: Arc<Mutex<AcceleratedCodexRefreshState>>,
 ) {
+    let mut next_full_refresh_at = None;
+
     if settings.enabled {
-        let _ = run_refresh_cycle(app.clone(), paths.clone(), RefreshTarget::All).await;
+        let _ = run_refresh_cycle(
+            app.clone(),
+            paths.clone(),
+            RefreshTarget::All,
+            Arc::clone(&accelerated_codex_refresh_state),
+            true,
+        )
+        .await;
+        next_full_refresh_at = Some(unix_timestamp_now().saturating_add(settings.interval_seconds));
+    } else {
+        clear_accelerated_codex_refresh_state(&accelerated_codex_refresh_state);
     }
 
     loop {
         if settings.enabled {
-            let delay = tokio::time::sleep(Duration::from_secs(settings.interval_seconds));
+            let delay_seconds =
+                next_scheduler_delay_seconds(next_full_refresh_at, &accelerated_codex_refresh_state);
+            let delay = tokio::time::sleep(Duration::from_secs(delay_seconds));
             tokio::pin!(delay);
 
             tokio::select! {
                 _ = &mut delay => {
-                    let _ = run_refresh_cycle(app.clone(), paths.clone(), RefreshTarget::All).await;
+                    let now = unix_timestamp_now();
+                    if next_full_refresh_at.is_some_and(|deadline| deadline <= now) {
+                        let _ = run_refresh_cycle(
+                            app.clone(),
+                            paths.clone(),
+                            RefreshTarget::All,
+                            Arc::clone(&accelerated_codex_refresh_state),
+                            true,
+                        ).await;
+                        next_full_refresh_at = Some(unix_timestamp_now().saturating_add(settings.interval_seconds));
+                    } else {
+                        for account_id in due_accelerated_codex_account_ids(
+                            &accelerated_codex_refresh_state,
+                            now,
+                        ) {
+                            let _ = run_refresh_codex_account(
+                                app.clone(),
+                                paths.clone(),
+                                account_id,
+                                Arc::clone(&accelerated_codex_refresh_state),
+                                true,
+                            ).await;
+                        }
+                    }
                 }
                 command = receiver.recv() => {
                     match command {
                         Some(SchedulerCommand::Refresh { target, respond_to }) => {
-                            let _ = respond_to.send(run_refresh_cycle(app.clone(), paths.clone(), target).await);
+                            let result = run_refresh_cycle(
+                                app.clone(),
+                                paths.clone(),
+                                target,
+                                Arc::clone(&accelerated_codex_refresh_state),
+                                true,
+                            ).await;
+                            if matches!(target, RefreshTarget::Codex | RefreshTarget::All) {
+                                next_full_refresh_at = Some(unix_timestamp_now().saturating_add(settings.interval_seconds));
+                            }
+                            let _ = respond_to.send(result);
+                        }
+                        Some(SchedulerCommand::RefreshCodexAccount { account_id, respond_to }) => {
+                            let _ = respond_to.send(
+                                run_refresh_codex_account(
+                                    app.clone(),
+                                    paths.clone(),
+                                    account_id,
+                                    Arc::clone(&accelerated_codex_refresh_state),
+                                    true,
+                                ).await
+                            );
                         }
                         Some(SchedulerCommand::UpdateSettings(next)) => {
                             settings = next;
+                            if settings.enabled {
+                                next_full_refresh_at =
+                                    Some(unix_timestamp_now().saturating_add(settings.interval_seconds));
+                            } else {
+                                clear_accelerated_codex_refresh_state(&accelerated_codex_refresh_state);
+                                next_full_refresh_at = None;
+                            }
                         }
                         None => break,
                     }
@@ -158,14 +295,41 @@ async fn run_scheduler_loop(
         } else {
             match receiver.recv().await {
                 Some(SchedulerCommand::Refresh { target, respond_to }) => {
-                    let _ = respond_to
-                        .send(run_refresh_cycle(app.clone(), paths.clone(), target).await);
+                    let _ = respond_to.send(
+                        run_refresh_cycle(
+                            app.clone(),
+                            paths.clone(),
+                            target,
+                            Arc::clone(&accelerated_codex_refresh_state),
+                            false,
+                        ).await
+                    );
+                }
+                Some(SchedulerCommand::RefreshCodexAccount { account_id, respond_to }) => {
+                    let _ = respond_to.send(
+                        run_refresh_codex_account(
+                            app.clone(),
+                            paths.clone(),
+                            account_id,
+                            Arc::clone(&accelerated_codex_refresh_state),
+                            false,
+                        ).await
+                    );
                 }
                 Some(SchedulerCommand::UpdateSettings(next)) => {
                     settings = next;
                     if settings.enabled {
-                        let _ =
-                            run_refresh_cycle(app.clone(), paths.clone(), RefreshTarget::All).await;
+                        let _ = run_refresh_cycle(
+                            app.clone(),
+                            paths.clone(),
+                            RefreshTarget::All,
+                            Arc::clone(&accelerated_codex_refresh_state),
+                            true,
+                        ).await;
+                        next_full_refresh_at = Some(unix_timestamp_now().saturating_add(settings.interval_seconds));
+                    } else {
+                        clear_accelerated_codex_refresh_state(&accelerated_codex_refresh_state);
+                        next_full_refresh_at = None;
                     }
                 }
                 None => break,
@@ -174,11 +338,57 @@ async fn run_scheduler_loop(
     }
 }
 
+async fn run_refresh_codex_account(
+    app: AppHandle,
+    paths: CodexAccountPaths,
+    account_id: String,
+    accelerated_codex_refresh_state: Arc<Mutex<AcceleratedCodexRefreshState>>,
+    scheduler_enabled: bool,
+) -> Result<(), String> {
+    let refresh_account_id = account_id.clone();
+    let scheduler_paths = paths.clone();
+    let outcome = tauri::async_runtime::spawn_blocking(move || -> Result<RefreshOutcome, String> {
+        let refresh_paths = scheduler_paths.clone();
+        let switch_paths = scheduler_paths.clone();
+        let auto_switch_settings = load_auto_switch_settings(&scheduler_paths);
+
+        Ok(run_single_codex_refresh_action(
+            || {
+                CodexUsageService::with_process_fetcher(refresh_paths.clone())
+                    .refresh_account(&refresh_account_id)
+            },
+            || {
+                auto_switch_when_enabled(auto_switch_settings, |settings| {
+                    auto_switch_codex_account_if_needed(&switch_paths, settings)
+                })
+            },
+        ))
+    })
+    .await
+    .map_err(|error| error.to_string())??;
+
+    if scheduler_enabled {
+        rebuild_accelerated_codex_refresh_state(
+            &paths,
+            load_auto_switch_settings(&paths),
+            &accelerated_codex_refresh_state,
+        )?;
+    } else {
+        clear_accelerated_codex_refresh_state(&accelerated_codex_refresh_state);
+    }
+
+    emit_refresh_events(&app, &outcome)?;
+    outcome.error_message().map_or(Ok(()), Err)
+}
+
 async fn run_refresh_cycle(
     app: AppHandle,
     paths: CodexAccountPaths,
     target: RefreshTarget,
+    accelerated_codex_refresh_state: Arc<Mutex<AcceleratedCodexRefreshState>>,
+    scheduler_enabled: bool,
 ) -> Result<(), String> {
+    let scheduler_paths = paths.clone();
     let home_dir = paths
         .system_codex_dir
         .parent()
@@ -197,7 +407,7 @@ async fn run_refresh_cycle(
             let claude_switch_paths = claude_paths.clone();
             let gemini_refresh_paths = gemini_paths.clone();
             let gemini_switch_paths = gemini_paths.clone();
-            let auto_switch_enabled = load_auto_switch_enabled(&paths);
+            let auto_switch_settings = load_auto_switch_settings(&paths);
 
             Ok(run_refresh_actions(
                 target,
@@ -214,17 +424,17 @@ async fn run_refresh_cycle(
                         .refresh_all()
                 },
                 || {
-                    auto_switch_when_enabled(auto_switch_enabled, || {
-                        auto_switch_codex_account_if_needed(&codex_switch_paths)
+                    auto_switch_when_enabled(auto_switch_settings, |settings| {
+                        auto_switch_codex_account_if_needed(&codex_switch_paths, settings)
                     })
                 },
                 || {
-                    auto_switch_when_enabled(auto_switch_enabled, || {
-                        auto_switch_claude_account_if_needed(&claude_switch_paths)
+                    auto_switch_when_enabled(auto_switch_settings, |settings| {
+                        auto_switch_claude_account_if_needed(&claude_switch_paths, settings)
                     })
                 },
                 || {
-                    auto_switch_when_enabled(auto_switch_enabled, || {
+                    auto_switch_when_enabled(auto_switch_settings, |_| {
                         auto_switch_gemini_account_if_needed(&gemini_switch_paths)
                     })
                 },
@@ -234,6 +444,17 @@ async fn run_refresh_cycle(
         .map_err(|error| error.to_string())??;
 
     emit_refresh_events(&app, &outcome)?;
+    if matches!(target, RefreshTarget::Codex | RefreshTarget::All) {
+        if scheduler_enabled {
+            rebuild_accelerated_codex_refresh_state(
+                &scheduler_paths,
+                load_auto_switch_settings(&scheduler_paths),
+                &accelerated_codex_refresh_state,
+            )?;
+        } else {
+            clear_accelerated_codex_refresh_state(&accelerated_codex_refresh_state);
+        }
+    }
     outcome.error_message().map_or(Ok(()), Err)
 }
 
@@ -316,32 +537,172 @@ fn run_provider_refresh_action<Refresh, AutoSwitch>(
     }
 }
 
+fn run_single_codex_refresh_action<Refresh, AutoSwitch>(
+    mut refresh_codex_account: Refresh,
+    mut auto_switch_codex: AutoSwitch,
+) -> RefreshOutcome
+where
+    Refresh: FnMut() -> Result<(), String>,
+    AutoSwitch: FnMut() -> Result<Option<String>, String>,
+{
+    let mut outcome = RefreshOutcome::default();
+    run_provider_refresh_action(
+        &mut outcome,
+        RefreshTarget::Codex,
+        "Codex",
+        &mut refresh_codex_account,
+        &mut auto_switch_codex,
+    );
+    outcome
+}
+
 fn auto_switch_when_enabled<AutoSwitch>(
-    enabled: bool,
+    settings: AutoSwitchSettings,
     auto_switch: AutoSwitch,
 ) -> Result<Option<String>, String>
 where
-    AutoSwitch: FnOnce() -> Result<Option<String>, String>,
+    AutoSwitch: FnOnce(AutoSwitchSettings) -> Result<Option<String>, String>,
 {
-    if !enabled {
+    if !settings.enabled {
         return Ok(None);
     }
 
-    auto_switch()
+    auto_switch(settings)
 }
 
-fn load_auto_switch_enabled(paths: &CodexAccountPaths) -> bool {
+fn should_accelerate_codex_refresh(
+    account: &CodexAccountListItem,
+    settings: AutoSwitchSettings,
+) -> bool {
+    if !settings.enabled || !account.is_active || account.needs_relogin.unwrap_or(false) {
+        return false;
+    }
+
+    let five_hour_warning = account.five_hour_remaining_percent.is_some_and(|value| {
+        value <= settings.five_hour_threshold_percent.saturating_add(5)
+    });
+    let weekly_warning = account
+        .weekly_remaining_percent
+        .is_some_and(|value| value <= settings.weekly_threshold_percent.saturating_add(1));
+
+    five_hour_warning || weekly_warning
+}
+
+fn rebuild_accelerated_codex_refresh_state(
+    paths: &CodexAccountPaths,
+    settings: AutoSwitchSettings,
+    accelerated_codex_refresh_state: &Arc<Mutex<AcceleratedCodexRefreshState>>,
+) -> Result<(), String> {
+    let service = CodexAccountService::with_process_runner(paths.clone());
+    let next_refresh_at = timestamp_after_seconds(60);
+    let by_account_id = service
+        .list_accounts()?
+        .into_iter()
+        .filter(|account| should_accelerate_codex_refresh(account, settings))
+        .map(|account| (account.id, next_refresh_at.clone()))
+        .collect::<HashMap<_, _>>();
+
+    let mut state = accelerated_codex_refresh_state
+        .lock()
+        .map_err(|_| "accelerated refresh state lock poisoned".to_string())?;
+    state.by_account_id = by_account_id;
+    Ok(())
+}
+
+fn clear_accelerated_codex_refresh_state(
+    accelerated_codex_refresh_state: &Arc<Mutex<AcceleratedCodexRefreshState>>,
+) {
+    if let Ok(mut state) = accelerated_codex_refresh_state.lock() {
+        state.by_account_id.clear();
+    }
+}
+
+fn due_accelerated_codex_account_ids(
+    accelerated_codex_refresh_state: &Arc<Mutex<AcceleratedCodexRefreshState>>,
+    now: u64,
+) -> Vec<String> {
+    accelerated_codex_refresh_state
+        .lock()
+        .map(|state| {
+            state
+                .by_account_id
+                .iter()
+                .filter_map(|(account_id, refresh_at)| {
+                    parse_unix_timestamp(refresh_at)
+                        .filter(|refresh_at| *refresh_at <= now)
+                        .map(|_| account_id.clone())
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+fn next_scheduler_delay_seconds(
+    next_full_refresh_at: Option<u64>,
+    accelerated_codex_refresh_state: &Arc<Mutex<AcceleratedCodexRefreshState>>,
+) -> u64 {
+    let now = unix_timestamp_now();
+    let full_refresh_delay = next_full_refresh_at
+        .map(|refresh_at| refresh_at.saturating_sub(now))
+        .unwrap_or(u64::MAX);
+    let accelerated_delay = accelerated_codex_refresh_state
+        .lock()
+        .map(|state| {
+            state
+                .by_account_id
+                .values()
+                .filter_map(|refresh_at| parse_unix_timestamp(refresh_at))
+                .map(|refresh_at| refresh_at.saturating_sub(now))
+                .min()
+                .unwrap_or(u64::MAX)
+        })
+        .unwrap_or(u64::MAX);
+
+    full_refresh_delay.min(accelerated_delay).max(1)
+}
+
+fn timestamp_after_seconds(seconds: u64) -> String {
+    unix_timestamp_now().saturating_add(seconds).to_string()
+}
+
+fn unix_timestamp_now() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_secs())
+        .unwrap_or(0)
+}
+
+fn parse_unix_timestamp(raw: &str) -> Option<u64> {
+    raw.trim().parse::<u64>().ok()
+}
+
+fn load_auto_switch_settings(paths: &CodexAccountPaths) -> AutoSwitchSettings {
     load_app_settings(paths)
-        .map(|settings| settings.auto_switch_enabled)
-        .unwrap_or(false)
+        .map(|settings| AutoSwitchSettings {
+            enabled: settings.auto_switch_enabled,
+            five_hour_threshold_percent: settings.auto_switch_five_hour_threshold_percent,
+            weekly_threshold_percent: settings.auto_switch_weekly_threshold_percent,
+        })
+        .unwrap_or(AutoSwitchSettings {
+            enabled: false,
+            five_hour_threshold_percent: 0,
+            weekly_threshold_percent: 0,
+        })
 }
 
 fn auto_switch_codex_account_if_needed(
     paths: &CodexAccountPaths,
+    settings: AutoSwitchSettings,
 ) -> Result<Option<String>, String> {
     let service = CodexAccountService::with_process_runner(paths.clone());
     let accounts = service.list_accounts()?;
-    let Some(account_id) = select_codex_auto_switch_target(&accounts) else {
+    let Some(account_id) = select_codex_auto_switch_target_with_thresholds(
+        &accounts,
+        AutoSwitchThresholds {
+            five_hour_percent: settings.five_hour_threshold_percent,
+            weekly_percent: settings.weekly_threshold_percent,
+        },
+    ) else {
         return Ok(None);
     };
 
@@ -351,10 +712,17 @@ fn auto_switch_codex_account_if_needed(
 
 fn auto_switch_claude_account_if_needed(
     paths: &ClaudeAccountPaths,
+    settings: AutoSwitchSettings,
 ) -> Result<Option<String>, String> {
     let mut service = ClaudeAccountService::with_process_runner(paths.clone());
     let accounts = service.list_accounts()?;
-    let Some(account_id) = select_claude_auto_switch_target(&accounts) else {
+    let Some(account_id) = select_claude_auto_switch_target_with_thresholds(
+        &accounts,
+        AutoSwitchThresholds {
+            five_hour_percent: settings.five_hour_threshold_percent,
+            weekly_percent: settings.weekly_threshold_percent,
+        },
+    ) else {
         return Ok(None);
     };
 
@@ -413,20 +781,55 @@ fn emit_account_switched_event(app: &AppHandle, target: RefreshTarget) -> Result
 
 #[cfg(test)]
 mod tests {
-    use super::{auto_switch_when_enabled, run_refresh_actions, RefreshTarget};
+    use super::{
+        auto_switch_when_enabled, run_refresh_actions, AutoSwitchSettings, RefreshTarget,
+    };
+    use crate::codex_accounts::models::CodexAccountListItem;
 
     fn no_auto_switch() -> impl FnMut() -> Result<Option<String>, String> {
         || Ok(None)
+    }
+
+    fn codex_account(
+        five_hour_remaining_percent: Option<u8>,
+        weekly_remaining_percent: Option<u8>,
+        needs_relogin: Option<bool>,
+    ) -> CodexAccountListItem {
+        CodexAccountListItem {
+            id: "codex-test".to_string(),
+            email: "codex@example.com".to_string(),
+            label: None,
+            plan: Some("Plus".to_string()),
+            account_id: Some("acct-codex-test".to_string()),
+            is_active: true,
+            last_authenticated_at: "0".to_string(),
+            five_hour_remaining_percent,
+            weekly_remaining_percent,
+            five_hour_refresh_at: None,
+            weekly_refresh_at: None,
+            last_synced_at: Some("1775900000".to_string()),
+            last_sync_error: None,
+            credits_balance: None,
+            needs_relogin,
+            refresh_accelerated_until: None,
+        }
     }
 
     #[test]
     fn auto_switch_guard_skips_action_when_setting_is_disabled() {
         let mut calls = 0;
 
-        let result = auto_switch_when_enabled(false, || {
-            calls += 1;
-            Ok(Some("candidate".to_string()))
-        });
+        let result = auto_switch_when_enabled(
+            AutoSwitchSettings {
+                enabled: false,
+                five_hour_threshold_percent: 0,
+                weekly_threshold_percent: 0,
+            },
+            |_| {
+                calls += 1;
+                Ok(Some("candidate".to_string()))
+            },
+        );
 
         assert_eq!(result, Ok(None));
         assert_eq!(calls, 0);
@@ -436,10 +839,19 @@ mod tests {
     fn auto_switch_guard_runs_action_when_setting_is_enabled() {
         let mut calls = 0;
 
-        let result = auto_switch_when_enabled(true, || {
-            calls += 1;
-            Ok(Some("candidate".to_string()))
-        });
+        let result = auto_switch_when_enabled(
+            AutoSwitchSettings {
+                enabled: true,
+                five_hour_threshold_percent: 9,
+                weekly_threshold_percent: 4,
+            },
+            |settings| {
+                calls += 1;
+                assert_eq!(settings.five_hour_threshold_percent, 9);
+                assert_eq!(settings.weekly_threshold_percent, 4);
+                Ok(Some("candidate".to_string()))
+            },
+        );
 
         assert_eq!(result, Ok(Some("candidate".to_string())));
         assert_eq!(calls, 1);
@@ -594,5 +1006,102 @@ mod tests {
             outcome.error_message(),
             Some("Codex refresh failed: network unavailable".to_string())
         );
+    }
+
+    #[test]
+    fn single_codex_refresh_records_auto_switch_when_refresh_triggers_switch() {
+        let mut auto_switch_calls = 0;
+
+        let outcome = super::run_single_codex_refresh_action(
+            || Ok(()),
+            || {
+                auto_switch_calls += 1;
+                Ok(Some("codex-next".to_string()))
+            },
+        );
+
+        assert_eq!(auto_switch_calls, 1);
+        assert_eq!(outcome.successful_targets, vec![RefreshTarget::Codex]);
+        assert_eq!(outcome.auto_switched_targets, vec![RefreshTarget::Codex]);
+        assert_eq!(outcome.error_message(), None);
+    }
+
+    #[test]
+    fn single_codex_refresh_skips_auto_switch_when_refresh_fails() {
+        let mut auto_switch_calls = 0;
+
+        let outcome = super::run_single_codex_refresh_action(
+            || Err("network unavailable".to_string()),
+            || {
+                auto_switch_calls += 1;
+                Ok(Some("codex-next".to_string()))
+            },
+        );
+
+        assert_eq!(auto_switch_calls, 0);
+        assert!(outcome.successful_targets.is_empty());
+        assert!(outcome.auto_switched_targets.is_empty());
+        assert_eq!(
+            outcome.error_message(),
+            Some("Codex refresh failed: network unavailable".to_string())
+        );
+    }
+
+    #[test]
+    fn codex_account_enters_accelerated_refresh_when_five_hour_reaches_threshold_plus_five() {
+        let account = codex_account(Some(14), Some(88), Some(false));
+
+        assert!(super::should_accelerate_codex_refresh(
+            &account,
+            AutoSwitchSettings {
+                enabled: true,
+                five_hour_threshold_percent: 9,
+                weekly_threshold_percent: 20,
+            }
+        ));
+    }
+
+    #[test]
+    fn codex_account_enters_accelerated_refresh_when_weekly_reaches_threshold_plus_one() {
+        let account = codex_account(Some(80), Some(5), Some(false));
+
+        assert!(super::should_accelerate_codex_refresh(
+            &account,
+            AutoSwitchSettings {
+                enabled: true,
+                five_hour_threshold_percent: 10,
+                weekly_threshold_percent: 4,
+            }
+        ));
+    }
+
+    #[test]
+    fn codex_account_leaves_accelerated_refresh_when_both_windows_leave_warning_zone() {
+        let account = codex_account(Some(16), Some(8), Some(false));
+
+        assert!(!super::should_accelerate_codex_refresh(
+            &account,
+            AutoSwitchSettings {
+                enabled: true,
+                five_hour_threshold_percent: 10,
+                weekly_threshold_percent: 6,
+            }
+        ));
+    }
+
+    #[test]
+    fn inactive_codex_account_does_not_enter_accelerated_refresh_even_when_warning_threshold_is_reached(
+    ) {
+        let mut account = codex_account(Some(14), Some(5), Some(false));
+        account.is_active = false;
+
+        assert!(!super::should_accelerate_codex_refresh(
+            &account,
+            AutoSwitchSettings {
+                enabled: true,
+                five_hour_threshold_percent: 9,
+                weekly_threshold_percent: 4,
+            }
+        ));
     }
 }

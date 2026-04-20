@@ -1,7 +1,7 @@
 {
   "name": "ai-accounts-hub",
   "private": true,
-  "version": "0.3.23",
+  "version": "0.3.24",
   "type": "module",
   "scripts": {
     "bump": "node scripts/release/run-bump.mjs",

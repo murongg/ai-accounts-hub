@@ -10,6 +10,7 @@ use ai_accounts_hub_lib::codex_usage::models::CodexRefreshSettings;
 use ai_accounts_hub_lib::codex_usage::store::{
     load_refresh_settings, load_usage_snapshots, save_refresh_settings, save_usage_snapshots,
 };
+use serde_json::{json, to_value};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -64,8 +65,11 @@ fn clear_all_data_resets_settings_and_removes_private_codex_data() {
             language: AppLanguage::EnUs,
             theme: AppTheme::Dark,
             auto_switch_enabled: true,
+            auto_switch_five_hour_threshold_percent: 7,
+            auto_switch_weekly_threshold_percent: 3,
             accounts_view_mode: AppAccountsViewMode::List,
             relay: RelaySettings::default(),
+            ..AppSettings::default()
         },
     )
     .expect("save app settings");
@@ -102,6 +106,19 @@ fn clear_all_data_resets_settings_and_removes_private_codex_data() {
     assert_eq!(result.app_settings.language, AppLanguage::ZhCn);
     assert_eq!(result.app_settings.theme, AppTheme::Light);
     assert!(result.app_settings.auto_switch_enabled);
+    assert_eq!(
+        result.app_settings.auto_switch_five_hour_threshold_percent,
+        0
+    );
+    assert_eq!(
+        result.app_settings.auto_switch_weekly_threshold_percent,
+        0
+    );
+    let settings_json = to_value(&result.app_settings).expect("settings json");
+    assert_eq!(
+        settings_json.get("auto_switch_weekly_threshold_percent"),
+        Some(&json!(0))
+    );
     assert_eq!(
         result.app_settings.accounts_view_mode,
         AppAccountsViewMode::Cards

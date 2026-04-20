@@ -38,6 +38,11 @@ function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
+function normalizeAutoSwitchThresholdInput(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 2);
+  return digits === "" ? 0 : Number(digits);
+}
+
 async function closeUpdateResource(update: Update | null) {
   if (!update) {
     return;
@@ -187,6 +192,34 @@ function SettingsWorkspaceComponent({
       await persistAppSettings({
         ...appSettings,
         auto_switch_enabled: enabled,
+      }, appSettings);
+    },
+    [appSettings, persistAppSettings],
+  );
+
+  const handleAutoSwitchFiveHourThresholdChange = useCallback(
+    async (value: string) => {
+      if (appSettings.auto_switch_enabled) {
+        return;
+      }
+
+      await persistAppSettings({
+        ...appSettings,
+        auto_switch_five_hour_threshold_percent: normalizeAutoSwitchThresholdInput(value),
+      }, appSettings);
+    },
+    [appSettings, persistAppSettings],
+  );
+
+  const handleAutoSwitchWeeklyThresholdChange = useCallback(
+    async (value: string) => {
+      if (appSettings.auto_switch_enabled) {
+        return;
+      }
+
+      await persistAppSettings({
+        ...appSettings,
+        auto_switch_weekly_threshold_percent: normalizeAutoSwitchThresholdInput(value),
       }, appSettings);
     },
     [appSettings, persistAppSettings],
@@ -442,6 +475,8 @@ function SettingsWorkspaceComponent({
       language={appSettings.language}
       theme={appSettings.theme}
       autoSwitchEnabled={appSettings.auto_switch_enabled}
+      autoSwitchFiveHourThresholdPercent={appSettings.auto_switch_five_hour_threshold_percent}
+      autoSwitchWeeklyThresholdPercent={appSettings.auto_switch_weekly_threshold_percent}
       relaySettings={appSettings.relay}
       relayStatus={relayStatus}
       refreshSettings={refreshSettings}
@@ -458,6 +493,12 @@ function SettingsWorkspaceComponent({
       onLanguageChange={(language) => void handleLanguageChange(language)}
       onThemeChange={(theme) => void handleThemeChange(theme)}
       onAutoSwitchEnabledChange={(enabled) => void handleAutoSwitchEnabledChange(enabled)}
+      onAutoSwitchFiveHourThresholdChange={(value) =>
+        void handleAutoSwitchFiveHourThresholdChange(value)
+      }
+      onAutoSwitchWeeklyThresholdChange={(value) =>
+        void handleAutoSwitchWeeklyThresholdChange(value)
+      }
       onRelayEnabledChange={(enabled) => void handleRelayEnabledChange(enabled)}
       onRelayPortChange={(value) => void handleRelayPortChange(value)}
       onRefreshEnabledChange={(enabled) => void handleRefreshEnabledChange(enabled)}

@@ -54,6 +54,8 @@ pub struct CodexAccountListItem {
     pub last_sync_error: Option<String>,
     pub credits_balance: Option<f64>,
     pub needs_relogin: Option<bool>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub refresh_accelerated_until: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

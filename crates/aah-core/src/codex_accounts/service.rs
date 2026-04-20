@@ -213,6 +213,7 @@ impl CodexAccountService {
                     last_sync_error: usage.and_then(|snapshot| snapshot.last_sync_error.clone()),
                     credits_balance: usage.and_then(|snapshot| snapshot.credits_balance),
                     needs_relogin: usage.map(|snapshot| snapshot.needs_relogin),
+                    refresh_accelerated_until: None,
                 }
             })
             .collect();
@@ -321,6 +322,7 @@ mod tests {
             last_sync_error: Some("old error".to_string()),
             credits_balance: Some(0.0),
             needs_relogin: Some(true),
+            refresh_accelerated_until: None,
         }
     }
 

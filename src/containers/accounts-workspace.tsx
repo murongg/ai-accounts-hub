@@ -12,6 +12,7 @@ import {
 import {
   deleteCodexAccount,
   listCodexAccounts,
+  refreshCodexAccountUsage,
   refreshCodexUsageNow,
   startCodexAccountDeviceAutofillLogin,
   startCodexAccountLogin,
@@ -81,6 +82,7 @@ function AccountsWorkspaceComponent({
   const [deletingClaudeAccountId, setDeletingClaudeAccountId] = useState<string | null>(null);
   const [deletingGeminiAccountId, setDeletingGeminiAccountId] = useState<string | null>(null);
   const [isRefreshingCodexUsage, setIsRefreshingCodexUsage] = useState(false);
+  const [refreshingCodexAccountId, setRefreshingCodexAccountId] = useState<string | null>(null);
   const [isRefreshingClaudeUsage, setIsRefreshingClaudeUsage] = useState(false);
   const [isRefreshingGeminiAccounts, setIsRefreshingGeminiAccounts] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -469,6 +471,25 @@ function AccountsWorkspaceComponent({
     }
   }, [activePlatform, onToast, refreshClaudeAccounts, refreshCodexAccounts, refreshGeminiAccounts]);
 
+  const handleRefreshCodexAccount = useCallback(
+    async (accountId: string) => {
+      if (activePlatform !== "codex" || refreshingCodexAccountId === accountId) {
+        return;
+      }
+
+      try {
+        setRefreshingCodexAccountId(accountId);
+        await refreshCodexAccountUsage(accountId);
+        await refreshCodexAccounts(false);
+      } catch (error) {
+        onToast("error", errorMessage(error));
+      } finally {
+        setRefreshingCodexAccountId(null);
+      }
+    },
+    [activePlatform, onToast, refreshCodexAccounts, refreshingCodexAccountId],
+  );
+
   const closeCodexAutofillLogin = useCallback(() => {
     if (isStartingCodexAutofillLogin) {
       return;
@@ -576,6 +597,7 @@ function AccountsWorkspaceComponent({
       switchingAccountId={switchingAccountId}
       deletingAccountId={deletingAccountId}
       isRefreshingUsage={isRefreshingUsage}
+      refreshingAccountId={refreshingCodexAccountId}
       isCodexAutofillLoginOpen={isCodexAutofillLoginOpen}
       isStartingCodexAutofillLogin={isStartingCodexAutofillLogin}
       codexAutofillLoginEmail={codexAutofillLoginEmail}
@@ -585,6 +607,7 @@ function AccountsWorkspaceComponent({
       onTabChange={onTabChange}
       onViewModeChange={onViewModeChange}
       onRefreshUsage={() => void handleRefreshUsage()}
+      onRefreshAccount={(accountId) => void handleRefreshCodexAccount(accountId)}
       onAddAccount={() => void handleAddAccount()}
       onOpenCodexAutofillLogin={() => setIsCodexAutofillLoginOpen(true)}
       onCloseCodexAutofillLogin={closeCodexAutofillLogin}

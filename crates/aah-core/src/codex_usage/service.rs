@@ -45,4 +45,27 @@ impl CodexUsageService {
         usage_store.retain_only(&active_account_ids);
         usage_store.persist(&self.paths)
     }
+
+    pub fn refresh_account(&self, managed_account_id: &str) -> Result<(), String> {
+        let account_store = CodexAccountStore::load(&self.paths)?;
+        let mut usage_store = CodexUsageStore::load(&self.paths)?;
+        let account = account_store
+            .accounts()
+            .iter()
+            .find(|account| account.id == managed_account_id)
+            .ok_or_else(|| format!("codex account not found: {managed_account_id}"))?;
+
+        let managed_home = Path::new(&account.managed_home_path);
+        match self.fetcher.fetch_usage(managed_home) {
+            Ok(snapshot) => usage_store.upsert_success(&account.id, snapshot),
+            Err(error) => usage_store.upsert_error(
+                &account.id,
+                account.plan.clone(),
+                error.to_string(),
+                error.needs_relogin(),
+            ),
+        }
+
+        usage_store.persist(&self.paths)
+    }
 }

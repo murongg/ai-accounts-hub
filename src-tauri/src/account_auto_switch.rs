@@ -2,6 +2,12 @@ use crate::claude_accounts::models::ClaudeAccountListItem;
 use crate::codex_accounts::models::CodexAccountListItem;
 use crate::gemini_accounts::models::GeminiAccountListItem;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AutoSwitchThresholds {
+    pub five_hour_percent: u8,
+    pub weekly_percent: u8,
+}
+
 pub fn select_codex_auto_switch_target(accounts: &[CodexAccountListItem]) -> Option<String> {
     let active_account = accounts.iter().find(|account| account.is_active)?;
     let active_is_unusable = active_account.needs_relogin.unwrap_or(false)
@@ -21,6 +27,45 @@ pub fn select_codex_auto_switch_target(accounts: &[CodexAccountListItem]) -> Opt
             let five_hour = account.five_hour_remaining_percent?;
 
             (weekly > 0 && five_hour > 0)
+                .then(|| (index, weekly, five_hour, account.id.to_string()))
+        })
+        .max_by(|left, right| {
+            left.1
+                .cmp(&right.1)
+                .then_with(|| left.2.cmp(&right.2))
+                .then_with(|| right.0.cmp(&left.0))
+        })
+        .map(|(_, _, _, account_id)| account_id)
+}
+
+pub fn select_codex_auto_switch_target_with_thresholds(
+    accounts: &[CodexAccountListItem],
+    thresholds: AutoSwitchThresholds,
+) -> Option<String> {
+    let active_account = accounts.iter().find(|account| account.is_active)?;
+    let active_is_unusable = active_account.needs_relogin.unwrap_or(false)
+        || quota_reached_threshold(
+            active_account.five_hour_remaining_percent,
+            thresholds.five_hour_percent,
+        )
+        || quota_reached_threshold(
+            active_account.weekly_remaining_percent,
+            thresholds.weekly_percent,
+        );
+
+    if !active_is_unusable {
+        return None;
+    }
+
+    accounts
+        .iter()
+        .enumerate()
+        .filter(|(_, account)| !account.is_active && !account.needs_relogin.unwrap_or(false))
+        .filter_map(|(index, account)| {
+            let weekly = account.weekly_remaining_percent?;
+            let five_hour = account.five_hour_remaining_percent?;
+
+            (weekly > thresholds.weekly_percent && five_hour > thresholds.five_hour_percent)
                 .then(|| (index, weekly, five_hour, account.id.to_string()))
         })
         .max_by(|left, right| {
@@ -68,6 +113,13 @@ pub fn select_claude_auto_switch_target(accounts: &[ClaudeAccountListItem]) -> O
                 .then_with(|| right.0.cmp(&left.0))
         })
         .map(|(_, _, _, _, account_id)| account_id)
+}
+
+pub fn select_claude_auto_switch_target_with_thresholds(
+    accounts: &[ClaudeAccountListItem],
+    _thresholds: AutoSwitchThresholds,
+) -> Option<String> {
+    select_claude_auto_switch_target(accounts)
 }
 
 pub fn select_gemini_auto_switch_target(accounts: &[GeminiAccountListItem]) -> Option<String> {
@@ -141,11 +193,17 @@ where
         .map(|(_, _, account_id)| account_id)
 }
 
+fn quota_reached_threshold(quota_percent: Option<u8>, threshold_percent: u8) -> bool {
+    quota_percent.is_some_and(|quota| quota <= threshold_percent)
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
         select_auto_switch_target, select_claude_auto_switch_target,
-        select_codex_auto_switch_target, select_gemini_auto_switch_target,
+        select_claude_auto_switch_target_with_thresholds, select_codex_auto_switch_target,
+        select_codex_auto_switch_target_with_thresholds, select_gemini_auto_switch_target,
+        AutoSwitchThresholds,
     };
     use crate::claude_accounts::models::ClaudeAccountListItem;
     use crate::codex_accounts::models::CodexAccountListItem;
@@ -261,6 +319,25 @@ mod tests {
     }
 
     #[test]
+    fn codex_auto_switch_triggers_when_five_hour_threshold_is_reached() {
+        let accounts = vec![
+            codex_account("active", true, Some(9), Some(80)),
+            codex_account("candidate", false, Some(55), Some(72)),
+        ];
+
+        assert_eq!(
+            select_codex_auto_switch_target_with_thresholds(
+                &accounts,
+                AutoSwitchThresholds {
+                    five_hour_percent: 10,
+                    weekly_percent: 0,
+                },
+            ),
+            Some("candidate".to_string())
+        );
+    }
+
+    #[test]
     fn codex_auto_switch_ignores_candidates_missing_weekly_or_five_hour_quota() {
         let accounts = vec![
             codex_account("active", true, Some(0), Some(0)),
@@ -299,6 +376,86 @@ mod tests {
         assert_eq!(
             select_claude_auto_switch_target(&accounts),
             Some("candidate".to_string())
+        );
+    }
+
+    #[test]
+    fn claude_auto_switch_does_not_trigger_before_quota_is_depleted_even_with_threshold_configured() {
+        let accounts = vec![
+            claude_account("active", true, Some(80), Some(4)),
+            claude_account("candidate", false, Some(55), Some(72)),
+        ];
+
+        assert_eq!(
+            select_claude_auto_switch_target_with_thresholds(
+                &accounts,
+                AutoSwitchThresholds {
+                    five_hour_percent: 0,
+                    weekly_percent: 5,
+                },
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn claude_auto_switch_still_triggers_when_session_quota_is_depleted() {
+        let accounts = vec![
+            claude_account("active", true, Some(0), Some(80)),
+            claude_account("candidate", false, Some(55), Some(72)),
+        ];
+
+        assert_eq!(
+            select_claude_auto_switch_target_with_thresholds(
+                &accounts,
+                AutoSwitchThresholds {
+                    five_hour_percent: 0,
+                    weekly_percent: 5,
+                },
+            ),
+            Some("candidate".to_string())
+        );
+    }
+
+    #[test]
+    fn codex_auto_switch_requires_candidate_quotas_to_stay_above_thresholds() {
+        let accounts = vec![
+            codex_account("active", true, Some(10), Some(80)),
+            codex_account("five-hour-at-threshold", false, Some(10), Some(90)),
+            codex_account("weekly-at-threshold", false, Some(90), Some(5)),
+            codex_account("candidate", false, Some(55), Some(72)),
+        ];
+
+        assert_eq!(
+            select_codex_auto_switch_target_with_thresholds(
+                &accounts,
+                AutoSwitchThresholds {
+                    five_hour_percent: 10,
+                    weekly_percent: 5,
+                },
+            ),
+            Some("candidate".to_string())
+        );
+    }
+
+    #[test]
+    fn codex_auto_switch_skips_switch_when_no_candidate_stays_above_thresholds() {
+        let accounts = vec![
+            codex_account("active", true, Some(10), Some(80)),
+            codex_account("five-hour-at-threshold", false, Some(10), Some(90)),
+            codex_account("weekly-at-threshold", false, Some(90), Some(5)),
+            codex_account("both-below", false, Some(9), Some(4)),
+        ];
+
+        assert_eq!(
+            select_codex_auto_switch_target_with_thresholds(
+                &accounts,
+                AutoSwitchThresholds {
+                    five_hour_percent: 10,
+                    weekly_percent: 5,
+                },
+            ),
+            None
         );
     }
 
@@ -353,6 +510,25 @@ mod tests {
         );
     }
 
+    #[test]
+    fn codex_auto_switch_does_not_trigger_when_threshold_is_not_reached() {
+        let accounts = vec![
+            codex_account("active", true, Some(11), Some(80)),
+            codex_account("candidate", false, Some(55), Some(72)),
+        ];
+
+        assert_eq!(
+            select_codex_auto_switch_target_with_thresholds(
+                &accounts,
+                AutoSwitchThresholds {
+                    five_hour_percent: 10,
+                    weekly_percent: 10,
+                },
+            ),
+            None
+        );
+    }
+
     fn codex_account(
         id: &str,
         is_active: bool,
@@ -375,6 +551,7 @@ mod tests {
             last_sync_error: None,
             credits_balance: None,
             needs_relogin: Some(false),
+            refresh_accelerated_until: None,
         }
     }
 

@@ -13,6 +13,7 @@ export interface CodexAccountSummary {
   last_sync_error: string | null;
   credits_balance: number | null;
   needs_relogin: boolean | null;
+  refresh_accelerated_until: string | null;
 }
 
 export interface CodexRefreshSettings {

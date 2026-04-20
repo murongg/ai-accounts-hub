@@ -59,6 +59,8 @@ export interface I18nMessages {
     switchingPrimaryCompact: string;
     switchPrimary: string;
     switchPrimaryCompact: string;
+    refreshAccountAria: string;
+    acceleratedRefreshActive: string;
     emptyState: {
       unsupportedPlatform: (label: string) => string;
       unsupportedDescription: string;
@@ -125,6 +127,10 @@ export interface I18nMessages {
       title: string;
       description: string;
       enabledLabel: string;
+      thresholdHint: string;
+      fiveHourThresholdLabel: string;
+      weeklyThresholdLabel: string;
+      percentSuffix: string;
     };
     relay: {
       title: string;
@@ -273,6 +279,8 @@ function createChineseCopy(): I18nMessages {
       switchingPrimaryCompact: "切换中",
       switchPrimary: "切换至此账号",
       switchPrimaryCompact: "切换",
+      refreshAccountAria: "刷新这个账号",
+      acceleratedRefreshActive: "1 分钟刷新中",
       emptyState: {
         unsupportedPlatform: (label) => `${label} 即将接入`,
         unsupportedDescription: "当前版本先聚焦 Codex 账号管理与切换，后续会继续补齐其它平台。",
@@ -337,8 +345,12 @@ function createChineseCopy(): I18nMessages {
       },
       autoSwitch: {
         title: "配额用尽自动切换",
-        description: "当前账号主配额为 0% 或需要重登时，自动切到同平台内剩余主配额最高的可用账号。",
+        description: "当前账号需要重登，或命中 5h / 周额度阈值时，自动切到同平台内仍可用的账号。",
         enabledLabel: "启用自动切换账号",
+        thresholdHint: "任一条件满足就自动切换。开启后阈值锁定，需先关闭自动切换再修改。",
+        fiveHourThresholdLabel: "5h 配额阈值",
+        weeklyThresholdLabel: "周额度阈值",
+        percentSuffix: "%",
       },
       relay: {
         title: "本地中转服务",
@@ -459,6 +471,8 @@ function createEnglishCopy(): I18nMessages {
       switchingPrimaryCompact: "Switching",
       switchPrimary: "Switch to this account",
       switchPrimaryCompact: "Switch",
+      refreshAccountAria: "Refresh this account",
+      acceleratedRefreshActive: "1-minute refresh active",
       emptyState: {
         unsupportedPlatform: (label) => `${label} is coming soon`,
         unsupportedDescription: "This version focuses on Codex account management first. Support for the other providers will follow.",
@@ -524,8 +538,13 @@ function createEnglishCopy(): I18nMessages {
       autoSwitch: {
         title: "Auto switch when quota is exhausted",
         description:
-          "When the active account reaches 0% primary quota or needs re-login, switch to the available account with the highest primary quota in the same provider.",
+          "When the active account needs re-login or reaches the configured 5h / weekly quota threshold, switch to another available account in the same provider.",
         enabledLabel: "Enable automatic account switching",
+        thresholdHint:
+          "Switch when either threshold is reached. Disable auto switch before editing these values.",
+        fiveHourThresholdLabel: "5h quota threshold",
+        weeklyThresholdLabel: "weekly quota threshold",
+        percentSuffix: "%",
       },
       relay: {
         title: "Local relay service",

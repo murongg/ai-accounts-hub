@@ -200,6 +200,7 @@ mod tests {
             last_sync_error: None,
             credits_balance: None,
             needs_relogin,
+            refresh_accelerated_until: None,
         }
     }
 

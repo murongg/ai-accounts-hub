@@ -53,3 +53,11 @@ pub async fn refresh_codex_usage_now(
 ) -> Result<(), String> {
     scheduler.refresh_codex_now().await
 }
+
+#[tauri::command]
+pub async fn refresh_codex_account_usage(
+    scheduler: State<'_, CodexUsageSchedulerState>,
+    account_id: String,
+) -> Result<(), String> {
+    scheduler.refresh_codex_account_now(account_id).await
+}
