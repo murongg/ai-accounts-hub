@@ -61,7 +61,7 @@ dependencies = [
 
 [[package]]
 name = "ai-accounts-hub"
-version = "0.3.25"
+version = "0.3.26"
 dependencies = [
  "aah-core",
  "axum",
