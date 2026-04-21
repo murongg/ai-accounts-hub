@@ -57,6 +57,13 @@ pub fn select_codex_auto_switch_target_with_thresholds(
         return None;
     }
 
+    select_codex_switch_candidate_above_thresholds(accounts, thresholds)
+}
+
+pub fn select_codex_switch_candidate_above_thresholds(
+    accounts: &[CodexAccountListItem],
+    thresholds: AutoSwitchThresholds,
+) -> Option<String> {
     accounts
         .iter()
         .enumerate()
@@ -238,8 +245,8 @@ mod tests {
     use super::{
         select_auto_switch_target, select_claude_auto_switch_target,
         select_claude_auto_switch_target_with_thresholds, select_codex_auto_switch_target,
-        select_codex_auto_switch_target_with_thresholds, select_gemini_auto_switch_target,
-        AutoSwitchThresholds,
+        select_codex_auto_switch_target_with_thresholds, select_codex_switch_candidate_above_thresholds,
+        select_gemini_auto_switch_target, AutoSwitchThresholds,
     };
     use crate::claude_accounts::models::ClaudeAccountListItem;
     use crate::codex_accounts::models::CodexAccountListItem;
@@ -540,6 +547,47 @@ mod tests {
                 AutoSwitchThresholds {
                     five_hour_percent: 10,
                     weekly_percent: 10,
+                },
+            ),
+            None
+        );
+    }
+
+    #[test]
+    fn forced_codex_switch_selects_best_candidate_above_thresholds() {
+        let accounts = vec![
+            codex_account("active", true, Some(14), Some(80)),
+            codex_account("five-hour-below-threshold", false, Some(10), Some(99)),
+            codex_account("weekly-below-threshold", false, Some(90), Some(5)),
+            codex_account("candidate", false, Some(55), Some(72)),
+        ];
+
+        assert_eq!(
+            select_codex_switch_candidate_above_thresholds(
+                &accounts,
+                AutoSwitchThresholds {
+                    five_hour_percent: 10,
+                    weekly_percent: 5,
+                },
+            ),
+            Some("candidate".to_string())
+        );
+    }
+
+    #[test]
+    fn forced_codex_switch_skips_when_no_candidate_stays_above_thresholds() {
+        let accounts = vec![
+            codex_account("active", true, Some(14), Some(80)),
+            codex_account("five-hour-at-threshold", false, Some(10), Some(99)),
+            codex_account("weekly-at-threshold", false, Some(90), Some(5)),
+        ];
+
+        assert_eq!(
+            select_codex_switch_candidate_above_thresholds(
+                &accounts,
+                AutoSwitchThresholds {
+                    five_hour_percent: 10,
+                    weekly_percent: 5,
                 },
             ),
             None
