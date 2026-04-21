@@ -8,7 +8,8 @@ use tauri::{AppHandle, Emitter};
 
 use crate::account_auto_switch::{
     select_claude_auto_switch_target_with_thresholds,
-    select_codex_auto_switch_target_with_thresholds, select_gemini_auto_switch_target,
+    select_codex_auto_switch_target_with_thresholds,
+    select_codex_switch_candidate_above_thresholds, select_gemini_auto_switch_target,
     AutoSwitchThresholds,
 };
 use crate::app_settings::store::load_app_settings;
@@ -68,9 +69,30 @@ struct AutoSwitchSettings {
     weekly_threshold_percent: u8,
 }
 
+const ACCELERATED_CODEX_REFRESH_LIMIT: u8 = 3;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct AcceleratedCodexRefreshEntry {
+    refresh_at: String,
+    attempt_count: u8,
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 struct AcceleratedCodexRefreshState {
-    by_account_id: HashMap<String, String>,
+    by_account_id: HashMap<String, AcceleratedCodexRefreshEntry>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum AcceleratedCodexRefreshAction {
+    Continue { next_attempt_count: u8 },
+    StopAndForceSwitch,
+    Reset,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+struct DueAcceleratedCodexRefresh {
+    account_id: String,
+    attempt_count: u8,
 }
 
 pub struct CodexUsageSchedulerState {
@@ -170,7 +192,10 @@ impl CodexUsageSchedulerState {
             .map_err(|_| "accelerated refresh state lock poisoned".to_string())?;
 
         for account in accounts {
-            account.refresh_accelerated_until = state.by_account_id.get(&account.id).cloned();
+            account.refresh_accelerated_until = state
+                .by_account_id
+                .get(&account.id)
+                .map(|entry| entry.refresh_at.clone());
         }
 
         Ok(())
@@ -238,16 +263,17 @@ async fn run_scheduler_loop(
                         ).await;
                         next_full_refresh_at = Some(unix_timestamp_now().saturating_add(settings.interval_seconds));
                     } else {
-                        for account_id in due_accelerated_codex_account_ids(
+                        for refresh in due_accelerated_codex_account_entries(
                             &accelerated_codex_refresh_state,
                             now,
                         ) {
                             let _ = run_refresh_codex_account(
                                 app.clone(),
                                 paths.clone(),
-                                account_id,
+                                refresh.account_id,
                                 Arc::clone(&accelerated_codex_refresh_state),
                                 true,
+                                Some(refresh.attempt_count),
                             ).await;
                         }
                     }
@@ -275,6 +301,7 @@ async fn run_scheduler_loop(
                                     account_id,
                                     Arc::clone(&accelerated_codex_refresh_state),
                                     true,
+                                    None,
                                 ).await
                             );
                         }
@@ -313,6 +340,7 @@ async fn run_scheduler_loop(
                             account_id,
                             Arc::clone(&accelerated_codex_refresh_state),
                             false,
+                            None,
                         ).await
                     );
                 }
@@ -344,10 +372,12 @@ async fn run_refresh_codex_account(
     account_id: String,
     accelerated_codex_refresh_state: Arc<Mutex<AcceleratedCodexRefreshState>>,
     scheduler_enabled: bool,
+    accelerated_attempt_count: Option<u8>,
 ) -> Result<(), String> {
     let refresh_account_id = account_id.clone();
     let scheduler_paths = paths.clone();
-    let outcome = tauri::async_runtime::spawn_blocking(move || -> Result<RefreshOutcome, String> {
+    let mut outcome =
+        tauri::async_runtime::spawn_blocking(move || -> Result<RefreshOutcome, String> {
         let refresh_paths = scheduler_paths.clone();
         let switch_paths = scheduler_paths.clone();
         let auto_switch_settings = load_auto_switch_settings(&scheduler_paths);
@@ -368,11 +398,69 @@ async fn run_refresh_codex_account(
     .map_err(|error| error.to_string())??;
 
     if scheduler_enabled {
-        rebuild_accelerated_codex_refresh_state(
-            &paths,
-            load_auto_switch_settings(&paths),
-            &accelerated_codex_refresh_state,
-        )?;
+        let auto_switch_settings = load_auto_switch_settings(&paths);
+        let codex_auto_switched = outcome.auto_switched_targets.contains(&RefreshTarget::Codex);
+
+        match accelerated_attempt_count
+            .map(|attempt_count| {
+                accelerated_codex_refresh_action_after_attempt(
+                    attempt_count,
+                    codex_auto_switched,
+                )
+            })
+            .unwrap_or(AcceleratedCodexRefreshAction::Reset)
+        {
+            AcceleratedCodexRefreshAction::Continue { next_attempt_count } => {
+                rebuild_accelerated_codex_refresh_state(
+                    &paths,
+                    auto_switch_settings,
+                    &accelerated_codex_refresh_state,
+                    Some((&account_id, next_attempt_count)),
+                    None,
+                )?;
+            }
+            AcceleratedCodexRefreshAction::StopAndForceSwitch => {
+                if let Some(switched_account_id) = tauri::async_runtime::spawn_blocking({
+                    let force_switch_paths = paths.clone();
+                    move || {
+                        force_switch_codex_account_above_thresholds(
+                            &force_switch_paths,
+                            auto_switch_settings,
+                        )
+                    }
+                })
+                .await
+                .map_err(|error| error.to_string())??
+                {
+                    outcome.auto_switched_targets.push(RefreshTarget::Codex);
+                    rebuild_accelerated_codex_refresh_state(
+                        &paths,
+                        auto_switch_settings,
+                        &accelerated_codex_refresh_state,
+                        None,
+                        None,
+                    )?;
+                    let _ = switched_account_id;
+                } else {
+                    rebuild_accelerated_codex_refresh_state(
+                        &paths,
+                        auto_switch_settings,
+                        &accelerated_codex_refresh_state,
+                        None,
+                        Some(&account_id),
+                    )?;
+                }
+            }
+            AcceleratedCodexRefreshAction::Reset => {
+                rebuild_accelerated_codex_refresh_state(
+                    &paths,
+                    auto_switch_settings,
+                    &accelerated_codex_refresh_state,
+                    None,
+                    None,
+                )?;
+            }
+        }
     } else {
         clear_accelerated_codex_refresh_state(&accelerated_codex_refresh_state);
     }
@@ -450,6 +538,8 @@ async fn run_refresh_cycle(
                 &scheduler_paths,
                 load_auto_switch_settings(&scheduler_paths),
                 &accelerated_codex_refresh_state,
+                None,
+                None,
             )?;
         } else {
             clear_accelerated_codex_refresh_state(&accelerated_codex_refresh_state);
@@ -588,10 +678,28 @@ fn should_accelerate_codex_refresh(
     five_hour_warning || weekly_warning
 }
 
+fn accelerated_codex_refresh_action_after_attempt(
+    previous_attempt_count: u8,
+    auto_switched: bool,
+) -> AcceleratedCodexRefreshAction {
+    if auto_switched {
+        return AcceleratedCodexRefreshAction::Reset;
+    }
+
+    let next_attempt_count = previous_attempt_count.saturating_add(1);
+    if next_attempt_count >= ACCELERATED_CODEX_REFRESH_LIMIT {
+        AcceleratedCodexRefreshAction::StopAndForceSwitch
+    } else {
+        AcceleratedCodexRefreshAction::Continue { next_attempt_count }
+    }
+}
+
 fn rebuild_accelerated_codex_refresh_state(
     paths: &CodexAccountPaths,
     settings: AutoSwitchSettings,
     accelerated_codex_refresh_state: &Arc<Mutex<AcceleratedCodexRefreshState>>,
+    carried_attempt: Option<(&str, u8)>,
+    suppressed_account_id: Option<&str>,
 ) -> Result<(), String> {
     let service = CodexAccountService::with_process_runner(paths.clone());
     let next_refresh_at = timestamp_after_seconds(60);
@@ -599,7 +707,21 @@ fn rebuild_accelerated_codex_refresh_state(
         .list_accounts()?
         .into_iter()
         .filter(|account| should_accelerate_codex_refresh(account, settings))
-        .map(|account| (account.id, next_refresh_at.clone()))
+        .filter(|account| suppressed_account_id != Some(account.id.as_str()))
+        .map(|account| {
+            let attempt_count = carried_attempt
+                .filter(|(account_id, _)| *account_id == account.id.as_str())
+                .map(|(_, attempt_count)| attempt_count)
+                .unwrap_or(0);
+
+            (
+                account.id,
+                AcceleratedCodexRefreshEntry {
+                    refresh_at: next_refresh_at.clone(),
+                    attempt_count,
+                },
+            )
+        })
         .collect::<HashMap<_, _>>();
 
     let mut state = accelerated_codex_refresh_state
@@ -617,20 +739,23 @@ fn clear_accelerated_codex_refresh_state(
     }
 }
 
-fn due_accelerated_codex_account_ids(
+fn due_accelerated_codex_account_entries(
     accelerated_codex_refresh_state: &Arc<Mutex<AcceleratedCodexRefreshState>>,
     now: u64,
-) -> Vec<String> {
+) -> Vec<DueAcceleratedCodexRefresh> {
     accelerated_codex_refresh_state
         .lock()
         .map(|state| {
             state
                 .by_account_id
                 .iter()
-                .filter_map(|(account_id, refresh_at)| {
-                    parse_unix_timestamp(refresh_at)
+                .filter_map(|(account_id, entry)| {
+                    parse_unix_timestamp(&entry.refresh_at)
                         .filter(|refresh_at| *refresh_at <= now)
-                        .map(|_| account_id.clone())
+                        .map(|_| DueAcceleratedCodexRefresh {
+                            account_id: account_id.clone(),
+                            attempt_count: entry.attempt_count,
+                        })
                 })
                 .collect()
         })
@@ -651,7 +776,7 @@ fn next_scheduler_delay_seconds(
             state
                 .by_account_id
                 .values()
-                .filter_map(|refresh_at| parse_unix_timestamp(refresh_at))
+                .filter_map(|entry| parse_unix_timestamp(&entry.refresh_at))
                 .map(|refresh_at| refresh_at.saturating_sub(now))
                 .min()
                 .unwrap_or(u64::MAX)
@@ -697,6 +822,30 @@ fn auto_switch_codex_account_if_needed(
     let service = CodexAccountService::with_process_runner(paths.clone());
     let accounts = service.list_accounts()?;
     let Some(account_id) = select_codex_auto_switch_target_with_thresholds(
+        &accounts,
+        AutoSwitchThresholds {
+            five_hour_percent: settings.five_hour_threshold_percent,
+            weekly_percent: settings.weekly_threshold_percent,
+        },
+    ) else {
+        return Ok(None);
+    };
+
+    service.switch_account(&account_id)?;
+    Ok(Some(account_id))
+}
+
+fn force_switch_codex_account_above_thresholds(
+    paths: &CodexAccountPaths,
+    settings: AutoSwitchSettings,
+) -> Result<Option<String>, String> {
+    if !settings.enabled {
+        return Ok(None);
+    }
+
+    let service = CodexAccountService::with_process_runner(paths.clone());
+    let accounts = service.list_accounts()?;
+    let Some(account_id) = select_codex_switch_candidate_above_thresholds(
         &accounts,
         AutoSwitchThresholds {
             five_hour_percent: settings.five_hour_threshold_percent,
@@ -782,7 +931,8 @@ fn emit_account_switched_event(app: &AppHandle, target: RefreshTarget) -> Result
 #[cfg(test)]
 mod tests {
     use super::{
-        auto_switch_when_enabled, run_refresh_actions, AutoSwitchSettings, RefreshTarget,
+        accelerated_codex_refresh_action_after_attempt, auto_switch_when_enabled,
+        run_refresh_actions, AcceleratedCodexRefreshAction, AutoSwitchSettings, RefreshTarget,
     };
     use crate::codex_accounts::models::CodexAccountListItem;
 
@@ -1103,5 +1253,37 @@ mod tests {
                 weekly_threshold_percent: 4,
             }
         ));
+    }
+
+    #[test]
+    fn accelerated_codex_refresh_continues_before_third_attempt_when_no_switch_happens() {
+        assert_eq!(
+            accelerated_codex_refresh_action_after_attempt(1, false),
+            AcceleratedCodexRefreshAction::Continue { next_attempt_count: 2 }
+        );
+    }
+
+    #[test]
+    fn accelerated_codex_refresh_stops_and_forces_switch_on_third_attempt_without_switch() {
+        assert_eq!(
+            accelerated_codex_refresh_action_after_attempt(2, false),
+            AcceleratedCodexRefreshAction::StopAndForceSwitch
+        );
+    }
+
+    #[test]
+    fn accelerated_codex_refresh_resets_when_refresh_already_switched_account() {
+        assert_eq!(
+            accelerated_codex_refresh_action_after_attempt(2, true),
+            AcceleratedCodexRefreshAction::Reset
+        );
+    }
+
+    #[test]
+    fn accelerated_codex_refresh_still_stops_and_forces_switch_after_more_than_two_attempts() {
+        assert_eq!(
+            accelerated_codex_refresh_action_after_attempt(7, false),
+            AcceleratedCodexRefreshAction::StopAndForceSwitch
+        );
     }
 }
