@@ -139,6 +139,7 @@ fn overview_payload_uses_active_accounts_from_both_providers() {
             ),
         ],
         1_775_643_000_000,
+        false,
     );
 
     assert_eq!(payload.selected_tab, StatusBarTab::Overview);
@@ -165,6 +166,7 @@ fn codex_payload_includes_session_and_weekly_metrics() {
         Vec::new(),
         Vec::new(),
         1_775_640_000_000,
+        false,
     );
 
     assert_eq!(payload.sections.len(), 1);
@@ -188,6 +190,26 @@ fn codex_payload_includes_session_and_weekly_metrics() {
 }
 
 #[test]
+fn bridge_payload_masks_email_when_email_privacy_is_enabled() {
+    let payload = build_bridge_payload(
+        StatusBarTab::Codex,
+        vec![codex_account(
+            "active",
+            "murong@example.com",
+            true,
+            Some(82),
+            Some(64),
+        )],
+        Vec::new(),
+        Vec::new(),
+        1_775_640_000_000,
+        true,
+    );
+
+    assert_eq!(payload.sections[0].email, "mu***g@example.com");
+}
+
+#[test]
 fn codex_payload_keeps_reset_countdown_at_minute_precision() {
     let mut account = codex_account("active", "active@example.com", true, Some(82), Some(64));
     account.five_hour_refresh_at = Some("1775645400".to_string());
@@ -199,6 +221,7 @@ fn codex_payload_keeps_reset_countdown_at_minute_precision() {
         Vec::new(),
         Vec::new(),
         1_775_640_000_000,
+        false,
     );
 
     assert_eq!(payload.sections.len(), 1);
@@ -273,6 +296,7 @@ fn provider_payload_uses_weekly_before_five_hour_and_then_credits_as_tie_breaker
         Vec::new(),
         Vec::new(),
         1_775_640_000_000,
+        false,
     );
 
     let ids: Vec<&str> = payload
@@ -331,6 +355,7 @@ fn provider_payload_uses_all_provider_quotas_for_sorting() {
         ],
         Vec::new(),
         1_775_640_000_000,
+        false,
     );
     let gemini_payload = build_bridge_payload(
         StatusBarTab::Gemini,
@@ -363,6 +388,7 @@ fn provider_payload_uses_all_provider_quotas_for_sorting() {
             ),
         ],
         1_775_640_000_000,
+        false,
     );
 
     let claude_ids: Vec<&str> = claude_payload
@@ -412,6 +438,7 @@ fn relogin_payload_clears_metrics_and_marks_status() {
         Vec::new(),
         vec![broken],
         1_775_643_000_000,
+        false,
     );
 
     assert_eq!(
@@ -448,6 +475,7 @@ fn claude_payload_includes_session_weekly_and_model_metrics() {
         )],
         Vec::new(),
         1_775_643_000_000,
+        false,
     );
 
     assert_eq!(payload.sections.len(), 1);

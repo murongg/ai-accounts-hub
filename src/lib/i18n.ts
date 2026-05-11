@@ -116,6 +116,11 @@ export interface I18nMessages {
       dark: string;
       system: string;
     };
+    emailPrivacy: {
+      title: string;
+      description: string;
+      enabledLabel: string;
+    };
     sync: {
       title: string;
       description: string;
@@ -336,6 +341,11 @@ function createChineseCopy(): I18nMessages {
         dark: "深色",
         system: "跟随系统",
       },
+      emailPrivacy: {
+        title: "邮箱隐私模式",
+        description: "在账号页和 macOS 菜单栏中脱敏邮箱，只保留开头、结尾和域名。",
+        enabledLabel: "脱敏显示邮箱",
+      },
       sync: {
         title: "自动同步配额",
         description: "后台定时获取最新额度。",
@@ -527,6 +537,11 @@ function createEnglishCopy(): I18nMessages {
         light: "Light",
         dark: "Dark",
         system: "System",
+      },
+      emailPrivacy: {
+        title: "Email privacy mode",
+        description: "Mask email addresses in the accounts page and macOS menu bar.",
+        enabledLabel: "Show masked email addresses",
       },
       sync: {
         title: "Automatic quota sync",

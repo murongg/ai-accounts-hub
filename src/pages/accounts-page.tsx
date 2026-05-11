@@ -10,6 +10,7 @@ import {
   ACCOUNTS_VIEW_MODES,
   getAccountsViewModeIconName,
 } from "../lib/accounts-view-mode";
+import { displayEmailAddress } from "../lib/email-privacy";
 import {
   buildClaudeListQuotaRows,
   buildClaudeQuotaCards,
@@ -30,6 +31,7 @@ export interface AccountsPageProps {
   activeTab: string;
   activePlatform: string;
   language: AppLanguage;
+  emailPrivacyEnabled: boolean;
   activeCount: number;
   totalCount: number;
   idleCount: number;
@@ -66,6 +68,7 @@ function AccountsPageComponent({
   activeTab,
   activePlatform,
   language,
+  emailPrivacyEnabled,
   activeCount,
   totalCount,
   idleCount,
@@ -298,13 +301,14 @@ function AccountsPageComponent({
               (() => {
                 const geminiAccount = account as GeminiAccountSummary;
                 const usageAvailable = hasGeminiUsage(geminiAccount);
+                const displayEmail = displayEmailAddress(account.email, emailPrivacyEnabled);
 
                 return (
                   <AccountListItem
                     key={account.id}
                     accountId={account.id}
                     language={language}
-                    email={account.email}
+                    email={displayEmail}
                     plan={geminiAccount.plan ?? "Google"}
                     variant={viewMode === "mini" ? "mini" : "default"}
                     isActive={account.is_active}
@@ -329,13 +333,14 @@ function AccountsPageComponent({
               (() => {
                 const claudeAccount = account as ClaudeAccountSummary;
                 const usageAvailable = hasClaudeUsage(claudeAccount);
+                const displayEmail = displayEmailAddress(account.email, emailPrivacyEnabled);
 
                 return (
                   <AccountListItem
                     key={account.id}
                     accountId={account.id}
                     language={language}
-                    email={account.email}
+                    email={displayEmail}
                     plan={claudeAccount.plan ?? copy.accounts.planUnknown}
                     variant={viewMode === "mini" ? "mini" : "default"}
                     isActive={account.is_active}
@@ -360,13 +365,14 @@ function AccountsPageComponent({
               (() => {
                 const codexAccount = account as CodexAccountSummary;
                 const quotaRows = buildCodexListQuotaRows(codexAccount, language, nowMs);
+                const displayEmail = displayEmailAddress(account.email, emailPrivacyEnabled);
 
                 return (
                   <AccountListItem
                     key={account.id}
                     accountId={account.id}
                     language={language}
-                    email={account.email}
+                    email={displayEmail}
                     plan={codexAccount.plan ?? copy.accounts.planUnknown}
                     variant={viewMode === "mini" ? "mini" : "default"}
                     isActive={account.is_active}
@@ -402,13 +408,14 @@ function AccountsPageComponent({
               (() => {
                 const geminiAccount = account as GeminiAccountSummary;
                 const usageAvailable = hasGeminiUsage(geminiAccount);
+                const displayEmail = displayEmailAddress(account.email, emailPrivacyEnabled);
 
                 return (
                   <AccountCard
                     key={account.id}
                     accountId={account.id}
                     language={language}
-                    email={account.email}
+                    email={displayEmail}
                     plan={geminiAccount.plan ?? "Google"}
                     size={cardPresentation.cardSize}
                     isActive={account.is_active}
@@ -451,13 +458,14 @@ function AccountsPageComponent({
               (() => {
                 const claudeAccount = account as ClaudeAccountSummary;
                 const usageAvailable = hasClaudeUsage(claudeAccount);
+                const displayEmail = displayEmailAddress(account.email, emailPrivacyEnabled);
 
                 return (
                   <AccountCard
                     key={account.id}
                     accountId={account.id}
                     language={language}
-                    email={account.email}
+                    email={displayEmail}
                     plan={claudeAccount.plan ?? copy.accounts.planUnknown}
                     size={cardPresentation.cardSize}
                     isActive={account.is_active}
@@ -489,7 +497,7 @@ function AccountsPageComponent({
                 key={account.id}
                 accountId={account.id}
                 language={language}
-                email={account.email}
+                email={displayEmailAddress(account.email, emailPrivacyEnabled)}
                 plan={(account as CodexAccountSummary).plan ?? copy.accounts.planUnknown}
                 size={cardPresentation.cardSize}
                 isActive={account.is_active}

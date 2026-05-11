@@ -88,6 +88,8 @@ pub struct AppSettings {
     #[serde(default)]
     pub accounts_view_mode: AppAccountsViewMode,
     #[serde(default)]
+    pub email_privacy_enabled: bool,
+    #[serde(default)]
     pub relay: RelaySettings,
 }
 
@@ -110,6 +112,7 @@ impl Default for AppSettings {
             auto_switch_five_hour_threshold_percent: default_auto_switch_threshold_percent(),
             auto_switch_weekly_threshold_percent: default_auto_switch_threshold_percent(),
             accounts_view_mode: AppAccountsViewMode::default(),
+            email_privacy_enabled: false,
             relay: RelaySettings::default(),
         }
     }

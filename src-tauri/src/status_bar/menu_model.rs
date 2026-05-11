@@ -1,3 +1,5 @@
+use aah_core::email_privacy::display_email_address;
+
 use crate::claude_accounts::models::ClaudeAccountListItem;
 use crate::codex_accounts::models::CodexAccountListItem;
 use crate::gemini_accounts::models::GeminiAccountListItem;
@@ -45,6 +47,7 @@ pub fn build_provider_menu_state(
     codex_accounts: Vec<CodexAccountListItem>,
     claude_accounts: Vec<ClaudeAccountListItem>,
     gemini_accounts: Vec<GeminiAccountListItem>,
+    email_privacy_enabled: bool,
 ) -> ProviderMenuState {
     let accounts = match selected_provider {
         MenuProvider::Codex => sort_menu_accounts(
@@ -66,7 +69,7 @@ pub fn build_provider_menu_state(
                         quota_sort_key,
                         account: MenuAccountState {
                             id: account.id,
-                            email: account.email,
+                            email: display_email_address(&account.email, email_privacy_enabled),
                             plan: account.plan.unwrap_or_else(|| "Unknown".to_string()),
                             quota_summary,
                             is_active: account.is_active,
@@ -95,7 +98,7 @@ pub fn build_provider_menu_state(
                         quota_sort_key,
                         account: MenuAccountState {
                             id: account.id,
-                            email: account.email,
+                            email: display_email_address(&account.email, email_privacy_enabled),
                             plan: account.plan.unwrap_or_else(|| "Unknown".to_string()),
                             quota_summary,
                             is_active: account.is_active,
@@ -124,7 +127,7 @@ pub fn build_provider_menu_state(
                         quota_sort_key,
                         account: MenuAccountState {
                             id: account.id,
-                            email: account.email,
+                            email: display_email_address(&account.email, email_privacy_enabled),
                             plan: account.plan.unwrap_or_else(|| "Unknown".to_string()),
                             quota_summary,
                             is_active: account.is_active,

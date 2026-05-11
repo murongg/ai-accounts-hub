@@ -490,13 +490,26 @@ fn load_provider_menu_state<R: tauri::Runtime>(
     selected_provider: MenuProvider,
 ) -> Result<menu_model::ProviderMenuState, String> {
     let (codex_accounts, claude_accounts, gemini_accounts) = load_account_lists(app)?;
+    let email_privacy_enabled = load_email_privacy_enabled()?;
 
     Ok(build_provider_menu_state(
         selected_provider,
         codex_accounts,
         claude_accounts,
         gemini_accounts,
+        email_privacy_enabled,
     ))
+}
+
+#[cfg(target_os = "macos")]
+fn load_email_privacy_enabled() -> Result<bool, String> {
+    let (app_data_dir, user_home) = managed_status_bar_roots()?;
+    let settings = crate::app_settings::store::load_app_settings(&CodexAccountPaths::from_roots(
+        app_data_dir,
+        user_home,
+    ))?;
+
+    Ok(settings.email_privacy_enabled)
 }
 
 #[cfg(target_os = "macos")]

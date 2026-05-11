@@ -21,7 +21,10 @@ use super::bridge_payload::build_bridge_payload;
 #[cfg(any(target_os = "macos", test))]
 use super::bridge_payload::StatusBarTab;
 #[cfg(target_os = "macos")]
-use super::{load_account_lists, refresh_provider_for_tab, show_main_window_internal};
+use super::{
+    load_account_lists, load_email_privacy_enabled, refresh_provider_for_tab,
+    show_main_window_internal,
+};
 #[cfg(target_os = "macos")]
 use crate::status_bar::menu_model::MenuProvider;
 
@@ -107,6 +110,7 @@ pub fn update_payload<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
     }
 
     let (codex_accounts, claude_accounts, gemini_accounts) = load_account_lists(app)?;
+    let email_privacy_enabled = load_email_privacy_enabled()?;
     let selected_tab = app.state::<super::StatusBarState>().selected_tab()?;
     let visible_tab = visible_native_tab(
         selected_tab,
@@ -126,6 +130,7 @@ pub fn update_payload<R: Runtime>(app: &AppHandle<R>) -> Result<(), String> {
         claude_accounts,
         gemini_accounts,
         current_time_ms(),
+        email_privacy_enabled,
     );
     let payload_json = serde_json::to_string(&payload)
         .map_err(|error| format!("failed to serialize native status payload: {error}"))?;

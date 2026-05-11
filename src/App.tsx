@@ -18,6 +18,7 @@ const defaultAppSettings: AppSettings = {
   auto_switch_five_hour_threshold_percent: 0,
   auto_switch_weekly_threshold_percent: 0,
   accounts_view_mode: "cards",
+  email_privacy_enabled: false,
   relay: {
     enabled: false,
     port: 8765,
@@ -173,6 +174,7 @@ export default function App() {
               searchQuery={searchQuery}
               language={appSettings.language}
               viewMode={appSettings.accounts_view_mode}
+              emailPrivacyEnabled={appSettings.email_privacy_enabled}
               onTabChange={setActiveTab}
               onViewModeChange={(mode) => void handleAccountsViewModeChange(mode)}
               onToast={pushToast}
