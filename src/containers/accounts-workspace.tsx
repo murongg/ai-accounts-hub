@@ -43,6 +43,7 @@ interface AccountsWorkspaceProps {
   searchQuery: string;
   language: AppLanguage;
   viewMode: AccountsViewMode;
+  emailPrivacyEnabled: boolean;
   onTabChange: (tab: string) => void;
   onViewModeChange: (mode: AccountsViewMode) => void;
   onToast: (tone: "error" | "success" | "info", message: string) => void;
@@ -58,6 +59,7 @@ function AccountsWorkspaceComponent({
   searchQuery,
   language,
   viewMode,
+  emailPrivacyEnabled,
   onTabChange,
   onViewModeChange,
   onToast,
@@ -586,6 +588,7 @@ function AccountsWorkspaceComponent({
       activeTab={activeTab}
       activePlatform={activePlatform}
       language={language}
+      emailPrivacyEnabled={emailPrivacyEnabled}
       activeCount={activeCount}
       totalCount={totalCount}
       idleCount={idleCount}

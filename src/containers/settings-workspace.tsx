@@ -187,6 +187,16 @@ function SettingsWorkspaceComponent({
     [appSettings, persistAppSettings],
   );
 
+  const handleEmailPrivacyEnabledChange = useCallback(
+    async (enabled: boolean) => {
+      await persistAppSettings({
+        ...appSettings,
+        email_privacy_enabled: enabled,
+      }, appSettings);
+    },
+    [appSettings, persistAppSettings],
+  );
+
   const handleAutoSwitchEnabledChange = useCallback(
     async (enabled: boolean) => {
       await persistAppSettings({
@@ -474,6 +484,7 @@ function SettingsWorkspaceComponent({
     <SettingsPage
       language={appSettings.language}
       theme={appSettings.theme}
+      emailPrivacyEnabled={appSettings.email_privacy_enabled}
       autoSwitchEnabled={appSettings.auto_switch_enabled}
       autoSwitchFiveHourThresholdPercent={appSettings.auto_switch_five_hour_threshold_percent}
       autoSwitchWeeklyThresholdPercent={appSettings.auto_switch_weekly_threshold_percent}
@@ -492,6 +503,7 @@ function SettingsWorkspaceComponent({
       isConfirmingClearAll={isConfirmingClearAll}
       onLanguageChange={(language) => void handleLanguageChange(language)}
       onThemeChange={(theme) => void handleThemeChange(theme)}
+      onEmailPrivacyEnabledChange={(enabled) => void handleEmailPrivacyEnabledChange(enabled)}
       onAutoSwitchEnabledChange={(enabled) => void handleAutoSwitchEnabledChange(enabled)}
       onAutoSwitchFiveHourThresholdChange={(value) =>
         void handleAutoSwitchFiveHourThresholdChange(value)

@@ -45,6 +45,7 @@ fn app_settings_default_to_chinese_light_theme() {
     assert_eq!(settings.theme, AppTheme::Light);
     assert!(settings.auto_switch_enabled);
     assert_eq!(settings.accounts_view_mode, AppAccountsViewMode::Cards);
+    assert!(!settings.email_privacy_enabled);
     let settings_json = to_value(&settings).expect("settings json");
     assert_eq!(
         settings_json.get("auto_switch_five_hour_threshold_percent"),
@@ -86,6 +87,7 @@ fn app_settings_round_trip_through_disk() {
             auto_switch_five_hour_threshold_percent: 12,
             auto_switch_weekly_threshold_percent: 8,
             accounts_view_mode: AppAccountsViewMode::List,
+            email_privacy_enabled: true,
             relay: RelaySettings::default(),
             ..AppSettings::default()
         },
@@ -99,6 +101,7 @@ fn app_settings_round_trip_through_disk() {
     assert_eq!(loaded.auto_switch_five_hour_threshold_percent, 12);
     assert_eq!(loaded.auto_switch_weekly_threshold_percent, 8);
     assert_eq!(loaded.accounts_view_mode, AppAccountsViewMode::List);
+    assert!(loaded.email_privacy_enabled);
 }
 
 #[test]
@@ -204,4 +207,5 @@ fn app_settings_loads_legacy_files_without_threshold_fields() {
     assert_eq!(loaded.auto_switch_five_hour_threshold_percent, 0);
     assert_eq!(loaded.auto_switch_weekly_threshold_percent, 0);
     assert_eq!(loaded.accounts_view_mode, AppAccountsViewMode::Cards);
+    assert!(!loaded.email_privacy_enabled);
 }

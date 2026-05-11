@@ -6,6 +6,7 @@ import {
   Download,
   FolderOpen,
   Globe,
+  EyeOff,
   MonitorCog,
   Moon,
   Network,
@@ -32,6 +33,7 @@ import type {
 export interface SettingsPageProps {
   language: AppLanguage;
   theme: AppTheme;
+  emailPrivacyEnabled: boolean;
   autoSwitchEnabled: boolean;
   autoSwitchFiveHourThresholdPercent: number;
   autoSwitchWeeklyThresholdPercent: number;
@@ -50,6 +52,7 @@ export interface SettingsPageProps {
   isConfirmingClearAll: boolean;
   onLanguageChange: (language: AppLanguage) => void;
   onThemeChange: (theme: AppTheme) => void;
+  onEmailPrivacyEnabledChange: (enabled: boolean) => void;
   onAutoSwitchEnabledChange: (enabled: boolean) => void;
   onAutoSwitchFiveHourThresholdChange: (value: string) => void;
   onAutoSwitchWeeklyThresholdChange: (value: string) => void;
@@ -68,6 +71,7 @@ export interface SettingsPageProps {
 function SettingsPageComponent({
   language,
   theme,
+  emailPrivacyEnabled,
   autoSwitchEnabled,
   autoSwitchFiveHourThresholdPercent,
   autoSwitchWeeklyThresholdPercent,
@@ -86,6 +90,7 @@ function SettingsPageComponent({
   isConfirmingClearAll,
   onLanguageChange,
   onThemeChange,
+  onEmailPrivacyEnabledChange,
   onAutoSwitchEnabledChange,
   onAutoSwitchFiveHourThresholdChange,
   onAutoSwitchWeeklyThresholdChange,
@@ -240,6 +245,25 @@ function SettingsPageComponent({
                       {copy.settings.theme.system}
                     </button>
                   </div>
+                }
+              />
+
+              <SettingsRow
+                title={copy.settings.emailPrivacy.title}
+                description={copy.settings.emailPrivacy.description}
+                content={
+                  <label className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      className="toggle toggle-primary"
+                      checked={emailPrivacyEnabled}
+                      onChange={(event) => onEmailPrivacyEnabledChange(event.target.checked)}
+                    />
+                    <span className="inline-flex items-center gap-2 text-sm text-base-content/75">
+                      <EyeOff size={15} />
+                      {copy.settings.emailPrivacy.enabledLabel}
+                    </span>
+                  </label>
                 }
               />
             </div>

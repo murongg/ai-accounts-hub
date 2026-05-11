@@ -8,6 +8,7 @@ pub mod cli_facade;
 pub mod cli_process_utils;
 pub mod codex_accounts;
 pub mod codex_usage;
+pub mod email_privacy;
 pub mod fs_utils;
 pub mod gemini_accounts;
 pub mod gemini_usage;

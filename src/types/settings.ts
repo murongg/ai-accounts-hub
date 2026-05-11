@@ -33,6 +33,7 @@ export interface AppSettings {
   auto_switch_five_hour_threshold_percent: number;
   auto_switch_weekly_threshold_percent: number;
   accounts_view_mode: AccountsViewMode;
+  email_privacy_enabled: boolean;
   relay: RelaySettings;
 }
 

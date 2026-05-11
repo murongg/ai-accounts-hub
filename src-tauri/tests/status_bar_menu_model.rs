@@ -102,6 +102,7 @@ fn codex_menu_state_puts_active_account_first_and_formats_quota_summary() {
         ],
         Vec::new(),
         Vec::new(),
+        false,
     );
 
     assert_eq!(state.selected_provider, MenuProvider::Codex);
@@ -112,6 +113,25 @@ fn codex_menu_state_puts_active_account_first_and_formats_quota_summary() {
         Some("5h 82% • Week 64%")
     );
     assert!(state.accounts[0].is_active);
+}
+
+#[test]
+fn provider_menu_state_masks_email_when_email_privacy_is_enabled() {
+    let state = build_provider_menu_state(
+        MenuProvider::Codex,
+        vec![codex_account(
+            "active",
+            "murong@example.com",
+            true,
+            Some(82),
+            Some(64),
+        )],
+        Vec::new(),
+        Vec::new(),
+        true,
+    );
+
+    assert_eq!(state.accounts[0].email, "mu***g@example.com");
 }
 
 #[test]
@@ -178,6 +198,7 @@ fn codex_menu_state_uses_weekly_before_five_hour_and_then_credits_as_tie_breaker
         ],
         Vec::new(),
         Vec::new(),
+        false,
     );
 
     let ids: Vec<&str> = state
@@ -235,6 +256,7 @@ fn provider_menu_state_uses_all_provider_quotas_for_sorting() {
             ),
         ],
         Vec::new(),
+        false,
     );
     let gemini_state = build_provider_menu_state(
         MenuProvider::Gemini,
@@ -266,6 +288,7 @@ fn provider_menu_state_uses_all_provider_quotas_for_sorting() {
                 Some(70),
             ),
         ],
+        false,
     );
 
     let claude_ids: Vec<&str> = claude_state
@@ -307,6 +330,7 @@ fn gemini_menu_state_formats_three_quota_buckets() {
             Some(90),
             Some(75),
         )],
+        false,
     );
 
     assert_eq!(state.accounts.len(), 1);
@@ -321,8 +345,13 @@ fn menu_state_marks_accounts_needing_relogin() {
     let mut account = codex_account("bad", "broken@example.com", false, None, None);
     account.needs_relogin = Some(true);
 
-    let state =
-        build_provider_menu_state(MenuProvider::Codex, vec![account], Vec::new(), Vec::new());
+    let state = build_provider_menu_state(
+        MenuProvider::Codex,
+        vec![account],
+        Vec::new(),
+        Vec::new(),
+        false,
+    );
 
     assert_eq!(state.accounts[0].status_label, "Re-login required");
     assert_eq!(state.accounts[0].quota_summary, None);
@@ -343,6 +372,7 @@ fn claude_menu_state_shows_status_without_quota_summary() {
             Some(61),
         )],
         Vec::new(),
+        false,
     );
 
     assert_eq!(state.selected_provider, MenuProvider::Claude);

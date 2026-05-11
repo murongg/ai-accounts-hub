@@ -44,7 +44,8 @@ pub async fn update_app_settings(
     .await
     .map_err(|error| error.to_string())??;
 
-    let _ = crate::relay::apply_relay_settings_from_app(app).await;
+    let _ = crate::relay::apply_relay_settings_from_app(app.clone()).await;
+    let _ = crate::status_bar::refresh_status_menu(&app);
     if should_trigger_immediate_auto_switch_refresh(&previous, &saved) {
         let _ = scheduler.refresh_all_now().await;
     }
@@ -114,8 +115,7 @@ mod tests {
         };
 
         assert!(should_trigger_immediate_auto_switch_refresh(
-            &previous,
-            &enabled,
+            &previous, &enabled,
         ));
         assert!(!should_trigger_immediate_auto_switch_refresh(
             &previous,
@@ -126,8 +126,7 @@ mod tests {
             &still_enabled,
         ));
         assert!(!should_trigger_immediate_auto_switch_refresh(
-            &enabled,
-            &previous,
+            &enabled, &previous,
         ));
     }
 }

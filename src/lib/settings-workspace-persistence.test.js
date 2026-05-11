@@ -20,3 +20,8 @@ test("settings workspace persists auto switch threshold fields", () => {
   assert.ok(source.includes("auto_switch_five_hour_threshold_percent"));
   assert.ok(source.includes("auto_switch_weekly_threshold_percent"));
 });
+
+test("settings workspace persists email privacy mode", () => {
+  assert.ok(source.includes("email_privacy_enabled"));
+  assert.ok(source.includes("handleEmailPrivacyEnabledChange"));
+});

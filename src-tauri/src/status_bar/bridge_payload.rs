@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 
+use aah_core::email_privacy::display_email_address;
+
 use crate::claude_accounts::models::ClaudeAccountListItem;
 use crate::codex_accounts::models::CodexAccountListItem;
 use crate::gemini_accounts::models::GeminiAccountListItem;
@@ -60,6 +62,7 @@ pub fn build_bridge_payload(
     mut claude_accounts: Vec<ClaudeAccountListItem>,
     mut gemini_accounts: Vec<GeminiAccountListItem>,
     now_ms: i64,
+    email_privacy_enabled: bool,
 ) -> BridgePayload {
     let status_item_progress = build_status_item_progress(
         selected_tab,
@@ -70,9 +73,9 @@ pub fn build_bridge_payload(
     sort_codex_accounts(&mut codex_accounts);
     sort_claude_accounts(&mut claude_accounts);
     sort_gemini_accounts(&mut gemini_accounts);
-    let codex_sections = build_codex_sections(codex_accounts, now_ms);
-    let claude_sections = build_claude_sections(claude_accounts, now_ms);
-    let gemini_sections = build_gemini_sections(gemini_accounts, now_ms);
+    let codex_sections = build_codex_sections(codex_accounts, now_ms, email_privacy_enabled);
+    let claude_sections = build_claude_sections(claude_accounts, now_ms, email_privacy_enabled);
+    let gemini_sections = build_gemini_sections(gemini_accounts, now_ms, email_privacy_enabled);
 
     let sections = match selected_tab {
         StatusBarTab::Overview => {
@@ -270,6 +273,7 @@ mod tests {
             vec![],
             vec![],
             0,
+            false,
         );
 
         assert_eq!(
@@ -290,6 +294,7 @@ mod tests {
             vec![claude_account("active", true, Some(82), Some(true))],
             vec![],
             0,
+            false,
         );
 
         assert_eq!(payload.status_item_progress, None);
@@ -303,6 +308,7 @@ mod tests {
             vec![],
             vec![gemini_account("active", true, Some(61), Some(false))],
             0,
+            false,
         );
 
         assert_eq!(
@@ -323,6 +329,7 @@ mod tests {
             vec![],
             vec![],
             0,
+            false,
         );
 
         assert_eq!(payload.status_item_progress, None);
@@ -332,6 +339,7 @@ mod tests {
 fn build_codex_sections(
     accounts: Vec<CodexAccountListItem>,
     now_ms: i64,
+    email_privacy_enabled: bool,
 ) -> Vec<BridgeProviderPayload> {
     accounts
         .into_iter()
@@ -375,7 +383,7 @@ fn build_codex_sections(
                 id: format!("codex:{}", account.id),
                 provider_id: "codex".to_string(),
                 provider_title: "Codex".to_string(),
-                email: account.email,
+                email: display_email_address(&account.email, email_privacy_enabled),
                 subtitle: section_subtitle(
                     needs_relogin,
                     account.last_synced_at.as_deref(),
@@ -395,6 +403,7 @@ fn build_codex_sections(
 fn build_gemini_sections(
     accounts: Vec<GeminiAccountListItem>,
     now_ms: i64,
+    email_privacy_enabled: bool,
 ) -> Vec<BridgeProviderPayload> {
     accounts
         .into_iter()
@@ -449,7 +458,7 @@ fn build_gemini_sections(
                 id: format!("gemini:{}", account.id),
                 provider_id: "gemini".to_string(),
                 provider_title: "Gemini".to_string(),
-                email: account.email,
+                email: display_email_address(&account.email, email_privacy_enabled),
                 subtitle: section_subtitle(
                     needs_relogin,
                     account.last_synced_at.as_deref(),
@@ -469,6 +478,7 @@ fn build_gemini_sections(
 fn build_claude_sections(
     accounts: Vec<ClaudeAccountListItem>,
     now_ms: i64,
+    email_privacy_enabled: bool,
 ) -> Vec<BridgeProviderPayload> {
     accounts
         .into_iter()
@@ -527,7 +537,7 @@ fn build_claude_sections(
                 id: format!("claude:{}", account.id),
                 provider_id: "claude".to_string(),
                 provider_title: "Claude".to_string(),
-                email: account.email,
+                email: display_email_address(&account.email, email_privacy_enabled),
                 subtitle: section_subtitle(
                     needs_relogin,
                     account.last_synced_at.as_deref(),
