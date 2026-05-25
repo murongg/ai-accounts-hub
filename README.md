@@ -48,6 +48,10 @@
   </tr>
 </table>
 
+## Sponsors
+
+[![Sponsors](https://raw.githubusercontent.com/murongg/sponsorskit/main/public/sponsors.svg)](https://sponsorskit.vercel.app)
+
 ## 适用场景
 
 - 同时维护多个 `Codex` / `Claude` / `Gemini` CLI 账号
