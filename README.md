@@ -48,10 +48,6 @@
   </tr>
 </table>
 
-## Sponsors
-
-[![Sponsors](https://raw.githubusercontent.com/murongg/sponsorskit/main/public/sponsors.svg)](https://sponsorskit.vercel.app)
-
 ## 适用场景
 
 - 同时维护多个 `Codex` / `Claude` / `Gemini` CLI 账号
@@ -372,6 +368,10 @@ node --test packages/aah-cli/tests/*.test.mjs
 ## License
 
 本项目采用 `MIT` License，见 [LICENSE](./LICENSE)。
+
+## Sponsors
+
+[![Sponsors](https://raw.githubusercontent.com/murongg/sponsorskit/main/public/sponsors.svg)](https://sponsorskit.vercel.app)
 
 <p align="center">
   <a href="https://star-history.com/#murongg/ai-accounts-hub&Date">
