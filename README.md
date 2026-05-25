@@ -371,7 +371,7 @@ node --test packages/aah-cli/tests/*.test.mjs
 
 ## Sponsors
 
-[![Sponsors](https://raw.githubusercontent.com/murongg/sponsorskit/main/public/sponsors.svg)](https://sponsorskit.vercel.app)
+[![Sponsors](https://raw.githubusercontent.com/murongg/sponsorskit/main/public/sponsors.svg)](https://sponsors.mrong.me/)
 
 <p align="center">
   <a href="https://star-history.com/#murongg/ai-accounts-hub&Date">
