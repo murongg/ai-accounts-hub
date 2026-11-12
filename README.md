@@ -118,6 +118,12 @@
 - `Claude`: `~/.claude/.credentials.json` 和 `~/.claude.json`
 - `Gemini`: `~/.gemini/` 下的认证与设置文件
 
+### 通过本机代理刷新额度
+
+在 macOS 或 Windows 上，用代理客户端开启系统代理后，Hub 会按当前系统代理设置查询 Codex、Claude 和 Gemini 的额度。后台刷新也会读取新设置，无需重启 Hub。支持手动配置的 HTTP、HTTPS 和 SOCKS 代理。
+
+如果客户端只提供本地代理端口，可以通过 `HTTPS_PROXY` 或 `ALL_PROXY` 指定地址，例如 `http://127.0.0.1:7890` 或 `socks5h://127.0.0.1:1080`。代理环境变量优先于系统设置，`NO_PROXY` 可指定例外。只启用 PAC 或自动检测时，请改用系统手动代理，或配置代理环境变量。
+
 ## 中转模式
 
 如果你想在 `opencode` 或其他兼容 OpenAI/Codex 风格接口的 CLI 里使用 AI Accounts Hub 托管的账号，或者你想要更无感的账号切换体验，可以启用中转模式。

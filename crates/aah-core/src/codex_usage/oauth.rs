@@ -3,7 +3,6 @@ use std::path::Path;
 
 use crate::codex_accounts::auth::{format_plan, read_auth_value};
 use crate::codex_accounts::store::auth_path_for_home;
-use reqwest::blocking::Client;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION, USER_AGENT};
 
 use super::models::{
@@ -89,7 +88,8 @@ impl CodexUsageFetcher for ProcessCodexUsageFetcher {
             );
         }
 
-        let client = Client::builder()
+        let client = crate::proxy_env::quota_http_client_builder()
+            .map_err(CodexUsageFetchError::RequestFailed)?
             .timeout(std::time::Duration::from_secs(30))
             .default_headers(headers)
             .build()

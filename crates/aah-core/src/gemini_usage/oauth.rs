@@ -296,7 +296,8 @@ fn build_http_client() -> Result<Client, GeminiUsageFetchError> {
     headers.insert(ACCEPT, HeaderValue::from_static("application/json"));
     headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
 
-    Client::builder()
+    crate::proxy_env::quota_http_client_builder()
+        .map_err(GeminiUsageFetchError::RequestFailed)?
         .timeout(Duration::from_secs(30))
         .default_headers(headers)
         .build()
@@ -428,7 +429,8 @@ fn refresh_access_token(
     gemini_dir: &Path,
 ) -> Result<RefreshedTokens, GeminiUsageFetchError> {
     let credentials = extract_oauth_client_credentials()?;
-    let client = Client::builder()
+    let client = crate::proxy_env::quota_http_client_builder()
+        .map_err(GeminiUsageFetchError::RequestFailed)?
         .timeout(Duration::from_secs(30))
         .build()
         .map_err(|error| GeminiUsageFetchError::RequestFailed(error.to_string()))?;

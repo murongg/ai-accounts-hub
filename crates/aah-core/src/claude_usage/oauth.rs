@@ -92,7 +92,7 @@ struct RawRefreshTokenResponse {
 }
 
 pub struct ProcessClaudeOAuthHttpClient {
-    client: Client,
+    client: Result<Client, ClaudeUsageFetchError>,
 }
 
 impl Default for ProcessClaudeOAuthHttpClient {
@@ -102,11 +102,15 @@ impl Default for ProcessClaudeOAuthHttpClient {
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         headers.insert(USER_AGENT, HeaderValue::from_static("claude-code/2.1.0"));
 
-        let client = Client::builder()
-            .timeout(std::time::Duration::from_secs(30))
-            .default_headers(headers)
-            .build()
-            .expect("Claude OAuth HTTP client should build");
+        let client = crate::proxy_env::quota_http_client_builder()
+            .map_err(ClaudeUsageFetchError::RequestFailed)
+            .and_then(|builder| {
+                builder
+                    .timeout(std::time::Duration::from_secs(30))
+                    .default_headers(headers)
+                    .build()
+                    .map_err(|error| ClaudeUsageFetchError::RequestFailed(error.to_string()))
+            });
 
         Self { client }
     }
@@ -119,6 +123,8 @@ impl ClaudeOAuthHttpClient for ProcessClaudeOAuthHttpClient {
     ) -> Result<ClaudeUsageApiResponse, ClaudeUsageFetchError> {
         let response = self
             .client
+            .as_ref()
+            .map_err(Clone::clone)?
             .get(OAUTH_USAGE_URL)
             .header(AUTHORIZATION, format!("Bearer {access_token}"))
             .header("anthropic-beta", OAUTH_BETA_HEADER)
@@ -147,6 +153,8 @@ impl ClaudeOAuthHttpClient for ProcessClaudeOAuthHttpClient {
     ) -> Result<ClaudeOAuthCredentials, ClaudeUsageFetchError> {
         let response = self
             .client
+            .as_ref()
+            .map_err(Clone::clone)?
             .post(OAUTH_REFRESH_URL)
             .header(CONTENT_TYPE, "application/x-www-form-urlencoded")
             .body(format!(
