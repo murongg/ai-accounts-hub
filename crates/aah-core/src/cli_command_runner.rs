@@ -25,7 +25,7 @@ pub(crate) fn cli_command_plan(binary: &Path, args: &[&str]) -> CliCommandPlan {
     cli_command_plan_for_os(binary, args, cfg!(windows))
 }
 
-fn cli_command(binary: &Path, args: &[&str]) -> Command {
+pub(crate) fn cli_command(binary: &Path, args: &[&str]) -> Command {
     let plan = cli_command_plan(binary, args);
     let mut command = Command::new(&plan.program);
 

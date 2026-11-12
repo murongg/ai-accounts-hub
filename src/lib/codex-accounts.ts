@@ -30,6 +30,10 @@ export function refreshCodexAccountUsage(accountId: string) {
   return invoke<void>("refresh_codex_account_usage", { accountId });
 }
 
+export function warmCodexAccount(accountId: string) {
+  return invoke<boolean>("warm_codex_account", { accountId });
+}
+
 export function getCodexRefreshSettings() {
   return invoke<CodexRefreshSettings>("get_codex_refresh_settings");
 }

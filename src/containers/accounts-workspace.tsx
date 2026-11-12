@@ -17,6 +17,7 @@ import {
   startCodexAccountDeviceAutofillLogin,
   startCodexAccountLogin,
   switchCodexAccount,
+  warmCodexAccount,
 } from "../lib/codex-accounts";
 import {
   deleteGeminiAccount,
@@ -27,6 +28,7 @@ import {
 } from "../lib/gemini-accounts";
 import { getPlatformAccountMetrics, sortAccountsByPrimaryQuota } from "../lib/accounts-display";
 import { createLatestRequestGate } from "../lib/accounts-workspace";
+import { getI18n } from "../lib/i18n";
 import { normalizeCodexAutofillLoginInput } from "../lib/codex-autofill-login";
 import {
   detectDesktopPlatform,
@@ -85,6 +87,7 @@ function AccountsWorkspaceComponent({
   const [deletingGeminiAccountId, setDeletingGeminiAccountId] = useState<string | null>(null);
   const [isRefreshingCodexUsage, setIsRefreshingCodexUsage] = useState(false);
   const [refreshingCodexAccountId, setRefreshingCodexAccountId] = useState<string | null>(null);
+  const [warmingCodexAccountId, setWarmingCodexAccountId] = useState<string | null>(null);
   const [isRefreshingClaudeUsage, setIsRefreshingClaudeUsage] = useState(false);
   const [isRefreshingGeminiAccounts, setIsRefreshingGeminiAccounts] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -492,6 +495,26 @@ function AccountsWorkspaceComponent({
     [activePlatform, onToast, refreshCodexAccounts, refreshingCodexAccountId],
   );
 
+  const handleWarmCodexAccount = useCallback(
+    async (accountId: string) => {
+      if (activePlatform !== "codex" || warmingCodexAccountId) {
+        return;
+      }
+      const copy = getI18n(language).accounts.warmup;
+      setWarmingCodexAccountId(accountId);
+      try {
+        const refreshed = await warmCodexAccount(accountId);
+        await refreshCodexAccounts(false);
+        onToast(refreshed ? "success" : "info", refreshed ? copy.completed : copy.refreshFailed);
+      } catch (error) {
+        onToast("error", errorMessage(error));
+      } finally {
+        setWarmingCodexAccountId(null);
+      }
+    },
+    [activePlatform, language, onToast, refreshCodexAccounts, warmingCodexAccountId],
+  );
+
   const closeCodexAutofillLogin = useCallback(() => {
     if (isStartingCodexAutofillLogin) {
       return;
@@ -601,6 +624,7 @@ function AccountsWorkspaceComponent({
       deletingAccountId={deletingAccountId}
       isRefreshingUsage={isRefreshingUsage}
       refreshingAccountId={refreshingCodexAccountId}
+      warmingAccountId={warmingCodexAccountId}
       isCodexAutofillLoginOpen={isCodexAutofillLoginOpen}
       isStartingCodexAutofillLogin={isStartingCodexAutofillLogin}
       codexAutofillLoginEmail={codexAutofillLoginEmail}
@@ -611,6 +635,7 @@ function AccountsWorkspaceComponent({
       onViewModeChange={onViewModeChange}
       onRefreshUsage={() => void handleRefreshUsage()}
       onRefreshAccount={(accountId) => void handleRefreshCodexAccount(accountId)}
+      onWarmAccount={(accountId) => void handleWarmCodexAccount(accountId)}
       onAddAccount={() => void handleAddAccount()}
       onOpenCodexAutofillLogin={() => setIsCodexAutofillLoginOpen(true)}
       onCloseCodexAutofillLogin={closeCodexAutofillLogin}

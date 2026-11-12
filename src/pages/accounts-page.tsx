@@ -1,5 +1,5 @@
-import { memo } from "react";
-import { LayoutGrid, LayoutList, Menu, Plus, RefreshCw } from "lucide-react";
+import { memo, useRef, useState } from "react";
+import { Flame, LayoutGrid, LayoutList, Menu, Plus, RefreshCw } from "lucide-react";
 
 import { AccountCard } from "../components/account-card";
 import { AccountListItem } from "../components/account-list-item";
@@ -44,6 +44,7 @@ export interface AccountsPageProps {
   deletingAccountId: string | null;
   isRefreshingUsage: boolean;
   refreshingAccountId: string | null;
+  warmingAccountId: string | null;
   isCodexAutofillLoginOpen: boolean;
   isStartingCodexAutofillLogin: boolean;
   codexAutofillLoginEmail: string;
@@ -54,6 +55,7 @@ export interface AccountsPageProps {
   onViewModeChange: (mode: AccountsViewMode) => void;
   onRefreshUsage: () => void;
   onRefreshAccount: (accountId: string) => void;
+  onWarmAccount: (accountId: string) => void;
   onAddAccount: () => void;
   onOpenCodexAutofillLogin: () => void;
   onCloseCodexAutofillLogin: () => void;
@@ -81,6 +83,7 @@ function AccountsPageComponent({
   deletingAccountId,
   isRefreshingUsage,
   refreshingAccountId,
+  warmingAccountId,
   isCodexAutofillLoginOpen,
   isStartingCodexAutofillLogin,
   codexAutofillLoginEmail,
@@ -91,6 +94,7 @@ function AccountsPageComponent({
   onViewModeChange,
   onRefreshUsage,
   onRefreshAccount,
+  onWarmAccount,
   onAddAccount,
   onOpenCodexAutofillLogin,
   onCloseCodexAutofillLogin,
@@ -101,6 +105,32 @@ function AccountsPageComponent({
   onDeleteAccount,
 }: AccountsPageProps) {
   const copy = getI18n(language);
+  const warmupDialog = useRef<HTMLDialogElement>(null);
+  const [warmupTarget, setWarmupTarget] = useState<{ id: string; name: string } | null>(null);
+
+  function warmupAction(account: CodexAccountSummary) {
+    const name = displayEmailAddress(account.email, emailPrivacyEnabled);
+    return (
+      <button
+        type="button"
+        title={copy.accounts.warmup.action}
+        aria-label={`${copy.accounts.warmup.action} ${name}`}
+        aria-busy={warmingAccountId === account.id}
+        disabled={actionsDisabled || !!warmingAccountId || account.needs_relogin ||
+          switchingAccountId === account.id || deletingAccountId === account.id}
+        className={`btn btn-ghost btn-sm shrink-0 rounded-xl ${viewMode === "mini" ? "btn-square" : "gap-1 px-2"}`}
+        onClick={() => {
+          setWarmupTarget({ id: account.id, name });
+          warmupDialog.current?.showModal();
+        }}
+      >
+        {warmingAccountId === account.id ? (
+          <span className="loading loading-spinner loading-xs" />
+        ) : <Flame size={16} aria-hidden="true" />}
+        {viewMode !== "mini" ? copy.accounts.warmup.action : null}
+      </button>
+    );
+  }
   const cardPresentation = getAccountCardPresentation(activePlatform);
   const stateCard = resolveAccountsPageState({
     activePlatform,
@@ -395,6 +425,7 @@ function AccountsPageComponent({
                     onPrimaryClick={onSwitchAccount}
                     onSecondaryClick={onDeleteAccount}
                     onRefreshClick={onRefreshAccount}
+                    extraAction={warmupAction(codexAccount)}
                   />
                 );
               })()
@@ -544,11 +575,43 @@ function AccountsPageComponent({
                 onPrimaryClick={onSwitchAccount}
                 onSecondaryClick={onDeleteAccount}
                 onRefreshClick={onRefreshAccount}
+                extraAction={warmupAction(account as CodexAccountSummary)}
               />
             )
           ))}
         </div>
       )}
+
+      <dialog
+        ref={warmupDialog}
+        className="modal"
+        aria-labelledby="codex-warmup-title"
+        aria-describedby="codex-warmup-description"
+        onClose={() => setWarmupTarget(null)}
+      >
+        <form
+          className="modal-box"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (warmupTarget) {
+              onWarmAccount(warmupTarget.id);
+              warmupDialog.current?.close();
+            }
+          }}
+        >
+          <h2 id="codex-warmup-title" className="text-lg font-semibold">{copy.accounts.warmup.action}</h2>
+          <p className="mt-2 break-words text-sm font-medium">{warmupTarget?.name}</p>
+          <p id="codex-warmup-description" className="mt-2 text-sm text-base-content/70">
+            {copy.accounts.warmup.confirm}
+          </p>
+          <div className="modal-action">
+            <button type="button" className="btn btn-ghost" autoFocus onClick={() => warmupDialog.current?.close()}>
+              {copy.accounts.autofillModal.cancel}
+            </button>
+            <button type="submit" className="btn btn-primary">{copy.accounts.warmup.action}</button>
+          </div>
+        </form>
+      </dialog>
 
       {isCodexAutofillLoginOpen ? (
         <CodexAutofillLoginModal

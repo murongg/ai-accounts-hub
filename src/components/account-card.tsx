@@ -1,4 +1,4 @@
-import { memo, type CSSProperties } from "react";
+import { memo, type CSSProperties, type ReactNode } from "react";
 import { RefreshCw, ShieldCheck, Trash2, User } from "lucide-react";
 
 import { getI18n } from "../lib/i18n";
@@ -31,6 +31,7 @@ export interface AccountCardProps {
   onPrimaryClick: (accountId: string) => void;
   onSecondaryClick: (accountId: string) => void;
   onRefreshClick?: (accountId: string) => void;
+  extraAction?: ReactNode;
 }
 
 function AccountCardComponent({
@@ -54,6 +55,7 @@ function AccountCardComponent({
   onPrimaryClick,
   onSecondaryClick,
   onRefreshClick,
+  extraAction,
 }: AccountCardProps) {
   const copy = getI18n(language);
   const theme = getAccountCardTheme({ isActive, isAlive });
@@ -161,6 +163,7 @@ function AccountCardComponent({
         <div className="flex-1" />
 
         <div className="mt-auto flex items-center gap-2">
+          {extraAction}
           <button
             type="button"
             onClick={() => onPrimaryClick(accountId)}
