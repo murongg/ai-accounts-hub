@@ -1,5 +1,5 @@
-import { memo, useRef, useState } from "react";
-import { Flame, LayoutGrid, LayoutList, Menu, Plus, RefreshCw } from "lucide-react";
+import { memo, useEffect, useRef, useState } from "react";
+import { CircleCheck, Flame, LayoutGrid, LayoutList, Menu, Plus, RefreshCw, TriangleAlert } from "lucide-react";
 
 import { AccountCard } from "../components/account-card";
 import { AccountListItem } from "../components/account-list-item";
@@ -55,7 +55,7 @@ export interface AccountsPageProps {
   onViewModeChange: (mode: AccountsViewMode) => void;
   onRefreshUsage: () => void;
   onRefreshAccount: (accountId: string) => void;
-  onWarmAccount: (accountId: string) => void;
+  onWarmAccount: (accountId: string) => Promise<boolean>;
   onAddAccount: () => void;
   onOpenCodexAutofillLogin: () => void;
   onCloseCodexAutofillLogin: () => void;
@@ -65,6 +65,11 @@ export interface AccountsPageProps {
   onSwitchAccount: (accountId: string) => void;
   onDeleteAccount: (accountId: string) => void;
 }
+
+type WarmupStatus =
+  | { phase: "confirm" | "running" }
+  | { phase: "done"; refreshed: boolean }
+  | { phase: "error"; detail: string };
 
 function AccountsPageComponent({
   activeTab,
@@ -106,7 +111,45 @@ function AccountsPageComponent({
 }: AccountsPageProps) {
   const copy = getI18n(language);
   const warmupDialog = useRef<HTMLDialogElement>(null);
+  const warmupDone = useRef<HTMLButtonElement>(null);
   const [warmupTarget, setWarmupTarget] = useState<{ id: string; name: string } | null>(null);
+  const [warmupStatus, setWarmupStatus] = useState<WarmupStatus>({ phase: "confirm" });
+  const warmupCopy = copy.accounts.warmup;
+  const warmupFinished = warmupStatus.phase === "done" || warmupStatus.phase === "error";
+  let warmupTitle = warmupCopy.action;
+  let warmupDescription = warmupCopy.confirm;
+  switch (warmupStatus.phase) {
+    case "running":
+      warmupDescription = warmupCopy.running;
+      break;
+    case "done":
+      warmupTitle = warmupCopy.completedTitle;
+      warmupDescription = warmupStatus.refreshed ? warmupCopy.completed : warmupCopy.refreshFailed;
+      break;
+    case "error":
+      warmupTitle = warmupCopy.errorTitle;
+      warmupDescription = warmupStatus.detail;
+      break;
+  }
+
+  useEffect(() => {
+    if (warmupFinished) {
+      warmupDone.current?.focus();
+    }
+  }, [warmupFinished]);
+
+  async function submitWarmup() {
+    if (!warmupTarget || warmupStatus.phase !== "confirm") {
+      return;
+    }
+    setWarmupStatus({ phase: "running" });
+    try {
+      const refreshed = await onWarmAccount(warmupTarget.id);
+      setWarmupStatus({ phase: "done", refreshed });
+    } catch (error) {
+      setWarmupStatus({ phase: "error", detail: error instanceof Error ? error.message : String(error) });
+    }
+  }
 
   function warmupAction(account: CodexAccountSummary) {
     const name = displayEmailAddress(account.email, emailPrivacyEnabled);
@@ -121,6 +164,7 @@ function AccountsPageComponent({
         className={`btn btn-ghost btn-sm shrink-0 rounded-xl ${viewMode === "mini" ? "btn-square" : "gap-1 px-2"}`}
         onClick={() => {
           setWarmupTarget({ id: account.id, name });
+          setWarmupStatus({ phase: "confirm" });
           warmupDialog.current?.showModal();
         }}
       >
@@ -587,28 +631,47 @@ function AccountsPageComponent({
         className="modal"
         aria-labelledby="codex-warmup-title"
         aria-describedby="codex-warmup-description"
+        onCancel={(event) => {
+          if (warmupStatus.phase === "running") {
+            event.preventDefault();
+          }
+        }}
         onClose={() => setWarmupTarget(null)}
       >
         <form
           className="modal-box"
           onSubmit={(event) => {
             event.preventDefault();
-            if (warmupTarget) {
-              onWarmAccount(warmupTarget.id);
-              warmupDialog.current?.close();
-            }
+            void submitWarmup();
           }}
         >
-          <h2 id="codex-warmup-title" className="text-lg font-semibold">{copy.accounts.warmup.action}</h2>
+          <h2 id="codex-warmup-title" className="flex items-center gap-2 text-lg font-semibold">
+            {warmupStatus.phase === "done" && warmupStatus.refreshed ? (
+              <CircleCheck size={19} className="text-success" aria-hidden="true" />
+            ) : warmupFinished ? (
+              <TriangleAlert size={19} className="text-warning" aria-hidden="true" />
+            ) : null}
+            {warmupTitle}
+          </h2>
           <p className="mt-2 break-words text-sm font-medium">{warmupTarget?.name}</p>
-          <p id="codex-warmup-description" className="mt-2 text-sm text-base-content/70">
-            {copy.accounts.warmup.confirm}
+          <p id="codex-warmup-description" role="status" className="mt-2 break-words text-sm text-base-content/70">
+            {warmupDescription}
           </p>
           <div className="modal-action">
-            <button type="button" className="btn btn-ghost" autoFocus onClick={() => warmupDialog.current?.close()}>
-              {copy.accounts.autofillModal.cancel}
-            </button>
-            <button type="submit" className="btn btn-primary">{copy.accounts.warmup.action}</button>
+            {warmupFinished ? (
+              <button type="button" ref={warmupDone} className="btn btn-primary" onClick={() => warmupDialog.current?.close()}>
+                {warmupCopy.done}
+              </button>
+            ) : warmupStatus.phase === "running" ? (
+              <span className="loading loading-spinner my-3" aria-hidden="true" />
+            ) : (
+              <>
+                <button type="button" className="btn btn-ghost" autoFocus onClick={() => warmupDialog.current?.close()}>
+                  {copy.accounts.autofillModal.cancel}
+                </button>
+                <button type="submit" className="btn btn-primary">{warmupCopy.action}</button>
+              </>
+            )}
           </div>
         </form>
       </dialog>

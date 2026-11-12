@@ -63,8 +63,12 @@ export interface I18nMessages {
     warmup: {
       action: string;
       confirm: string;
+      running: string;
+      completedTitle: string;
       completed: string;
       refreshFailed: string;
+      errorTitle: string;
+      done: string;
     };
     acceleratedRefreshActive: string;
     emptyState: {
@@ -294,8 +298,12 @@ function createChineseCopy(): I18nMessages {
       warmup: {
         action: "预热",
         confirm: "使用此账号发送一条轻量请求。请求会计入用量，完成后将刷新该账号的额度。",
-        completed: "预热请求已完成，额度已更新。请查看重置时间。",
-        refreshFailed: "预热请求已完成，额度暂未更新。请稍后点刷新。",
+        running: "正在发送预热请求并检查额度，请稍候。",
+        completedTitle: "预热完成",
+        completed: "额度已更新。关闭后可查看该账号的重置时间。",
+        refreshFailed: "请求已完成，暂未获取最新额度。请稍后刷新列表。",
+        errorTitle: "未能完成预热",
+        done: "完成",
       },
       acceleratedRefreshActive: "1 分钟刷新中",
       emptyState: {
@@ -497,8 +505,12 @@ function createEnglishCopy(): I18nMessages {
       warmup: {
         action: "Warm up",
         confirm: "Send one small request with this account. It counts toward usage. The app will then refresh this account’s quota.",
-        completed: "Warm-up completed and quota refreshed. Check the reset times.",
-        refreshFailed: "Warm-up completed. Refresh usage again later to see the updated quota.",
+        running: "Sending the warm-up request and checking quota.",
+        completedTitle: "Warm-up complete",
+        completed: "Quota refreshed. Close this dialog to check the reset times.",
+        refreshFailed: "The request completed. Refresh the account list later to get the latest quota.",
+        errorTitle: "Warm-up could not complete",
+        done: "Done",
       },
       acceleratedRefreshActive: "1-minute refresh active",
       emptyState: {

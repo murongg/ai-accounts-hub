@@ -28,7 +28,6 @@ import {
 } from "../lib/gemini-accounts";
 import { getPlatformAccountMetrics, sortAccountsByPrimaryQuota } from "../lib/accounts-display";
 import { createLatestRequestGate } from "../lib/accounts-workspace";
-import { getI18n } from "../lib/i18n";
 import { normalizeCodexAutofillLoginInput } from "../lib/codex-autofill-login";
 import {
   detectDesktopPlatform,
@@ -498,21 +497,18 @@ function AccountsWorkspaceComponent({
   const handleWarmCodexAccount = useCallback(
     async (accountId: string) => {
       if (activePlatform !== "codex" || warmingCodexAccountId) {
-        return;
+        throw new Error("Codex warm-up is unavailable.");
       }
-      const copy = getI18n(language).accounts.warmup;
       setWarmingCodexAccountId(accountId);
       try {
         const refreshed = await warmCodexAccount(accountId);
         await refreshCodexAccounts(false);
-        onToast(refreshed ? "success" : "info", refreshed ? copy.completed : copy.refreshFailed);
-      } catch (error) {
-        onToast("error", errorMessage(error));
+        return refreshed;
       } finally {
         setWarmingCodexAccountId(null);
       }
     },
-    [activePlatform, language, onToast, refreshCodexAccounts, warmingCodexAccountId],
+    [activePlatform, refreshCodexAccounts, warmingCodexAccountId],
   );
 
   const closeCodexAutofillLogin = useCallback(() => {
@@ -635,7 +631,7 @@ function AccountsWorkspaceComponent({
       onViewModeChange={onViewModeChange}
       onRefreshUsage={() => void handleRefreshUsage()}
       onRefreshAccount={(accountId) => void handleRefreshCodexAccount(accountId)}
-      onWarmAccount={(accountId) => void handleWarmCodexAccount(accountId)}
+      onWarmAccount={handleWarmCodexAccount}
       onAddAccount={() => void handleAddAccount()}
       onOpenCodexAutofillLogin={() => setIsCodexAutofillLoginOpen(true)}
       onCloseCodexAutofillLogin={closeCodexAutofillLogin}
