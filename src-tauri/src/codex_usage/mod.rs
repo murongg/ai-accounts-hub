@@ -61,3 +61,11 @@ pub async fn refresh_codex_account_usage(
 ) -> Result<(), String> {
     scheduler.refresh_codex_account_now(account_id).await
 }
+
+#[tauri::command]
+pub async fn warm_codex_account(
+    scheduler: State<'_, CodexUsageSchedulerState>,
+    account_id: String,
+) -> Result<bool, String> {
+    scheduler.warm_codex_account(account_id).await
+}

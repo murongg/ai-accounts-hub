@@ -72,6 +72,7 @@ pub fn run() {
             codex_usage::update_codex_refresh_settings,
             codex_usage::refresh_codex_usage_now,
             codex_usage::refresh_codex_account_usage,
+            codex_usage::warm_codex_account,
             status_bar::show_main_window,
             status_bar::quit_application
         ])

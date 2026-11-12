@@ -202,7 +202,7 @@ fn map_window(window: CodexUsageApiWindow) -> (RateWindowSnapshot, WindowRole) {
     )
 }
 
-fn resolve_usage_url(managed_home: &Path) -> String {
+pub(super) fn resolve_usage_url(managed_home: &Path) -> String {
     let config_path = managed_home.join("config.toml");
     let config_contents = std::fs::read_to_string(config_path).ok();
     let base = config_contents

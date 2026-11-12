@@ -60,6 +60,16 @@ export interface I18nMessages {
     switchPrimary: string;
     switchPrimaryCompact: string;
     refreshAccountAria: string;
+    warmup: {
+      action: string;
+      confirm: string;
+      running: string;
+      completedTitle: string;
+      completed: string;
+      refreshFailed: string;
+      errorTitle: string;
+      done: string;
+    };
     acceleratedRefreshActive: string;
     emptyState: {
       unsupportedPlatform: (label: string) => string;
@@ -285,6 +295,16 @@ function createChineseCopy(): I18nMessages {
       switchPrimary: "切换至此账号",
       switchPrimaryCompact: "切换",
       refreshAccountAria: "刷新这个账号",
+      warmup: {
+        action: "预热",
+        confirm: "使用此账号发送一条轻量请求。请求会计入用量，完成后将刷新该账号的额度。",
+        running: "正在发送预热请求并检查额度，请稍候。",
+        completedTitle: "预热完成",
+        completed: "额度已更新。关闭后可查看该账号的重置时间。",
+        refreshFailed: "请求已完成，暂未获取最新额度。请稍后刷新列表。",
+        errorTitle: "未能完成预热",
+        done: "完成",
+      },
       acceleratedRefreshActive: "1 分钟刷新中",
       emptyState: {
         unsupportedPlatform: (label) => `${label} 即将接入`,
@@ -482,6 +502,16 @@ function createEnglishCopy(): I18nMessages {
       switchPrimary: "Switch to this account",
       switchPrimaryCompact: "Switch",
       refreshAccountAria: "Refresh this account",
+      warmup: {
+        action: "Warm up",
+        confirm: "Send one small request with this account. It counts toward usage. The app will then refresh this account’s quota.",
+        running: "Sending the warm-up request and checking quota.",
+        completedTitle: "Warm-up complete",
+        completed: "Quota refreshed. Close this dialog to check the reset times.",
+        refreshFailed: "The request completed. Refresh the account list later to get the latest quota.",
+        errorTitle: "Warm-up could not complete",
+        done: "Done",
+      },
       acceleratedRefreshActive: "1-minute refresh active",
       emptyState: {
         unsupportedPlatform: (label) => `${label} is coming soon`,

@@ -59,6 +59,11 @@ enum SchedulerCommand {
         account_id: String,
         respond_to: oneshot::Sender<Result<(), String>>,
     },
+    WarmCodexAccount {
+        account_id: String,
+        _permit: tokio::sync::OwnedMutexGuard<()>,
+        respond_to: oneshot::Sender<Result<bool, String>>,
+    },
     UpdateSettings(CodexRefreshSettings),
 }
 
@@ -98,6 +103,7 @@ struct DueAcceleratedCodexRefresh {
 pub struct CodexUsageSchedulerState {
     sender: Mutex<Option<mpsc::UnboundedSender<SchedulerCommand>>>,
     accelerated_codex_refresh_state: Arc<Mutex<AcceleratedCodexRefreshState>>,
+    warmup: Arc<tokio::sync::Mutex<()>>,
 }
 
 impl Default for CodexUsageSchedulerState {
@@ -107,6 +113,7 @@ impl Default for CodexUsageSchedulerState {
             accelerated_codex_refresh_state: Arc::new(Mutex::new(
                 AcceleratedCodexRefreshState::default(),
             )),
+            warmup: Arc::new(tokio::sync::Mutex::new(())),
         }
     }
 }
@@ -167,6 +174,28 @@ impl CodexUsageSchedulerState {
         sender
             .send(SchedulerCommand::RefreshCodexAccount {
                 account_id,
+                respond_to: tx,
+            })
+            .map_err(|_| "scheduler task is no longer running".to_string())?;
+        rx.await
+            .map_err(|_| "scheduler response channel closed".to_string())?
+    }
+
+    pub async fn warm_codex_account(&self, account_id: String) -> Result<bool, String> {
+        let permit = Arc::clone(&self.warmup)
+            .try_lock_owned()
+            .map_err(|_| "A Codex warm-up is already in progress.".to_string())?;
+        let sender = self
+            .sender
+            .lock()
+            .map_err(|_| "scheduler lock poisoned".to_string())?
+            .clone()
+            .ok_or_else(|| "scheduler not initialized".to_string())?;
+        let (tx, rx) = oneshot::channel();
+        sender
+            .send(SchedulerCommand::WarmCodexAccount {
+                account_id,
+                _permit: permit,
                 respond_to: tx,
             })
             .map_err(|_| "scheduler task is no longer running".to_string())?;
@@ -305,6 +334,9 @@ async fn run_scheduler_loop(
                                 ).await
                             );
                         }
+                        Some(SchedulerCommand::WarmCodexAccount { account_id, _permit, respond_to }) => {
+                            let _ = respond_to.send(run_warm_codex_account(&app, paths.clone(), account_id).await);
+                        }
                         Some(SchedulerCommand::UpdateSettings(next)) => {
                             settings = next;
                             if settings.enabled {
@@ -344,6 +376,9 @@ async fn run_scheduler_loop(
                         ).await
                     );
                 }
+                Some(SchedulerCommand::WarmCodexAccount { account_id, _permit, respond_to }) => {
+                    let _ = respond_to.send(run_warm_codex_account(&app, paths.clone(), account_id).await);
+                }
                 Some(SchedulerCommand::UpdateSettings(next)) => {
                     settings = next;
                     if settings.enabled {
@@ -364,6 +399,21 @@ async fn run_scheduler_loop(
             }
         }
     }
+}
+
+async fn run_warm_codex_account(
+    app: &AppHandle,
+    paths: CodexAccountPaths,
+    account_id: String,
+) -> Result<bool, String> {
+    let refreshed = tauri::async_runtime::spawn_blocking(move || {
+        CodexUsageService::with_process_fetcher(paths).warm_account(&account_id)
+    })
+    .await
+    .map_err(|error| error.to_string())??;
+    let _ = app.emit("codex-usage-updated", ());
+    let _ = crate::status_bar::refresh_status_menu(app);
+    Ok(refreshed)
 }
 
 async fn run_refresh_codex_account(

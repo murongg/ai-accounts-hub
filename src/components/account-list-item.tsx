@@ -1,4 +1,4 @@
-import { memo, type CSSProperties } from "react";
+import { memo, type CSSProperties, type ReactNode } from "react";
 import { ArrowRightLeft, Check, RefreshCw, ShieldCheck, Trash2, TriangleAlert, User } from "lucide-react";
 
 import { getI18n, type I18nMessages } from "../lib/i18n";
@@ -31,6 +31,7 @@ export interface AccountListItemProps {
   onPrimaryClick: (accountId: string) => void;
   onSecondaryClick: (accountId: string) => void;
   onRefreshClick?: (accountId: string) => void;
+  extraAction?: ReactNode;
 }
 
 function AccountListItemComponent({
@@ -54,6 +55,7 @@ function AccountListItemComponent({
   onPrimaryClick,
   onSecondaryClick,
   onRefreshClick,
+  extraAction,
 }: AccountListItemProps) {
   const copy = getI18n(language);
   const theme = getAccountCardTheme({ isActive, isAlive });
@@ -152,6 +154,7 @@ function AccountListItemComponent({
         )}
 
         <div className={actionGroupClass}>
+          {extraAction}
           <button
             type="button"
             onClick={() => onPrimaryClick(accountId)}
